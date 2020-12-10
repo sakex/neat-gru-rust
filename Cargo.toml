@@ -1,0 +1,29 @@
+[package]
+name = "neat-gru"
+version = "0.2.0"
+authors = ["sakex <alexandre@senges.ch>"]
+edition = "2018"
+description = "NEAT algorithm with GRU gates"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = "1.0.118"
+num = "0.3.1"
+rand = "0.7.3"
+
+[profile.release]
+# Link time optimisation, possibly even with C++, equivalent to G++'s -flto
+lto = true
+
+# codegen-units of 1 gives best optimization, but disables parallel building.
+# Default: 16
+codegen-units = 1
+
+# Prevent inserting panic handlers in ASM
+panic = "abort"
+
+# Optimisation level, equivalent to G++'s -O3
+opt-level = 3
