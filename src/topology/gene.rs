@@ -80,7 +80,7 @@ impl<T> Gene<T> where T: Float {
 
     pub fn new_random(rng: &mut ThreadRng, input: Point, output: Point, min: f64, max: f64) -> Gene<T> {
         let unif = Uniform::from(min..max);
-        let mut connection_type_picker = Uniform::from(0..2);
+        let connection_type_picker = Uniform::from(0..2);
         let connection_type = connection_type_picker.sample(rng);
         Gene {
             input,

@@ -11,15 +11,15 @@ use std::cell::RefCell;
 
 pub struct Topology<T>
     where T: Float {
-    layers: usize,
+    pub layers: usize,
     max_layers: usize,
     max_per_layers: usize,
     last_result: T,
     best_historical_result: T,
     result_before_mutation: T,
-    layers_size: Vec<u8>,
+    pub layers_sizes: Vec<u8>,
     bias: Vec<Bias<T>>,
-    genes_point: HashMap<Point, BiasAndGenes<T>>,
+    pub genes_point: HashMap<Point, BiasAndGenes<T>>,
     genes_ev_number: HashMap<u64, Rc<RefCell<Gene<T>>>>,
 }
 
@@ -57,7 +57,7 @@ impl<T> Clone for Topology<T> where T: Float {
             last_result: self.last_result,
             best_historical_result: self.best_historical_result,
             result_before_mutation: self.result_before_mutation,
-            layers_size: self.layers_size.clone(),
+            layers_sizes: self.layers_sizes.clone(),
             bias: self.bias.clone(),
             genes_point,
             genes_ev_number,
@@ -74,7 +74,7 @@ impl<T> Topology<T> where T: Float {
             last_result: T::from(0).unwrap(),
             best_historical_result: T::from(0).unwrap(),
             result_before_mutation: T::from(0).unwrap(),
-            layers_size: Vec::new(),
+            layers_sizes: Vec::new(),
             bias: Vec::new(),
             genes_point: HashMap::new(),
             genes_ev_number: HashMap::new(),
@@ -170,14 +170,14 @@ impl<T> Topology<T> where T: Float {
         let gene_cp = gene.clone();
         let input = &gene.borrow().input;
         let output = &gene.borrow().output;
-        if input.index + 1 > self.layers_size[input.layer as usize] {
-            self.layers_size[input.layer as usize] = input.index + 1;
+        if input.index + 1 > self.layers_sizes[input.layer as usize] {
+            self.layers_sizes[input.layer as usize] = input.index + 1;
         }
         if !init && output.index as usize == self.layers {
             self.resize(output.layer as usize);
             gene.borrow_mut().decrement_output();
         } else {
-            self.layers_size[output.layer as usize] = output.index + 1;
+            self.layers_sizes[output.layer as usize] = output.index + 1;
         }
         self.add_to_relationship_map(gene_cp);
     }
@@ -190,9 +190,9 @@ impl<T> Topology<T> where T: Float {
             }
         }
         self.layers = layers;
-        self.layers_size.resize(layers, 1);
-        self.layers_size[layers - 1] = self.layers_size[layers - 2];
-        self.layers_size[layers - 2] = 1;
+        self.layers_sizes.resize(layers, 1);
+        self.layers_sizes[layers - 1] = self.layers_sizes[layers - 2];
+        self.layers_sizes[layers - 2] = 1;
     }
 
     pub fn set_last_result(&mut self, result: T) {
@@ -221,17 +221,17 @@ impl<T> Topology<T> where T: Float {
         } else {
             0
         };
-        let input_index: u8 = rng.gen_range(0, self.layers_size[input_layer as usize]);
+        let input_index: u8 = rng.gen_range(0, self.layers_sizes[input_layer as usize]);
         let output_layer: u8 = rng.gen_range(input_index, max_layer as u8);
         let mut output_index: u8 = 0;
 
         if (output_layer as usize) < self.layers - 1 {
-            output_index = rng.gen_range(0, (self.layers_size[output_layer as usize]).min(self.max_per_layers as u8));
-            if output_index >= self.layers_size[output_layer as usize] {
+            output_index = rng.gen_range(0, (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8));
+            if output_index >= self.layers_sizes[output_layer as usize] {
                 new_output = true
             }
         } else if (output_layer as usize) == self.layers - 1 {
-            output_index = rng.gen_range(0, self.layers_size[output_layer as usize]);
+            output_index = rng.gen_range(0, self.layers_sizes[output_layer as usize]);
         } else { // if output_index == layers
             new_output = true;
         }
@@ -239,7 +239,7 @@ impl<T> Topology<T> where T: Float {
         let output = Point::new(output_layer, output_index);
         self.new_gene(&mut rng, input.clone(), output.clone());
         if new_output {
-            let last_layer_size = self.layers_size.last().unwrap();
+            let last_layer_size = self.layers_sizes.last().unwrap();
             let index = rng.gen_range(0, last_layer_size);
             let output_of_output = Point::new((self.layers - 1) as u8, index);
             self.new_gene(&mut rng, output.clone(), output_of_output);

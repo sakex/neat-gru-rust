@@ -5,9 +5,9 @@ use rand::distributions::{Uniform, Distribution};
 #[derive(Clone)]
 pub struct Bias<T>
     where T: Float {
-    bias_input: T,
-    bias_update: T,
-    bias_reset: T,
+    pub bias_input: T,
+    pub bias_update: T,
+    pub bias_reset: T,
 }
 
 impl<T> Bias<T> where T: Float {
@@ -17,8 +17,16 @@ impl<T> Bias<T> where T: Float {
         let uniform = Uniform::from(min..max);
         Bias {
             bias_input: T::from(uniform.sample(rng)).unwrap(),
-            bias_update:  T::from(uniform.sample(rng)).unwrap(),
-            bias_reset:  T::from(uniform.sample(rng)).unwrap(),
+            bias_update: T::from(uniform.sample(rng)).unwrap(),
+            bias_reset: T::from(uniform.sample(rng)).unwrap(),
+        }
+    }
+
+    pub fn new() -> Bias<T> {
+        Bias {
+            bias_input: T::from(0).unwrap(),
+            bias_update: T::from(0).unwrap(),
+            bias_reset: T::from(0).unwrap(),
         }
     }
 }

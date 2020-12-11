@@ -198,7 +198,7 @@ impl<'a, T, F> Train<'a, T, F>
             ).flatten().collect();
         let networks: Vec<NeuralNetwork<F>> = self.topologies_.iter().map(|top_rc| {
             let top = &*top_rc.borrow();
-            NeuralNetwork::new(&top)
+            unsafe { NeuralNetwork::new(&top) }
         }).collect();
         self.simulation.reset_players(&networks);
     }
