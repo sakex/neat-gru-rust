@@ -15,7 +15,7 @@ where
     /// # Arguments
     ///
     /// `nets` - A vector containing the last generation of neural networks
-    fn reset_players(&mut self, nets: &[NeuralNetwork<T>]);
+    fn reset_players(&mut self, nets: Vec<NeuralNetwork<T>>);
 
     /// Function to be run at the end of the training
     ///

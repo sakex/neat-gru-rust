@@ -6,6 +6,7 @@ use crate::train::species::Species;
 use num::Float;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Instant;
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
@@ -167,7 +168,7 @@ where
     ///         vec![1.; 5]
     ///     }
     ///
-    /// fn reset_players(&mut self,nets: &[NeuralNetwork<f64>]) { }
+    /// fn reset_players(&mut self,nets: Vec<NeuralNetwork<f64>>) { }
     ///
     /// fn post_training(&mut self,history: &[Topology<f64>]) { }
     ///
@@ -200,13 +201,20 @@ where
 
         self.reset_players();
         for i in 0..self.iterations_ {
+            println!("Generation {}", i);
+            let now = Instant::now();
             let results = self.simulation.run_generation();
+            println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
             self.set_last_results(&results);
             if i % 5 == 0 {
                 self.reset_species();
             }
+            let now = Instant::now();
             self.natural_selection();
+            println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
+            let now = Instant::now();
             self.reset_players();
+            println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
         }
         self.simulation.post_training(&*self.history_);
     }
@@ -236,7 +244,7 @@ where
                 unsafe { NeuralNetwork::new(&top) }
             })
             .collect();
-        self.simulation.reset_players(&networks);
+        self.simulation.reset_players(networks);
     }
 
     fn set_last_results(&mut self, results: &Vec<F>) {

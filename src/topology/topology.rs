@@ -12,8 +12,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct Topology<T>
-    where
-        T: Float,
+where
+    T: Float,
 {
     pub layers: usize,
     max_layers: usize,
@@ -28,8 +28,8 @@ pub struct Topology<T>
 }
 
 impl<T> Clone for Topology<T>
-    where
-        T: Float,
+where
+    T: Float,
 {
     fn clone(&self) -> Topology<T> {
         let genes_point: HashMap<Point, BiasAndGenes<T>> = self
@@ -78,8 +78,8 @@ impl<T> Clone for Topology<T>
 }
 
 impl<T> Topology<T>
-    where
-        T: Float,
+where
+    T: Float,
 {
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
@@ -156,6 +156,7 @@ impl<T> Topology<T>
             }
         }
         let mut new_topology = Topology::new(max_layers, max_per_layers);
+        new_topology.set_layers(2);
         let mut not_added_it = 0;
         for i in 0..input_count {
             let input = Point::new(0, i as u8);
@@ -178,6 +179,13 @@ impl<T> Topology<T>
         new_topology
     }
 
+    pub fn set_layers(&mut self, layers: usize) {
+        self.layers = layers;
+        self.layers_sizes.resize(layers, 1);
+        self.layers_sizes[layers - 1] = self.layers_sizes[layers - 2];
+        self.layers_sizes[layers - 2] = 1;
+    }
+
     fn generate_output_bias(&mut self, rng: &mut ThreadRng) {
         let last_layer_size = self.layers_sizes.last().unwrap();
         self.output_bias = (0..*last_layer_size)
@@ -186,57 +194,50 @@ impl<T> Topology<T>
             .collect();
     }
 
-    fn add_to_relationship_map(&mut self, gene: Rc<RefCell<Gene<T>>>) {
-        let mut rng = thread_rng();
+    pub fn add_relationship(&mut self, gene: Rc<RefCell<Gene<T>>>, init: bool) {
         let gene_cp = gene.clone();
-        let cell = &*gene_cp;
-        let gene_borrow = &*cell.borrow();
-        let input = &gene_borrow.input;
-        let ev_number = gene_borrow.evolution_number;
+        // Drop refcell
+        let (input, ev_number) = {
+            let cell = &*gene;
+            let gene = &mut *cell.borrow_mut();
+            let input = gene.input.clone();
+            let output = gene.output.clone();
+            let ev_number = gene.evolution_number;
+            if input.index + 1 > self.layers_sizes[input.layer as usize] {
+                self.layers_sizes[input.layer as usize] = input.index + 1;
+            }
+            if !init && output.index as usize == self.layers {
+                self.resize(output.layer as usize);
+                gene.decrement_output();
+            } else {
+                self.layers_sizes[output.layer as usize] = output.index + 1;
+            }
+            (input, ev_number)
+        };
+        let mut rng = thread_rng();
         match self.genes_point.get_mut(&input) {
             Some(found) => {
-                found.genes.push(gene.clone());
+                found.genes.push(gene_cp.clone());
                 found.genes.sort();
             }
             None => {
                 let bias = Bias::new_random(&mut rng);
                 let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
-                bias_and_genes.genes = vec![gene.clone()];
+                bias_and_genes.genes = vec![gene_cp.clone()];
                 self.genes_point.insert(input.clone(), bias_and_genes);
             }
         }
-        self.genes_ev_number.insert(ev_number, gene);
-    }
-
-    pub fn add_relationship(&mut self, gene: Rc<RefCell<Gene<T>>>, init: bool) {
-        let gene_cp = gene.clone();
-        let cell = &*gene;
-        let gene = &*cell.borrow();
-        let input = &gene.input;
-        let output = &gene.output;
-        if input.index + 1 > self.layers_sizes[input.layer as usize] {
-            self.layers_sizes[input.layer as usize] = input.index + 1;
-        }
-        if !init && output.index as usize == self.layers {
-            self.resize(output.layer as usize);
-            gene_cp.borrow_mut().decrement_output();
-        } else {
-            self.layers_sizes[output.layer as usize] = output.index + 1;
-        }
-        self.add_to_relationship_map(gene_cp);
+        self.genes_ev_number.insert(ev_number, gene_cp);
     }
 
     fn resize(&mut self, layers: usize) {
         for (_point, bias_and_gene) in self.genes_point.iter() {
             for gene_rc in &bias_and_gene.genes {
-                let mut gene = gene_rc.borrow_mut();
+                let mut gene = (&**gene_rc).borrow_mut();
                 gene.resize(layers - 1, layers);
             }
         }
-        self.layers = layers;
-        self.layers_sizes.resize(layers, 1);
-        self.layers_sizes[layers - 1] = self.layers_sizes[layers - 2];
-        self.layers_sizes[layers - 2] = 1;
+        self.set_layers(layers + 1);
     }
 
     pub fn set_last_result(&mut self, result: T) {
@@ -264,26 +265,26 @@ impl<T> Topology<T>
         let mut rng = thread_rng();
 
         let mut new_output = false;
-        let max_layer = self.layers.max(self.max_layers);
+        let max_layer = self.layers.min(self.max_layers);
         let input_layer = if self.layers >= 2 {
-            rng.gen_range(0, self.max_layers - 2) as u8
+            rng.gen_range(0, max_layer - 2 + 1) as u8
         } else {
             0
         };
-        let input_index: u8 = rng.gen_range(0, self.layers_sizes[input_layer as usize]);
-        let output_layer: u8 = rng.gen_range(input_index, max_layer as u8);
+        let input_index: u8 = rng.gen_range(0, self.layers_sizes[input_layer as usize] + 1);
+        let output_layer: u8 = rng.gen_range(input_layer + 1, max_layer as u8);
         let mut output_index: u8 = 0;
 
         if (output_layer as usize) < self.layers - 1 {
             output_index = rng.gen_range(
                 0,
-                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8),
+                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8 + 1),
             );
             if output_index >= self.layers_sizes[output_layer as usize] {
                 new_output = true
             }
         } else if (output_layer as usize) == self.layers - 1 {
-            output_index = rng.gen_range(0, self.layers_sizes[output_layer as usize]);
+            output_index = rng.gen_range(0, self.layers_sizes[output_layer as usize] + 1);
         } else {
             // if output_index == layers
             new_output = true;
@@ -293,7 +294,7 @@ impl<T> Topology<T>
         self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
         if new_output {
             let last_layer_size = self.layers_sizes.last().unwrap();
-            let index = rng.gen_range(0, last_layer_size);
+            let index = rng.gen_range(0, last_layer_size + 1);
             let output_of_output = Point::new((self.layers - 1) as u8, index);
             self.new_gene(&mut rng, output.clone(), output_of_output, &ev_number);
         }
@@ -323,15 +324,19 @@ impl<T> Topology<T>
                     if gene_rc == last {
                         continue;
                     }
-                    let mut gene = gene_rc.borrow_mut();
-                    if gene.disabled {
-                        continue;
-                    }
-                    let compared_output = &gene.output;
-                    if output == *compared_output
+                    let cell = &**gene_rc;
+                    let compared_output = {
+                        let gene = cell.borrow();
+                        if gene.disabled {
+                            continue;
+                        }
+                        gene.output.clone()
+                    };
+                    if output == compared_output
                         || self.path_overrides(&compared_output, &output)
                         || self.path_overrides(&output, &compared_output)
                     {
+                        let mut gene = cell.borrow_mut();
                         gene.disabled = true;
                     }
                 }
@@ -436,12 +441,7 @@ impl<T> Topology<T>
         let mut biases: Vec<SerializationBias> = self
             .genes_point
             .iter()
-            .map(|(point, b_and_g)| {
-                SerializationBias::new(
-                    point.clone(),
-                    b_and_g.bias.clone(),
-                )
-            })
+            .map(|(point, b_and_g)| SerializationBias::new(point.clone(), b_and_g.bias.clone()))
             .collect();
         let last_layer = self.layers - 1;
         let mut output_biases: Vec<SerializationBias> = self

@@ -68,8 +68,9 @@ where
             }
         }
 
-        for it in (neurons_count - output_size)..neurons_count {
-            neurons[it].bias = topology.output_bias[it - neurons_count + output_size].clone();
+        let base = output_size as isize - neurons_count as isize;
+        for it in (neurons_count - output_size) as isize..neurons_count as isize {
+            neurons[it as usize].bias = topology.output_bias[(it + base) as usize].clone();
         }
 
         NeuralNetwork {
@@ -104,5 +105,11 @@ where
         for neuron in self.neurons.iter_mut() {
             neuron.reset_state();
         }
+    }
+
+    pub fn from_string(serialized: &str) -> NeuralNetwork<T> {
+        let top = Topology::from_string(serialized);
+        let net = unsafe { NeuralNetwork::new(&top) };
+        net
     }
 }
