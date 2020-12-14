@@ -1,7 +1,7 @@
 #[derive(Clone)]
 pub enum ConnectionType {
-    Sigmoid = 0,
-    GRU = 1,
+    Sigmoid,
+    GRU,
 }
 
 impl ConnectionType {
@@ -10,6 +10,13 @@ impl ConnectionType {
             0 => ConnectionType::Sigmoid,
             1 => ConnectionType::GRU,
             _ => panic!("Invalid value {}", i),
+        }
+    }
+
+    pub fn to_int(&self) -> i32 {
+        match self {
+            ConnectionType::Sigmoid => 0,
+            ConnectionType::GRU => 1,
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::topology::bias::Bias;
 use crate::topology::bias_and_genes::BiasAndGenes;
 use crate::topology::connection_type::ConnectionType;
 use crate::topology::gene::{Gene, Point};
-use crate::topology::serialization::SerializationTopology;
+use crate::topology::serialization::{SerializationBias, SerializationGene, SerializationTopology};
 use crate::train::evolution_number::EvNumber;
 use num::traits::Float;
 use rand::prelude::ThreadRng;
@@ -12,8 +12,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct Topology<T>
-where
-    T: Float,
+    where
+        T: Float,
 {
     pub layers: usize,
     max_layers: usize,
@@ -28,8 +28,8 @@ where
 }
 
 impl<T> Clone for Topology<T>
-where
-    T: Float,
+    where
+        T: Float,
 {
     fn clone(&self) -> Topology<T> {
         let genes_point: HashMap<Point, BiasAndGenes<T>> = self
@@ -78,8 +78,8 @@ where
 }
 
 impl<T> Topology<T>
-where
-    T: Float,
+    where
+        T: Float,
 {
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
@@ -103,10 +103,12 @@ where
 
         let one = T::from(1).unwrap();
         for (ev_number, gene1) in top1.genes_ev_number.iter() {
-            let gene1 = gene1.borrow();
+            let cell = &**gene1;
+            let gene1 = &*cell.borrow();
             match top2.genes_ev_number.get(ev_number) {
                 Some(gene2) => {
-                    let gene2 = gene2.borrow();
+                    let cell2 = &**gene2;
+                    let gene2 = &*cell2.borrow();
                     common = common + one;
                     w = w
                         + (gene1.input_weight - gene2.input_weight).abs()
@@ -187,7 +189,8 @@ where
     fn add_to_relationship_map(&mut self, gene: Rc<RefCell<Gene<T>>>) {
         let mut rng = thread_rng();
         let gene_cp = gene.clone();
-        let gene_borrow = gene_cp.borrow();
+        let cell = &*gene_cp;
+        let gene_borrow = &*cell.borrow();
         let input = &gene_borrow.input;
         let ev_number = gene_borrow.evolution_number;
         match self.genes_point.get_mut(&input) {
@@ -207,14 +210,16 @@ where
 
     pub fn add_relationship(&mut self, gene: Rc<RefCell<Gene<T>>>, init: bool) {
         let gene_cp = gene.clone();
-        let input = &gene.borrow().input;
-        let output = &gene.borrow().output;
+        let cell = &*gene;
+        let gene = &*cell.borrow();
+        let input = &gene.input;
+        let output = &gene.output;
         if input.index + 1 > self.layers_sizes[input.layer as usize] {
             self.layers_sizes[input.layer as usize] = input.index + 1;
         }
         if !init && output.index as usize == self.layers {
             self.resize(output.layer as usize);
-            gene.borrow_mut().decrement_output();
+            gene_cp.borrow_mut().decrement_output();
         } else {
             self.layers_sizes[output.layer as usize] = output.index + 1;
         }
@@ -340,7 +345,8 @@ where
             Some(found) => {
                 let genes = &found.genes;
                 for gene_rc in genes {
-                    let gene = gene_rc.borrow();
+                    let cell = &**gene_rc;
+                    let gene = &*cell.borrow();
                     if gene.disabled {
                         continue;
                     }
@@ -424,5 +430,56 @@ where
             );
         }
         new_top
+    }
+
+    pub fn to_string(&self) -> String {
+        let mut biases: Vec<SerializationBias> = self
+            .genes_point
+            .iter()
+            .map(|(point, b_and_g)| {
+                SerializationBias::new(
+                    point.clone(),
+                    b_and_g.bias.clone(),
+                )
+            })
+            .collect();
+        let last_layer = self.layers - 1;
+        let mut output_biases: Vec<SerializationBias> = self
+            .output_bias
+            .iter()
+            .enumerate()
+            .map(|(index, bias)| {
+                SerializationBias::new(Point::new(last_layer as u8, index as u8), bias.clone())
+            })
+            .collect();
+        biases.append(&mut output_biases);
+        let genes = self
+            .genes_point
+            .iter()
+            .map(|(_point, gene)| {
+                gene.genes
+                    .iter()
+                    .map(|gene| {
+                        let cell = &**gene;
+                        let gene = &*cell.borrow();
+                        SerializationGene::new(
+                            gene.connection_type.to_int(),
+                            gene.disabled,
+                            (gene.input.layer, gene.input.index),
+                            num::cast(gene.input_weight).unwrap(),
+                            num::cast(gene.memory_weight).unwrap(),
+                            (gene.output.layer, gene.output.index),
+                            num::cast(gene.reset_input_weight).unwrap(),
+                            num::cast(gene.reset_memory_weight).unwrap(),
+                            num::cast(gene.update_input_weight).unwrap(),
+                            num::cast(gene.update_memory_weight).unwrap(),
+                        )
+                    })
+                    .collect::<Vec<SerializationGene>>()
+            })
+            .flatten()
+            .collect();
+        let serialization = SerializationTopology::new(biases, genes);
+        serde_json::to_string(&serialization).unwrap()
     }
 }
