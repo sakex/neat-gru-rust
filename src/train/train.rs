@@ -1,14 +1,18 @@
 use crate::game::Game;
-use num::Float;
-use std::rc::Rc;
-use crate::topology::topology::Topology;
-use crate::train::species::Species;
 use crate::neural_network::nn::NeuralNetwork;
+use crate::topology::topology::Topology;
+use crate::train::evolution_number::EvNumber;
+use crate::train::species::Species;
+use num::Float;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
-    where F: Float, T: Game<F> {
+where
+    F: Float,
+    T: Game<F>,
+{
     simulation: &'a mut T,
     iterations_: usize,
     max_individuals_: usize,
@@ -19,10 +23,15 @@ pub struct Train<'a, T, F>
     outputs_: Option<usize>,
     topologies_: Vec<Rc<RefCell<Topology<F>>>>,
     species_: Vec<Species<F>>,
+    history_: Vec<Topology<F>>,
+    ev_number_: EvNumber,
 }
 
 impl<'a, T, F> Train<'a, T, F>
-    where T: Game<F>, F: Float {
+where
+    T: Game<F>,
+    F: Float,
+{
     /// Creates a Train<T: Game> instance
     ///
     /// Default values are:
@@ -52,6 +61,8 @@ impl<'a, T, F> Train<'a, T, F>
             outputs_,
             topologies_: Vec::new(),
             species_: Vec::new(),
+            history_: Vec::new(),
+            ev_number_: EvNumber::new(),
         }
     }
 
@@ -170,36 +181,61 @@ impl<'a, T, F> Train<'a, T, F>
     pub fn start(&mut self) {
         let inputs = match self.inputs_ {
             Some(v) => v,
-            None => { panic!("Didn't provide a number of inputs") }
+            None => panic!("Didn't provide a number of inputs"),
         };
 
         let outputs = match self.outputs_ {
             Some(v) => v,
-            None => { panic!("Didn't provide a number of inputs") }
+            None => panic!("Didn't provide a number of inputs"),
         };
 
-        self.species_ = vec![Species::new_random(self.max_individuals_, inputs, outputs, self.max_layers_, self.max_per_layers_)];
+        self.species_ = vec![Species::new_random(
+            self.max_individuals_,
+            inputs,
+            outputs,
+            self.max_layers_,
+            self.max_per_layers_,
+            &self.ev_number_,
+        )];
 
         self.reset_players();
-        for _i in 0..self.iterations_ {
+        for i in 0..self.iterations_ {
             let results = self.simulation.run_generation();
             self.set_last_results(&results);
+            if i % 5 == 0 {
+                self.reset_species();
+            }
             self.natural_selection();
             self.reset_players();
         }
+        self.simulation.post_training(&*self.history_);
+    }
+
+    fn get_topologies(&mut self) {
+        self.topologies_ = self
+            .species_
+            .iter()
+            .map(|species| {
+                species
+                    .topologies
+                    .iter()
+                    .map(|top| top.clone())
+                    .collect::<Vec<Rc<RefCell<Topology<F>>>>>()
+            })
+            .flatten()
+            .collect();
     }
 
     fn reset_players(&mut self) {
-        self.topologies_.clear();
-        self.topologies_ = self.species_.iter()
-            .map(|species| species.topologies.iter()
-                .map(|top| top.clone())
-                .collect::<Vec<Rc<RefCell<Topology<F>>>>>()
-            ).flatten().collect();
-        let networks: Vec<NeuralNetwork<F>> = self.topologies_.iter().map(|top_rc| {
-            let top = &*top_rc.borrow();
-            unsafe { NeuralNetwork::new(&top) }
-        }).collect();
+        self.get_topologies();
+        let networks: Vec<NeuralNetwork<F>> = self
+            .topologies_
+            .iter()
+            .map(|top_rc| {
+                let top = &*top_rc.borrow();
+                unsafe { NeuralNetwork::new(&top) }
+            })
+            .collect();
         self.simulation.reset_players(&networks);
     }
 
@@ -210,8 +246,52 @@ impl<'a, T, F> Train<'a, T, F>
     }
 
     fn natural_selection(&mut self) {
+        self.ev_number_.reset();
         for species in self.species_.iter_mut() {
-            species.natural_selection();
+            species.natural_selection(&self.ev_number_);
+        }
+    }
+
+    fn reset_species(&mut self) {
+        self.get_topologies();
+        self.species_.clear();
+        let top_assigned: Vec<(Rc<RefCell<Topology<F>>>, RefCell<bool>)> = self
+            .topologies_
+            .iter()
+            .map(|top| (top.clone(), RefCell::new(false)))
+            .collect();
+        for (index, (top1, assigned1)) in top_assigned.iter().enumerate() {
+            if !*assigned1.borrow() {
+                let mut new_species = Species::new(top1.clone(), 1);
+                for (top2, assigned2) in top_assigned.iter().skip(index + 1) {
+                    if *assigned2.borrow() {
+                        continue;
+                    }
+                    let delta = Topology::delta_compatibility(&*top1.borrow(), &*top2.borrow());
+                    if delta <= F::from(2).unwrap() {
+                        *assigned2.borrow_mut() = true;
+                        new_species.push(top2.clone());
+                    }
+                }
+                self.species_.push(new_species);
+                *assigned1.borrow_mut() = true;
+            }
+        }
+        self.extinct_species();
+    }
+
+    fn extinct_species(&mut self) {
+        let species_size = self.species_.len();
+        let new_count = species_size.min(self.max_species_);
+        if species_size > new_count {
+            self.species_
+                .sort_by(|spec1, spec2| spec1.score().partial_cmp(&spec2.score()).unwrap());
+            let cut_at = species_size - new_count;
+            self.species_.drain(0..cut_at);
+        }
+        let new_max = self.max_individuals_ / new_count;
+        for species in self.species_.iter_mut() {
+            species.set_max_individuals(new_max);
         }
     }
 }

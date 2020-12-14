@@ -1,16 +1,22 @@
 use num::traits::Float;
+use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
-use rand::distributions::{Uniform, Distribution};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Bias<T>
-    where T: Float {
+where
+    T: Float,
+{
     pub bias_input: T,
     pub bias_update: T,
     pub bias_reset: T,
 }
 
-impl<T> Bias<T> where T: Float {
+impl<T> Bias<T>
+where
+    T: Float,
+{
     pub fn new_random(rng: &mut ThreadRng) -> Bias<T> {
         let min: f64 = -1.0;
         let max: f64 = 1.0;
@@ -22,11 +28,19 @@ impl<T> Bias<T> where T: Float {
         }
     }
 
-    pub fn new() -> Bias<T> {
+    pub fn new_zero() -> Bias<T> {
         Bias {
             bias_input: T::from(0).unwrap(),
             bias_update: T::from(0).unwrap(),
             bias_reset: T::from(0).unwrap(),
+        }
+    }
+
+    pub fn new(bias_input: T, bias_update: T, bias_reset: T) -> Bias<T> {
+        Bias {
+            bias_input,
+            bias_update,
+            bias_reset,
         }
     }
 }

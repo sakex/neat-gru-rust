@@ -4,7 +4,9 @@ use num::Float;
 
 /// Trait to implement in order to use Train
 pub trait Game<T>
-    where T: Float {
+where
+    T: Float,
+{
     /// Run a game round
     fn run_generation(&mut self) -> Vec<T>;
 

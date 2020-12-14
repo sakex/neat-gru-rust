@@ -1,18 +1,23 @@
-use std::rc::Rc;
 use crate::topology::topology::Topology;
+use crate::train::evolution_number::EvNumber;
 use num::Float;
 use rand::prelude::ThreadRng;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Species<T>
-    where T: Float {
+where
+    T: Float,
+{
     max_individuals: usize,
     pub topologies: Vec<Rc<RefCell<Topology<T>>>>,
     best_topology: Rc<RefCell<Topology<T>>>,
 }
 
 impl<T> Species<T>
-    where T: Float {
+where
+    T: Float,
+{
     pub fn new(first_topology: Rc<RefCell<Topology<T>>>, max_individuals: usize) -> Species<T> {
         Species {
             max_individuals,
@@ -21,11 +26,25 @@ impl<T> Species<T>
         }
     }
 
-    pub fn new_random(max_individuals: usize, input_count: usize, output_count: usize, max_layers: usize, max_per_layers: usize) -> Species<T> {
+    pub fn new_random(
+        max_individuals: usize,
+        input_count: usize,
+        output_count: usize,
+        max_layers: usize,
+        max_per_layers: usize,
+        ev_number: &EvNumber,
+    ) -> Species<T> {
         let mut rng: ThreadRng = rand::thread_rng();
         let topologies: Vec<Rc<RefCell<Topology<T>>>> = (0..max_individuals)
             .map(|_| {
-                Rc::new(RefCell::new(Topology::<T>::new_random(&mut rng, input_count, output_count, max_layers, max_per_layers)))
+                Rc::new(RefCell::new(Topology::<T>::new_random(
+                    &mut rng,
+                    input_count,
+                    output_count,
+                    max_layers,
+                    max_per_layers,
+                    &ev_number,
+                )))
             })
             .collect();
         let best_topology = topologies.last().unwrap().clone();
@@ -36,20 +55,22 @@ impl<T> Species<T>
         }
     }
 
-    pub fn natural_selection(&mut self) {
+    pub fn natural_selection(&mut self, ev_number: &EvNumber) {
         self.topologies.sort_by(|top1, top2| {
             let top1_borrow = &**top1;
             let top1 = top1_borrow.borrow();
             let top2_borrow = &**top2;
             let top2 = top2_borrow.borrow();
-            top1.get_last_result().partial_cmp(&top2.get_last_result()).unwrap()
+            top1.get_last_result()
+                .partial_cmp(&top2.get_last_result())
+                .unwrap()
         });
         let best_topology = self.topologies.last().unwrap();
         self.best_topology = best_topology.clone();
-        self.do_selection();
+        self.do_selection(&ev_number);
     }
 
-    fn do_selection(&mut self) {
+    fn do_selection(&mut self, ev_number: &EvNumber) {
         let size = self.topologies.len();
         if size == 0 {
             return;
@@ -59,14 +80,38 @@ impl<T> Species<T>
             self.topologies.iter().skip(size / 2).cloned().collect();
 
         surviving_topologies.reserve(self.max_individuals as usize);
-        self.evolve(&mut surviving_topologies);
+        self.evolve(&mut surviving_topologies, &ev_number);
     }
 
-    fn evolve(&mut self, surviving_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>) {
+    fn evolve(
+        &mut self,
+        surviving_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>,
+        ev_number: &EvNumber,
+    ) {
         let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
         for topology in surviving_topologies.iter().rev() {
             let top = topology.borrow_mut();
-            top.new_generation(&mut new_topologies, 2);
+            top.new_generation(&mut new_topologies, 2, &ev_number);
         }
+    }
+
+    pub fn push(&mut self, top: Rc<RefCell<Topology<T>>>) {
+        self.update_best(&top);
+        self.topologies.push(top);
+        self.max_individuals += 1;
+    }
+
+    fn update_best(&mut self, top: &Rc<RefCell<Topology<T>>>) {
+        if top.borrow().get_last_result() >= self.best_topology.borrow().get_last_result() {
+            self.best_topology = top.clone();
+        }
+    }
+
+    pub fn score(&self) -> T {
+        self.best_topology.borrow().get_last_result()
+    }
+
+    pub fn set_max_individuals(&mut self, new_max: usize) {
+        self.max_individuals = new_max;
     }
 }

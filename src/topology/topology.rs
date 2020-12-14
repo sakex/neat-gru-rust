@@ -1,16 +1,20 @@
-use num::traits::Float;
 use crate::topology::bias::Bias;
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::topology::bias_and_genes::BiasAndGenes;
+use crate::topology::connection_type::ConnectionType;
 use crate::topology::gene::{Gene, Point};
+use crate::topology::serialization::SerializationTopology;
+use crate::train::evolution_number::EvNumber;
+use num::traits::Float;
 use rand::prelude::ThreadRng;
 use rand::{thread_rng, Rng};
-use crate::topology::bias_and_genes::BiasAndGenes;
 use std::cell::RefCell;
-
+use std::collections::HashMap;
+use std::rc::Rc;
 
 pub struct Topology<T>
-    where T: Float {
+where
+    T: Float,
+{
     pub layers: usize,
     max_layers: usize,
     max_per_layers: usize,
@@ -18,17 +22,24 @@ pub struct Topology<T>
     best_historical_result: T,
     result_before_mutation: T,
     pub layers_sizes: Vec<u8>,
-    bias: Vec<Bias<T>>,
+    pub output_bias: Vec<Bias<T>>,
     pub genes_point: HashMap<Point, BiasAndGenes<T>>,
-    genes_ev_number: HashMap<u64, Rc<RefCell<Gene<T>>>>,
+    genes_ev_number: HashMap<usize, Rc<RefCell<Gene<T>>>>,
 }
 
-impl<T> Clone for Topology<T> where T: Float {
+impl<T> Clone for Topology<T>
+where
+    T: Float,
+{
     fn clone(&self) -> Topology<T> {
-        let genes_point: HashMap<Point, BiasAndGenes<T>> = self.genes_point.iter()
+        let genes_point: HashMap<Point, BiasAndGenes<T>> = self
+            .genes_point
+            .iter()
             .map(|(point, bias_and_genes)| {
                 let mut new_bg = BiasAndGenes::new(bias_and_genes.bias.clone());
-                new_bg.genes = bias_and_genes.genes.iter()
+                new_bg.genes = bias_and_genes
+                    .genes
+                    .iter()
                     .map(|rc| {
                         let cell = &**rc;
                         let ref_cell = &*cell.borrow();
@@ -40,7 +51,9 @@ impl<T> Clone for Topology<T> where T: Float {
             })
             .collect();
 
-        let genes_ev_number: HashMap<u64, Rc<RefCell<Gene<T>>>> = self.genes_ev_number.iter()
+        let genes_ev_number: HashMap<usize, Rc<RefCell<Gene<T>>>> = self
+            .genes_ev_number
+            .iter()
             .map(|(&ev_number, rc)| {
                 let cell = &**rc;
                 let ref_cell = &*cell.borrow();
@@ -48,7 +61,6 @@ impl<T> Clone for Topology<T> where T: Float {
                 (ev_number, Rc::new(RefCell::new(cp)))
             })
             .collect();
-
 
         Topology {
             layers: self.layers,
@@ -58,14 +70,17 @@ impl<T> Clone for Topology<T> where T: Float {
             best_historical_result: self.best_historical_result,
             result_before_mutation: self.result_before_mutation,
             layers_sizes: self.layers_sizes.clone(),
-            bias: self.bias.clone(),
+            output_bias: Vec::new(),
             genes_point,
             genes_ev_number,
         }
     }
 }
 
-impl<T> Topology<T> where T: Float {
+impl<T> Topology<T>
+where
+    T: Float,
+{
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
             layers: 0,
@@ -75,7 +90,7 @@ impl<T> Topology<T> where T: Float {
             best_historical_result: T::from(0).unwrap(),
             result_before_mutation: T::from(0).unwrap(),
             layers_sizes: Vec::new(),
-            bias: Vec::new(),
+            output_bias: Vec::new(),
             genes_point: HashMap::new(),
             genes_ev_number: HashMap::new(),
         }
@@ -93,14 +108,17 @@ impl<T> Topology<T> where T: Float {
                 Some(gene2) => {
                     let gene2 = gene2.borrow();
                     common = common + one;
-                    w = w + (gene1.input_weight - gene2.input_weight).abs()
+                    w = w
+                        + (gene1.input_weight - gene2.input_weight).abs()
                         + (gene1.memory_weight - gene2.memory_weight).abs()
                         + (gene1.reset_input_weight - gene2.reset_input_weight).abs()
                         + (gene1.update_input_weight - gene2.update_input_weight).abs()
                         + (gene1.reset_memory_weight - gene2.reset_memory_weight).abs()
                         + (gene1.update_memory_weight - gene2.update_memory_weight).abs();
                 }
-                None => { disjoints = disjoints + one; }
+                None => {
+                    disjoints = disjoints + one;
+                }
             }
         }
         let size_1 = T::from(top1.genes_ev_number.len()).unwrap();
@@ -114,7 +132,14 @@ impl<T> Topology<T> where T: Float {
         T::from(2).unwrap() * disjoints / n + w / (common * T::from(3).unwrap())
     }
 
-    pub fn new_random(rng: &mut ThreadRng, input_count: usize, output_count: usize, max_layers: usize, max_per_layers: usize) -> Topology<T> {
+    pub fn new_random(
+        rng: &mut ThreadRng,
+        input_count: usize,
+        output_count: usize,
+        max_layers: usize,
+        max_per_layers: usize,
+        ev_number: &EvNumber,
+    ) -> Topology<T> {
         let connections_per_input = (output_count as f64 / input_count as f64).ceil() as u32;
         let mut not_added: Vec<usize> = Vec::new();
         let mut output_index: usize = 0;
@@ -136,13 +161,27 @@ impl<T> Topology<T> where T: Float {
                 let index = not_added[not_added_it];
                 not_added_it += 1;
                 let output = Point::new(1, index as u8);
-                let gene = Rc::new(
-                    RefCell::new(
-                        Gene::new_random(rng, input.clone(), output, -1.0, 1.0)));
+                let gene = Rc::new(RefCell::new(Gene::new_random(
+                    rng,
+                    input.clone(),
+                    output,
+                    -1.0,
+                    1.0,
+                    &ev_number,
+                )));
                 new_topology.add_relationship(gene, true);
             }
         }
+        new_topology.generate_output_bias(rng);
         new_topology
+    }
+
+    fn generate_output_bias(&mut self, rng: &mut ThreadRng) {
+        let last_layer_size = self.layers_sizes.last().unwrap();
+        self.output_bias = (0..*last_layer_size)
+            .into_iter()
+            .map(|_| Bias::new_random(rng))
+            .collect();
     }
 
     fn add_to_relationship_map(&mut self, gene: Rc<RefCell<Gene<T>>>) {
@@ -186,7 +225,7 @@ impl<T> Topology<T> where T: Float {
         for (_point, bias_and_gene) in self.genes_point.iter() {
             for gene_rc in &bias_and_gene.genes {
                 let mut gene = gene_rc.borrow_mut();
-                gene.resize(layers -1 , layers);
+                gene.resize(layers - 1, layers);
             }
         }
         self.layers = layers;
@@ -203,15 +242,20 @@ impl<T> Topology<T> where T: Float {
         self.last_result
     }
 
-    pub fn new_generation(&self, new_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>, count: usize) {
+    pub fn new_generation(
+        &self,
+        new_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>,
+        count: usize,
+        ev_number: &EvNumber,
+    ) {
         for _ in 0..count {
             let mut cp = self.clone();
-            cp.mutate();
+            cp.mutate(&ev_number);
             new_topologies.push(Rc::new(RefCell::new(cp)));
         }
     }
 
-    pub fn mutate(&mut self) {
+    pub fn mutate(&mut self, ev_number: &EvNumber) {
         let mut rng = thread_rng();
 
         let mut new_output = false;
@@ -226,30 +270,41 @@ impl<T> Topology<T> where T: Float {
         let mut output_index: u8 = 0;
 
         if (output_layer as usize) < self.layers - 1 {
-            output_index = rng.gen_range(0, (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8));
+            output_index = rng.gen_range(
+                0,
+                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8),
+            );
             if output_index >= self.layers_sizes[output_layer as usize] {
                 new_output = true
             }
         } else if (output_layer as usize) == self.layers - 1 {
             output_index = rng.gen_range(0, self.layers_sizes[output_layer as usize]);
-        } else { // if output_index == layers
+        } else {
+            // if output_index == layers
             new_output = true;
         }
         let input = Point::new(input_layer, input_index);
         let output = Point::new(output_layer, output_index);
-        self.new_gene(&mut rng, input.clone(), output.clone());
+        self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
         if new_output {
             let last_layer_size = self.layers_sizes.last().unwrap();
             let index = rng.gen_range(0, last_layer_size);
             let output_of_output = Point::new((self.layers - 1) as u8, index);
-            self.new_gene(&mut rng, output.clone(), output_of_output);
+            self.new_gene(&mut rng, output.clone(), output_of_output, &ev_number);
         }
         self.disable_genes(input, output);
     }
 
-    fn new_gene(&mut self, rng: &mut ThreadRng, input: Point, output: Point) -> Rc<RefCell<Gene<T>>> {
-        let new_gene = Rc::new(RefCell::new(
-            Gene::new_random(rng, input, output, -1.0, 1.0)));
+    fn new_gene(
+        &mut self,
+        rng: &mut ThreadRng,
+        input: Point,
+        output: Point,
+        ev_number: &EvNumber,
+    ) -> Rc<RefCell<Gene<T>>> {
+        let new_gene = Rc::new(RefCell::new(Gene::new_random(
+            rng, input, output, -1.0, 1.0, &ev_number,
+        )));
         self.add_relationship(new_gene.clone(), false);
         new_gene
     }
@@ -268,8 +323,10 @@ impl<T> Topology<T> where T: Float {
                         continue;
                     }
                     let compared_output = &gene.output;
-                    if output == *compared_output || self.path_overrides(&compared_output, &output) ||
-                        self.path_overrides(&output, &compared_output) {
+                    if output == *compared_output
+                        || self.path_overrides(&compared_output, &output)
+                        || self.path_overrides(&output, &compared_output)
+                    {
                         gene.disabled = true;
                     }
                 }
@@ -289,18 +346,83 @@ impl<T> Topology<T> where T: Float {
                     }
                     let compared_output = &gene.output;
                     if compared_output == output {
-                        return true
-                    }
-                    else if compared_output.layer <= output.layer{
+                        return true;
+                    } else if compared_output.layer <= output.layer {
                         if self.path_overrides(&compared_output, &output) {
-                            return true
+                            return true;
                         }
                     }
                 }
                 false
             }
-            None => false
+            None => false,
         }
     }
-}
 
+    fn set_bias(&mut self, neuron: Point, bias: Bias<T>) {
+        if neuron.layer as usize != self.layers - 1 {
+            match self.genes_point.get_mut(&neuron) {
+                Some(found) => found.bias = bias,
+                None => panic!(
+                    "Error in serialization, Neuron {} {} doesn't exist",
+                    neuron.layer, neuron.index
+                ),
+            }
+        } else {
+            if self.output_bias.len() != *self.layers_sizes.last().unwrap() as usize {
+                self.output_bias.resize(
+                    *self.layers_sizes.last().unwrap() as usize,
+                    Bias::new_zero(),
+                );
+            }
+            self.output_bias[neuron.index as usize] = bias;
+        }
+    }
+
+    pub fn from_string(serialized: &str) -> Topology<T> {
+        let serialization: SerializationTopology =
+            SerializationTopology::from_string(serialized).unwrap();
+        let mut max_layers = 0u8;
+        let gene_vec: Vec<Rc<RefCell<Gene<T>>>> = serialization
+            .genes
+            .iter()
+            .map(|ser_gene| {
+                let input = Point::new(ser_gene.input.0, ser_gene.input.1);
+                let output = Point::new(ser_gene.output.0, ser_gene.output.1);
+                if output.layer > max_layers {
+                    max_layers = output.layer;
+                }
+                let gene = Rc::new(RefCell::new(Gene::new(
+                    input,
+                    output,
+                    T::from(ser_gene.input_weight).unwrap(),
+                    T::from(ser_gene.memory_weight).unwrap(),
+                    T::from(ser_gene.reset_input_weight).unwrap(),
+                    T::from(ser_gene.update_input_weight).unwrap(),
+                    T::from(ser_gene.reset_memory_weight).unwrap(),
+                    T::from(ser_gene.update_memory_weight).unwrap(),
+                    0,
+                    ConnectionType::from_int(ser_gene.connection_type),
+                    ser_gene.disabled,
+                )));
+                gene
+            })
+            .collect();
+        let mut new_top = Topology::new(max_layers as usize, max_layers as usize);
+        for gene in gene_vec {
+            new_top.add_relationship(gene.clone(), true);
+        }
+        for bias in serialization.biases {
+            let neuron = Point::new(bias.neuron.0, bias.neuron.1);
+            new_top.set_bias(
+                neuron,
+                Bias::new(
+                    T::from(bias.bias.bias_input).unwrap(),
+                    T::from(bias.bias.bias_update).unwrap(),
+                    T::from(bias.bias.bias_reset).unwrap(),
+                ),
+            );
+        }
+        new_top
+    }
+}

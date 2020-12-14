@@ -1,19 +1,22 @@
+use crate::neural_network::connection_gru::ConnectionGru;
+use crate::neural_network::connection_sigmoid::ConnectionSigmoid;
+use crate::neural_network::neuron::Neuron;
+use crate::topology::connection_type::ConnectionType;
 use crate::topology::topology::Topology;
 use num::Float;
-use crate::neural_network::neuron::Neuron;
-use crate::neural_network::connection_sigmoid::ConnectionSigmoid;
-use crate::neural_network::connection_gru::ConnectionGru;
-use crate::topology::connection_type::ConnectionType;
 
 pub struct NeuralNetwork<T>
-    where T: Float {
-    input_size: usize,
+where
+    T: Float,
+{
     output_size: usize,
     neurons: Vec<Neuron<T>>,
 }
 
 impl<T> NeuralNetwork<T>
-    where T: Float {
+where
+    T: Float,
+{
     pub unsafe fn new(topology: &Topology<T>) -> NeuralNetwork<T> {
         let layer_count = topology.layers;
         let sizes = &topology.layers_sizes;
@@ -23,7 +26,6 @@ impl<T> NeuralNetwork<T>
             layer_addresses[i] = neurons_count;
             neurons_count += sizes[i] as usize;
         }
-        let input_size = layer_addresses[0];
         let output_size = *layer_addresses.last().unwrap();
         let mut neurons: Vec<Neuron<T>> = Vec::with_capacity(neurons_count);
         for _ in 0..neurons_count {
@@ -44,7 +46,7 @@ impl<T> NeuralNetwork<T>
                 }
                 let output = &gene.output;
                 let index = layer_addresses[output.layer as usize] + output.index as usize;
-                let output_neuron: *const Neuron<T> = neurons_ptr.offset(index as isize);
+                let output_neuron: *mut Neuron<T> = neurons_ptr.offset(index as isize);
                 match gene.connection_type {
                     ConnectionType::Sigmoid => {
                         let connection = ConnectionSigmoid::new(gene.input_weight, output_neuron);
@@ -58,16 +60,19 @@ impl<T> NeuralNetwork<T>
                             gene.update_input_weight,
                             gene.reset_memory_weight,
                             gene.update_memory_weight,
-                            output_neuron);
+                            output_neuron,
+                        );
                         (*input_neuron).connections_gru.push(connection);
                     }
                 }
             }
         }
 
+        for it in (neurons_count - output_size)..neurons_count {
+            neurons[it].bias = topology.output_bias[it - neurons_count + output_size].clone();
+        }
 
         NeuralNetwork {
-            input_size,
             output_size,
             neurons,
         }
@@ -78,14 +83,20 @@ impl<T> NeuralNetwork<T>
         let len = inputs.len();
         unsafe {
             for i in 0..len {
-                self.neurons.get_unchecked_mut(i).set_input_value(inputs.get_unchecked(i));
+                self.neurons
+                    .get_unchecked_mut(i)
+                    .set_input_value(*inputs.get_unchecked(i));
             }
         }
         let take_amount = self.neurons.len() - self.output_size;
         for neuron in self.neurons.iter_mut().take(take_amount) {
             neuron.feed_forward();
         }
-        self.neurons.iter_mut().skip(take_amount).map(|neuron| neuron.get_value()).collect()
+        self.neurons
+            .iter_mut()
+            .skip(take_amount)
+            .map(|neuron| neuron.get_value())
+            .collect()
     }
 
     #[inline(always)]
