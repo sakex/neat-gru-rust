@@ -17,7 +17,7 @@ impl SerializationBias {
         let bias_f64: Bias<f64> = Bias::new(
             num::cast(bias.bias_input).unwrap(),
             num::cast(bias.bias_update).unwrap(),
-            num::cast(bias.bias_reset).unwrap()
+            num::cast(bias.bias_reset).unwrap(),
         );
         SerializationBias {
             neuron: (neuron.layer, neuron.index),
