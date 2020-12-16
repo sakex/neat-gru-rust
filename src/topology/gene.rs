@@ -6,7 +6,7 @@ use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Point {
     pub layer: u8,
     pub index: u8,
@@ -143,12 +143,6 @@ where
 
     pub fn decrement_output(&mut self) {
         self.output.layer -= 1;
-    }
-
-    pub fn resize(&mut self, former_size: usize, new_size: usize) {
-        if self.input.layer == former_size as u8 {
-            self.input.layer = new_size as u8
-        }
     }
 }
 

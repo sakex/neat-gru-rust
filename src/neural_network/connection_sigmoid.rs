@@ -17,7 +17,7 @@ where
         ConnectionSigmoid { weight, output }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn activate(&mut self, value: T) {
         unsafe {
             (*self.output).increment_value(value * self.weight);

@@ -190,25 +190,27 @@ where
             None => panic!("Didn't provide a number of inputs"),
         };
 
-        self.species_ = vec![Species::new_random(
-            self.max_individuals_,
-            inputs,
-            outputs,
-            self.max_layers_,
-            self.max_per_layers_,
-            &self.ev_number_,
-        )];
+        let max_per_species = self.max_individuals_ / self.max_species_;
+        for _ in 0..self.max_species_ {
+            self.species_.push(Species::new_random(
+                max_per_species,
+                inputs,
+                outputs,
+                self.max_layers_,
+                self.max_per_layers_,
+                &self.ev_number_,
+            ));
+        }
 
         self.reset_players();
         for i in 0..self.iterations_ {
+            println!("\n=========================\n");
             println!("Generation {}", i);
             let now = Instant::now();
             let results = self.simulation.run_generation();
             println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
             self.set_last_results(&results);
-            if i % 5 == 0 {
-                self.reset_species();
-            }
+            self.reset_species();
             let now = Instant::now();
             self.natural_selection();
             println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
@@ -216,6 +218,8 @@ where
             self.reset_players();
             println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
         }
+        println!("\n=========================\n");
+        println!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
     }
 
@@ -236,6 +240,25 @@ where
 
     fn reset_players(&mut self) {
         self.get_topologies();
+        self.species_.sort_by(|s1, s2| {
+            s1.get_last_result()
+                .partial_cmp(&s2.get_last_result())
+                .unwrap()
+        });
+
+        println!(
+            "BEST OF WORST: {} BEST: {}",
+            num::cast::<F, f32>(self.species_[0].get_last_result()).unwrap(),
+            num::cast::<F, f32>(self.species_.last().unwrap().get_last_result()).unwrap()
+        );
+        for species in self.species_.iter() {
+            /*println!(
+                "{}",
+                num::cast::<F, f32>(species.get_last_result()).unwrap()
+            );*/
+            self.history_.push(species.get_best())
+        }
+
         let networks: Vec<NeuralNetwork<F>> = self
             .topologies_
             .iter()
@@ -244,6 +267,11 @@ where
                 unsafe { NeuralNetwork::new(&top) }
             })
             .collect();
+        println!(
+            "TOPOLOGIES: {}, SPECIES: {}",
+            networks.len(),
+            self.species_.len()
+        );
         self.simulation.reset_players(networks);
     }
 

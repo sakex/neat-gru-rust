@@ -37,11 +37,12 @@ where
         }
     }
 
+    #[replace_numeric_literals(T::from(literal).unwrap())]
     #[inline]
     pub fn set_input_value(&mut self, input: T) {
-        self.input = input + self.bias.bias_input;
-        self.update = self.bias.bias_update;
-        self.reset = self.bias.bias_reset;
+        self.input = input;
+        self.update = -10;
+        self.reset = -10;
     }
 
     #[replace_numeric_literals(T::from(literal).unwrap())]
@@ -95,7 +96,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn increment_state(&mut self, mem: T, inp: T, res: T, upd: T) {
         self.memory = self.memory + mem;
         self.input = self.input + inp;
@@ -103,7 +104,7 @@ where
         self.update = self.update + upd;
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn increment_value(&mut self, value: T) {
         self.input = self.input + value;
     }

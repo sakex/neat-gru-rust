@@ -80,19 +80,21 @@ where
             self.topologies.iter().skip(size / 2).cloned().collect();
 
         surviving_topologies.reserve(self.max_individuals as usize);
-        self.evolve(&mut surviving_topologies, &ev_number);
+        self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
     }
 
     fn evolve(
         &mut self,
-        surviving_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>,
+        surviving_topologies: &Vec<Rc<RefCell<Topology<T>>>>,
         ev_number: &EvNumber,
-    ) {
+    ) -> Vec<Rc<RefCell<Topology<T>>>> {
         let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
+        let reproduction_count = self.max_individuals / surviving_topologies.len();
         for topology in surviving_topologies.iter().rev() {
             let top = topology.borrow_mut();
-            top.new_generation(&mut new_topologies, 2, &ev_number);
+            top.new_generation(&mut new_topologies, reproduction_count, &ev_number);
         }
+        new_topologies
     }
 
     pub fn push(&mut self, top: Rc<RefCell<Topology<T>>>) {
@@ -113,5 +115,17 @@ where
 
     pub fn set_max_individuals(&mut self, new_max: usize) {
         self.max_individuals = new_max;
+    }
+
+    pub fn get_last_result(&self) -> T {
+        let best_top_cell = &*self.best_topology;
+        let best_topology = best_top_cell.borrow();
+        best_topology.get_last_result()
+    }
+
+    pub fn get_best(&self) -> Topology<T> {
+        let best_top_cell = &*self.best_topology;
+        let best_topology = best_top_cell.borrow();
+        best_topology.clone()
     }
 }

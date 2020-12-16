@@ -4,6 +4,7 @@ use num::Float;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[derive(Clone)]
 pub struct BiasAndGenes<T>
 where
     T: Float,

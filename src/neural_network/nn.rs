@@ -18,7 +18,7 @@ where
     T: Float,
 {
     pub unsafe fn new(topology: &Topology<T>) -> NeuralNetwork<T> {
-        let layer_count = topology.layers;
+        let layer_count = topology.layers_sizes.len();
         let sizes = &topology.layers_sizes;
         let mut layer_addresses = vec![0; layer_count];
         let mut neurons_count: usize = 0;
@@ -26,7 +26,7 @@ where
             layer_addresses[i] = neurons_count;
             neurons_count += sizes[i] as usize;
         }
-        let output_size = *layer_addresses.last().unwrap();
+        let output_size = *sizes.last().unwrap() as usize;
         let mut neurons: Vec<Neuron<T>> = Vec::with_capacity(neurons_count);
         for _ in 0..neurons_count {
             neurons.push(Neuron::new());
@@ -69,6 +69,7 @@ where
         }
 
         let base = output_size as isize - neurons_count as isize;
+
         for it in (neurons_count - output_size) as isize..neurons_count as isize {
             neurons[it as usize].bias = topology.output_bias[(it + base) as usize].clone();
         }
@@ -79,7 +80,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn compute(&mut self, inputs: &[T]) -> Vec<T> {
         let len = inputs.len();
         unsafe {
@@ -100,7 +101,7 @@ where
             .collect()
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn reset_state(&mut self) {
         for neuron in self.neurons.iter_mut() {
             neuron.reset_state();

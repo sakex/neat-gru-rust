@@ -15,11 +15,9 @@ pub struct Topology<T>
 where
     T: Float,
 {
-    pub layers: usize,
     max_layers: usize,
     max_per_layers: usize,
     last_result: T,
-    best_historical_result: T,
     result_before_mutation: T,
     pub layers_sizes: Vec<u8>,
     pub output_bias: Vec<Bias<T>>,
@@ -63,14 +61,12 @@ where
             .collect();
 
         Topology {
-            layers: self.layers,
             max_layers: self.max_layers,
             max_per_layers: self.max_per_layers,
             last_result: self.last_result,
-            best_historical_result: self.best_historical_result,
             result_before_mutation: self.result_before_mutation,
             layers_sizes: self.layers_sizes.clone(),
-            output_bias: Vec::new(),
+            output_bias: self.output_bias.clone(),
             genes_point,
             genes_ev_number,
         }
@@ -83,11 +79,9 @@ where
 {
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
-            layers: 0,
             max_layers,
             max_per_layers,
             last_result: T::from(0).unwrap(),
-            best_historical_result: T::from(0).unwrap(),
             result_before_mutation: T::from(0).unwrap(),
             layers_sizes: Vec::new(),
             output_bias: Vec::new(),
@@ -180,7 +174,6 @@ where
     }
 
     pub fn set_layers(&mut self, layers: usize) {
-        self.layers = layers;
         self.layers_sizes.resize(layers, 1);
         self.layers_sizes[layers - 1] = self.layers_sizes[layers - 2];
         self.layers_sizes[layers - 2] = 1;
@@ -206,10 +199,10 @@ where
             if input.index + 1 > self.layers_sizes[input.layer as usize] {
                 self.layers_sizes[input.layer as usize] = input.index + 1;
             }
-            if !init && output.index as usize == self.layers {
+            if !init && output.layer as usize == self.layers_sizes.len() {
                 self.resize(output.layer as usize);
                 gene.decrement_output();
-            } else {
+            } else if output.index + 1 > self.layers_sizes[output.layer as usize] {
                 self.layers_sizes[output.layer as usize] = output.index + 1;
             }
             (input, ev_number)
@@ -234,9 +227,22 @@ where
         for (_point, bias_and_gene) in self.genes_point.iter() {
             for gene_rc in &bias_and_gene.genes {
                 let mut gene = (&**gene_rc).borrow_mut();
-                gene.resize(layers - 1, layers);
+                if gene.output.layer == (layers - 1) as u8 {
+                    gene.output.layer = layers as u8
+                }
             }
         }
+        /*self.genes_point = self
+        .genes_point
+        .iter()
+        .map(|(point, bias_and_gene)| {
+            if point.layer == (layers - 1) as u8 {
+                (Point::new(layers as u8, point.index), bias_and_gene.clone())
+            } else {
+                (point.clone(), bias_and_gene.clone())
+            }
+        })
+        .collect();*/
         self.set_layers(layers + 1);
     }
 
@@ -265,40 +271,46 @@ where
         let mut rng = thread_rng();
 
         let mut new_output = false;
-        let max_layer = self.layers.min(self.max_layers);
-        let input_layer = if self.layers >= 2 {
-            rng.gen_range(0, max_layer - 2 + 1) as u8
+        let max_layer = self.layers_sizes.len().min(self.max_layers);
+        let input_layer = if self.layers_sizes.len() > 2 {
+            rng.gen_range(0, max_layer - 2) as u8
         } else {
             0
         };
-        let input_index: u8 = rng.gen_range(0, self.layers_sizes[input_layer as usize] + 1);
-        let output_layer: u8 = rng.gen_range(input_layer + 1, max_layer as u8);
+        let input_index: u8 = rng.gen_range(0, self.layers_sizes[input_layer as usize]);
+        let output_layer: u8 = rng.gen_range(input_layer + 1, (max_layer + 1) as u8);
         let mut output_index: u8 = 0;
 
-        if (output_layer as usize) < self.layers - 1 {
+        if (output_layer as usize) < self.layers_sizes.len() - 1 {
             output_index = rng.gen_range(
                 0,
-                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8 + 1),
+                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8) + 1,
             );
             if output_index >= self.layers_sizes[output_layer as usize] {
                 new_output = true
             }
-        } else if (output_layer as usize) == self.layers - 1 {
-            output_index = rng.gen_range(0, self.layers_sizes[output_layer as usize] + 1);
+        } else if (output_layer as usize) == self.layers_sizes.len() - 1 {
+            output_index = rng.gen_range(0, self.layers_sizes[output_layer as usize]);
         } else {
             // if output_index == layers
             new_output = true;
         }
         let input = Point::new(input_layer, input_index);
         let output = Point::new(output_layer, output_index);
+        if !new_output {
+            self.disable_genes(input.clone(), output.clone());
+        } else {
+            let mut output_cp = output.clone();
+            output_cp.layer -= 1;
+            self.disable_genes(input.clone(), output_cp);
+        }
         self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
         if new_output {
             let last_layer_size = self.layers_sizes.last().unwrap();
-            let index = rng.gen_range(0, last_layer_size + 1);
-            let output_of_output = Point::new((self.layers - 1) as u8, index);
+            let index = rng.gen_range(0, last_layer_size);
+            let output_of_output = Point::new((self.layers_sizes.len() - 1) as u8, index);
             self.new_gene(&mut rng, output.clone(), output_of_output, &ev_number);
         }
-        self.disable_genes(input, output);
     }
 
     fn new_gene(
@@ -356,22 +368,22 @@ where
                         continue;
                     }
                     let compared_output = &gene.output;
-                    if compared_output == output {
+                    if *compared_output == *output {
                         return true;
-                    } else if compared_output.layer <= output.layer {
+                    } else if compared_output.layer < output.layer {
                         if self.path_overrides(&compared_output, &output) {
                             return true;
                         }
                     }
                 }
-                false
+                return false;
             }
             None => false,
         }
     }
 
     fn set_bias(&mut self, neuron: Point, bias: Bias<T>) {
-        if neuron.layer as usize != self.layers - 1 {
+        if neuron.layer as usize != self.layers_sizes.len() - 1 {
             match self.genes_point.get_mut(&neuron) {
                 Some(found) => found.bias = bias,
                 None => panic!(
@@ -420,6 +432,7 @@ where
             })
             .collect();
         let mut new_top = Topology::new(max_layers as usize, max_layers as usize);
+        new_top.set_layers((max_layers + 1).into());
         for gene in gene_vec {
             new_top.add_relationship(gene.clone(), true);
         }
@@ -443,7 +456,7 @@ where
             .iter()
             .map(|(point, b_and_g)| SerializationBias::new(point.clone(), b_and_g.bias.clone()))
             .collect();
-        let last_layer = self.layers - 1;
+        let last_layer = self.layers_sizes.len() - 1;
         let mut output_biases: Vec<SerializationBias> = self
             .output_bias
             .iter()
