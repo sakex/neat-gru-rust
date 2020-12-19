@@ -44,6 +44,7 @@ where
     /// Mandatory fields (use setters):
     /// - inputs -> the number of neurons on the first layer
     /// - outputs -> the number of neurons on the last layer
+    #[inline]
     pub fn new(simulation: &'a mut T) -> Train<'a, T, F> {
         let iterations_: usize = 1000;
         let max_individuals_: usize = 100;
@@ -86,6 +87,7 @@ where
     /// # Arguments
     ///
     /// `v` - The number of networks per generation
+    #[inline]
     pub fn max_individuals(&mut self, v: usize) -> &mut Self {
         self.max_individuals_ = v;
         self
@@ -98,6 +100,7 @@ where
     /// # Arguments
     ///
     /// `v` - The number of maximum species per generation
+    #[inline]
     pub fn max_species(&mut self, v: usize) -> &mut Self {
         self.max_species_ = v;
         self
@@ -110,6 +113,7 @@ where
     /// # Arguments
     ///
     /// `v` - The number of neurons on the first layer
+    #[inline]
     pub fn inputs(&mut self, v: usize) -> &mut Self {
         self.inputs_ = Some(v);
         self
@@ -122,6 +126,7 @@ where
     /// # Arguments
     ///
     /// `v` - The number of neurons on the last layer
+    #[inline]
     pub fn outputs(&mut self, v: usize) -> &mut Self {
         self.outputs_ = Some(v);
         self
@@ -134,6 +139,7 @@ where
     /// # Arguments
     ///
     /// `v` - The maximum number of layers
+    #[inline]
     pub fn max_layers(&mut self, v: usize) -> &mut Self {
         self.max_layers_ = v;
         self
@@ -146,6 +152,7 @@ where
     /// # Arguments
     ///
     /// `v` - The maximum number of neurons per layers
+    #[inline]
     pub fn max_per_layers(&mut self, v: usize) -> &mut Self {
         self.max_per_layers_ = v;
         self
@@ -179,6 +186,7 @@ where
     /// runner.max_individuals(5).inputs(5).outputs(1);
     /// runner.start();
     /// ```
+    #[inline]
     pub fn start(&mut self) {
         let inputs = match self.inputs_ {
             Some(v) => v,

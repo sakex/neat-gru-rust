@@ -299,17 +299,16 @@ where
         let output = Point::new(output_layer, output_index);
         if !new_output {
             self.disable_genes(input.clone(), output.clone());
+            self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
         } else {
             let mut output_cp = output.clone();
             output_cp.layer -= 1;
-            self.disable_genes(input.clone(), output_cp);
-        }
-        self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
-        if new_output {
+            self.disable_genes(input.clone(), output_cp.clone());
+            self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
             let last_layer_size = self.layers_sizes.last().unwrap();
             let index = rng.gen_range(0, last_layer_size);
             let output_of_output = Point::new((self.layers_sizes.len() - 1) as u8, index);
-            self.new_gene(&mut rng, output.clone(), output_of_output, &ev_number);
+            self.new_gene(&mut rng, output_cp.clone(), output_of_output, &ev_number);
         }
     }
 
