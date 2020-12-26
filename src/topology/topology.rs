@@ -267,9 +267,32 @@ where
         }
     }
 
-    pub fn mutate(&mut self, ev_number: &EvNumber) {
-        let mut rng = thread_rng();
+    fn change_weights(&mut self, rng: &mut ThreadRng) {
+        for (_point, gene_and_bias) in self.genes_point.iter_mut() {
+            let change_bias = rng.gen_range(0.0, 1.0);
+            if change_bias < 0.8 {
+                let mutation = T::from(1.0 * rng.gen_range(-1.0, 1.0)).unwrap();
+                gene_and_bias.bias.bias_input = gene_and_bias.bias.bias_input * mutation;
+                gene_and_bias.bias.bias_update = gene_and_bias.bias.bias_update * mutation;
+                gene_and_bias.bias.bias_reset = gene_and_bias.bias.bias_reset * mutation;
+            }
+            for gene in gene_and_bias.genes.iter_mut() {
+                let mut gene_cp = gene.borrow_mut();
+                let change_weights = rng.gen_range(0.0, 1.0);
+                if change_weights < 0.8 {
+                    let mutation = T::from(1.0 * rng.gen_range(-1.0, 1.0)).unwrap();
+                    gene_cp.input_weight = gene_cp.input_weight * mutation;
+                    gene_cp.memory_weight = gene_cp.memory_weight * mutation;
+                    gene_cp.reset_input_weight = gene_cp.reset_input_weight * mutation;
+                    gene_cp.update_input_weight = gene_cp.update_input_weight * mutation;
+                    gene_cp.reset_memory_weight = gene_cp.reset_memory_weight * mutation;
+                    gene_cp.update_memory_weight = gene_cp.update_memory_weight * mutation;
+                }
+            }
+        }
+    }
 
+    fn change_topology(&mut self, ev_number: &EvNumber, mut rng: &mut ThreadRng) {
         let mut new_output = false;
         let max_layer = self.layers_sizes.len().min(self.max_layers);
         let input_layer = if self.layers_sizes.len() > 2 {
@@ -282,10 +305,8 @@ where
         let mut output_index: u8 = 0;
 
         if (output_layer as usize) < self.layers_sizes.len() - 1 {
-            output_index = rng.gen_range(
-                0,
-                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8) + 1,
-            );
+            output_index =
+                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8);
             if output_index >= self.layers_sizes[output_layer as usize] {
                 new_output = true
             }
@@ -309,6 +330,16 @@ where
             let index = rng.gen_range(0, last_layer_size);
             let output_of_output = Point::new((self.layers_sizes.len() - 1) as u8, index);
             self.new_gene(&mut rng, output_cp.clone(), output_of_output, &ev_number);
+        }
+    }
+
+    pub fn mutate(&mut self, ev_number: &EvNumber) {
+        let mut rng = thread_rng();
+        let change_weights = rng.gen_range(0.0, 1.0);
+        if change_weights < 0.8 {
+            self.change_weights(&mut rng);
+        } else {
+            self.change_topology(&ev_number, &mut rng);
         }
     }
 

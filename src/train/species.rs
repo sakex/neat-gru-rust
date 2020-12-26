@@ -93,20 +93,24 @@ where
         if size == 0 {
             return;
         }
+
+        let size_t = T::from(size).unwrap();
         // Kill half
         let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = self
             .topologies
             .iter()
             .filter(|&top| {
                 let borrow = top.borrow();
-                borrow.get_last_result() >= cutoff
+                borrow.get_last_result() / size_t >= cutoff
             })
             .cloned()
             .collect();
 
         surviving_topologies.reserve(self.max_individuals as usize);
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
-        self.topologies.push(self.best_topology.clone());
+        if self.topologies.len() >= 5 {
+            self.topologies.push(self.best_topology.clone());
+        }
     }
 
     fn evolve(
