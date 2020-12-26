@@ -12,7 +12,7 @@ where
 {
     max_individuals: usize,
     pub topologies: Vec<Rc<RefCell<Topology<T>>>>,
-    best_topology: Rc<RefCell<Topology<T>>>,
+    pub best_topology: Rc<RefCell<Topology<T>>>,
     best_historical_score: T,
     pub stagnation_counter: u8,
 }
@@ -62,7 +62,7 @@ where
         }
     }
 
-    pub fn natural_selection(&mut self, ev_number: &EvNumber) {
+    pub fn natural_selection(&mut self, ev_number: &EvNumber, cutoff: T) {
         self.topologies.sort_by(|top1, top2| {
             let top1_borrow = &**top1;
             let top1 = top1_borrow.borrow();
@@ -85,17 +85,24 @@ where
             self.stagnation_counter += 1;
         }
         self.best_topology = best_topology.clone();
-        self.do_selection(&ev_number);
+        self.do_selection(&ev_number, cutoff);
     }
 
-    fn do_selection(&mut self, ev_number: &EvNumber) {
+    fn do_selection(&mut self, ev_number: &EvNumber, cutoff: T) {
         let size = self.topologies.len();
         if size == 0 {
             return;
         }
         // Kill half
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
-            self.topologies.iter().skip(size / 2).cloned().collect();
+        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = self
+            .topologies
+            .iter()
+            .filter(|&top| {
+                let borrow = top.borrow();
+                borrow.get_last_result() >= cutoff
+            })
+            .cloned()
+            .collect();
 
         surviving_topologies.reserve(self.max_individuals as usize);
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);

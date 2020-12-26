@@ -221,6 +221,9 @@ where
             let now = Instant::now();
             self.natural_selection();
             self.reset_species();
+            if self.species_.is_empty() {
+                break;
+            }
             println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
             let now = Instant::now();
             self.reset_players();
@@ -290,56 +293,50 @@ where
     }
 
     fn natural_selection(&mut self) {
+        self.get_topologies();
+        let mut adjusted_fitness = self
+            .species_
+            .iter()
+            .map(|spec| {
+                let top_len = F::from(spec.topologies.len()).unwrap();
+                spec.topologies
+                    .iter()
+                    .map(|top| {
+                        let borrowed = top.borrow();
+                        borrowed.get_last_result() / top_len
+                    })
+                    .collect::<Vec<F>>()
+            })
+            .flatten()
+            .collect::<Vec<F>>();
+        adjusted_fitness.sort_by(|a, b| a.partial_cmp(&b).unwrap());
+        let cutoff = adjusted_fitness[adjusted_fitness.len() / 2].clone();
         self.ev_number_.reset();
         for species in self.species_.iter_mut() {
-            species.natural_selection(&self.ev_number_);
+            species.natural_selection(&self.ev_number_, cutoff);
         }
     }
 
     fn reset_species(&mut self) {
-        let outsiders: Vec<Rc<RefCell<Topology<F>>>> = self
-            .species_
-            .iter_mut()
-            .map(|spec| spec.outsiders())
-            .flatten()
-            .collect();
         self.species_.retain(|spec| spec.stagnation_counter < 20);
-        let top_assigned: Vec<(Rc<RefCell<Topology<F>>>, RefCell<bool>)> = outsiders
-            .iter()
-            .map(|top| (top.clone(), RefCell::new(false)))
-            .collect();
-        for (index, (top1, assigned1)) in top_assigned.iter().enumerate() {
-            if !*assigned1.borrow() {
-                let mut new_species = Species::new(top1.clone(), 1);
-                for (top2, assigned2) in top_assigned.iter().skip(index + 1) {
-                    if *assigned2.borrow() {
-                        continue;
-                    }
-                    let delta = Topology::delta_compatibility(&*top1.borrow(), &*top2.borrow());
-                    if delta <= F::from(2).unwrap() {
-                        *assigned2.borrow_mut() = true;
-                        new_species.push(top2.clone());
-                    }
+        self.get_topologies();
+        for topology_rc in self.topologies_.iter() {
+            let top_cp = topology_rc.clone();
+            let top_borrow = top_cp.borrow();
+            let mut assigned = false;
+            for spec in self.species_.iter_mut() {
+                let top2 = spec.get_best();
+                let delta = Topology::delta_compatibility(&top_borrow, &top2);
+                if delta <= F::from(2).unwrap() {
+                    spec.push(spec.best_topology.clone());
+                    assigned = true;
+                    break;
                 }
-                self.species_.push(new_species);
-                *assigned1.borrow_mut() = true;
             }
-        }
-        self.extinct_species();
-    }
-
-    fn extinct_species(&mut self) {
-        let species_size = self.species_.len();
-        let new_count = species_size.min(self.max_species_);
-        if species_size > new_count {
-            self.species_
-                .sort_by(|spec1, spec2| spec1.score().partial_cmp(&spec2.score()).unwrap());
-            let cut_at = species_size - new_count;
-            self.species_.drain(0..cut_at);
-        }
-        let new_max = self.max_individuals_ / new_count;
-        for species in self.species_.iter_mut() {
-            species.set_max_individuals(new_max);
+            if !assigned {
+                let new_species = Species::new(topology_rc.clone(), 1);
+                self.species_.push(new_species);
+            }
         }
     }
 }
