@@ -1,6 +1,7 @@
 use crate::topology::topology::Topology;
 use crate::train::evolution_number::EvNumber;
 use num::Float;
+use numeric_literals::replace_numeric_literals;
 use rand::prelude::ThreadRng;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -12,6 +13,8 @@ where
     max_individuals: usize,
     pub topologies: Vec<Rc<RefCell<Topology<T>>>>,
     best_topology: Rc<RefCell<Topology<T>>>,
+    best_historical_score: T,
+    pub stagnation_counter: u8,
 }
 
 impl<T> Species<T>
@@ -23,6 +26,8 @@ where
             max_individuals,
             topologies: vec![first_topology.clone()],
             best_topology: first_topology,
+            best_historical_score: T::from(0).unwrap(),
+            stagnation_counter: 0,
         }
     }
 
@@ -52,6 +57,8 @@ where
             max_individuals,
             topologies,
             best_topology,
+            best_historical_score: T::from(0).unwrap(),
+            stagnation_counter: 0,
         }
     }
 
@@ -66,6 +73,17 @@ where
                 .unwrap()
         });
         let best_topology = self.topologies.last().unwrap();
+        let last_result = {
+            let top_borrow = &**best_topology;
+            let best_top = top_borrow.borrow();
+            best_top.get_last_result()
+        };
+        if last_result > self.best_historical_score {
+            self.best_historical_score = last_result;
+            self.stagnation_counter = 0;
+        } else {
+            self.stagnation_counter += 1;
+        }
         self.best_topology = best_topology.clone();
         self.do_selection(&ev_number);
     }
@@ -81,6 +99,7 @@ where
 
         surviving_topologies.reserve(self.max_individuals as usize);
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
+        self.topologies.push(self.best_topology.clone());
     }
 
     fn evolve(
@@ -106,7 +125,32 @@ where
     fn update_best(&mut self, top: &Rc<RefCell<Topology<T>>>) {
         if top.borrow().get_last_result() >= self.best_topology.borrow().get_last_result() {
             self.best_topology = top.clone();
+            let top_borrow = &*self.best_topology;
+            let best_top = top_borrow.borrow();
+            self.best_historical_score = best_top.get_last_result();
         }
+    }
+
+    #[replace_numeric_literals(T::from(literal).unwrap())]
+    pub fn outsiders(&mut self) -> Vec<Rc<RefCell<Topology<T>>>> {
+        let mut outsiders = Vec::new();
+        let best = self.best_topology.borrow();
+        self.topologies = self
+            .topologies
+            .iter()
+            .filter(|&top| {
+                let top_cp = &*top.clone();
+                let top_borrow = top_cp.borrow();
+                if Topology::delta_compatibility(&best, &top_borrow) >= 2 {
+                    outsiders.push(top.clone());
+                    false
+                } else {
+                    true
+                }
+            })
+            .cloned()
+            .collect();
+        outsiders
     }
 
     pub fn score(&self) -> T {

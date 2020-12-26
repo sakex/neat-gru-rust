@@ -218,9 +218,9 @@ where
             let results = self.simulation.run_generation();
             println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
             self.set_last_results(&results);
-            self.reset_species();
             let now = Instant::now();
             self.natural_selection();
+            self.reset_species();
             println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
             let now = Instant::now();
             self.reset_players();
@@ -297,10 +297,14 @@ where
     }
 
     fn reset_species(&mut self) {
-        self.get_topologies();
-        self.species_.clear();
-        let top_assigned: Vec<(Rc<RefCell<Topology<F>>>, RefCell<bool>)> = self
-            .topologies_
+        let outsiders: Vec<Rc<RefCell<Topology<F>>>> = self
+            .species_
+            .iter_mut()
+            .map(|spec| spec.outsiders())
+            .flatten()
+            .collect();
+        self.species_.retain(|spec| spec.stagnation_counter < 20);
+        let top_assigned: Vec<(Rc<RefCell<Topology<F>>>, RefCell<bool>)> = outsiders
             .iter()
             .map(|top| (top.clone(), RefCell::new(false)))
             .collect();
