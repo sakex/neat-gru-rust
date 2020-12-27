@@ -2,6 +2,7 @@ use crate::topology::connection_type::ConnectionType;
 use crate::train::evolution_number::EvNumber;
 use core::cmp::Ordering;
 use num::traits::Float;
+use numeric_literals::replace_numeric_literals;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
 use std::hash::{Hash, Hasher};
@@ -137,6 +138,24 @@ where
             update_memory_weight: T::from(unif.sample(rng)).unwrap(),
             evolution_number: ev_number.number(coordinate),
             connection_type: ConnectionType::from_int(connection_type),
+            disabled: false,
+        }
+    }
+
+    #[replace_numeric_literals(T::from(literal).unwrap())]
+    pub fn new_uniform(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
+        let coordinate = Coordinate::new(input.clone(), output.clone());
+        Gene {
+            input,
+            output,
+            input_weight: 0,
+            memory_weight: 0,
+            reset_input_weight: 0,
+            update_input_weight: 0,
+            reset_memory_weight: 0,
+            update_memory_weight: 0,
+            evolution_number: ev_number.number(coordinate),
+            connection_type: ConnectionType::GRU,
             disabled: false,
         }
     }

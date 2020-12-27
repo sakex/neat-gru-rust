@@ -5,13 +5,15 @@ use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
 use num::Float;
 use std::cell::RefCell;
+use std::fmt::Display;
+use std::iter::Sum;
 use std::rc::Rc;
 use std::time::Instant;
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
 where
-    F: Float,
+    F: Float + Sum + Display,
     T: Game<F>,
 {
     simulation: &'a mut T,
@@ -31,7 +33,7 @@ where
 impl<'a, T, F> Train<'a, T, F>
 where
     T: Game<F>,
-    F: Float,
+    F: Float + Sum + Display,
 {
     /// Creates a Train<T: Game> instance
     ///
@@ -198,10 +200,8 @@ where
             None => panic!("Didn't provide a number of inputs"),
         };
 
-        let max_per_species = self.max_individuals_ / self.max_species_;
         for _ in 0..self.max_species_ {
-            self.species_.push(Species::new_random(
-                max_per_species,
+            self.species_.push(Species::new_uniform(
                 inputs,
                 outputs,
                 self.max_layers_,
@@ -251,22 +251,15 @@ where
 
     fn reset_players(&mut self) {
         self.get_topologies();
-        self.species_.sort_by(|s1, s2| {
-            s1.get_last_result()
-                .partial_cmp(&s2.get_last_result())
-                .unwrap()
-        });
+        self.species_
+            .sort_by(|s1, s2| s1.score().partial_cmp(&s2.score()).unwrap());
 
         println!(
             "BEST OF WORST: {} BEST: {}",
-            num::cast::<F, f32>(self.species_[0].get_last_result()).unwrap(),
-            num::cast::<F, f32>(self.species_.last().unwrap().get_last_result()).unwrap()
+            num::cast::<F, f32>(self.species_[0].score()).unwrap(),
+            num::cast::<F, f32>(self.species_.last().unwrap().score()).unwrap()
         );
         for species in self.species_.iter() {
-            /*println!(
-                "{}",
-                num::cast::<F, f32>(species.get_last_result()).unwrap()
-            );*/
             self.history_.push(species.get_best())
         }
 
@@ -303,17 +296,22 @@ where
                     .iter()
                     .map(|top| {
                         let borrowed = top.borrow();
-                        borrowed.get_last_result() / top_len
+                        (borrowed.get_last_result() / top_len, top.clone())
                     })
-                    .collect::<Vec<F>>()
+                    .collect::<Vec<(F, Rc<RefCell<Topology<F>>>)>>()
             })
             .flatten()
-            .collect::<Vec<F>>();
-        adjusted_fitness.sort_by(|a, b| a.partial_cmp(&b).unwrap());
-        let cutoff = adjusted_fitness[adjusted_fitness.len() / 2].clone();
+            .collect::<Vec<(F, Rc<RefCell<Topology<F>>>)>>();
+        let sum: F = adjusted_fitness.iter().map(|(score, _)| *score).sum();
+        let multiplier: F = F::from(self.max_individuals_ * 2).unwrap() / sum.clone();
+        for (score, top) in adjusted_fitness.iter_mut() {
+            let rc_cp = &*top.clone();
+            let mut top = rc_cp.borrow_mut();
+            top.reproduction_count = (*score * multiplier).floor().to_usize().unwrap();
+        }
         self.ev_number_.reset();
         for species in self.species_.iter_mut() {
-            species.natural_selection(&self.ev_number_, cutoff);
+            species.natural_selection(&self.ev_number_);
         }
     }
 
@@ -334,9 +332,10 @@ where
                 }
             }
             if !assigned {
-                let new_species = Species::new(topology_rc.clone(), 1);
+                let new_species = Species::new(topology_rc.clone());
                 self.species_.push(new_species);
             }
         }
+        self.species_.retain(|spec| spec.topologies.len() > 0);
     }
 }

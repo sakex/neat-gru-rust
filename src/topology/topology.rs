@@ -23,6 +23,7 @@ where
     pub output_bias: Vec<Bias<T>>,
     pub genes_point: HashMap<Point, BiasAndGenes<T>>,
     genes_ev_number: HashMap<usize, Rc<RefCell<Gene<T>>>>,
+    pub reproduction_count: usize,
 }
 
 impl<T> Clone for Topology<T>
@@ -69,6 +70,7 @@ where
             output_bias: self.output_bias.clone(),
             genes_point,
             genes_ev_number,
+            reproduction_count: 2,
         }
     }
 }
@@ -87,6 +89,7 @@ where
             output_bias: Vec::new(),
             genes_point: HashMap::new(),
             genes_ev_number: HashMap::new(),
+            reproduction_count: 2,
         }
     }
 
@@ -173,6 +176,27 @@ where
         new_topology
     }
 
+    pub fn new_uniform(
+        input_count: usize,
+        output_count: usize,
+        max_layers: usize,
+        max_per_layers: usize,
+        ev_number: &EvNumber,
+    ) -> Topology<T> {
+        let mut new_topology = Topology::new(max_layers, max_per_layers);
+        new_topology.set_layers(2);
+        for i in 0..input_count {
+            for j in 0..output_count {
+                let input = Point::new(0u8, i as u8);
+                let output = Point::new(1u8, j as u8);
+                let gene = Rc::new(RefCell::new(Gene::new_uniform(input, output, &ev_number)));
+                new_topology.add_relationship(gene, true);
+            }
+        }
+        new_topology.uniform_output_bias();
+        new_topology
+    }
+
     pub fn set_layers(&mut self, layers: usize) {
         self.layers_sizes.resize(layers, 1);
         self.layers_sizes[layers - 1] = self.layers_sizes[layers - 2];
@@ -184,6 +208,14 @@ where
         self.output_bias = (0..*last_layer_size)
             .into_iter()
             .map(|_| Bias::new_random(rng))
+            .collect();
+    }
+
+    fn uniform_output_bias(&mut self) {
+        let last_layer_size = self.layers_sizes.last().unwrap();
+        self.output_bias = (0..*last_layer_size)
+            .into_iter()
+            .map(|_| Bias::new_uniform())
             .collect();
     }
 
@@ -257,10 +289,9 @@ where
     pub fn new_generation(
         &self,
         new_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>,
-        count: usize,
         ev_number: &EvNumber,
     ) {
-        for _ in 0..count {
+        for _ in 0..self.reproduction_count {
             let mut cp = self.clone();
             cp.mutate(&ev_number);
             new_topologies.push(Rc::new(RefCell::new(cp)));
