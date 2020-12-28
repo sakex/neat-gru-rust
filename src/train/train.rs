@@ -305,7 +305,7 @@ where
         for (score, top) in adjusted_fitness.iter_mut() {
             let rc_cp = &*top.clone();
             let mut top = rc_cp.borrow_mut();
-            top.reproduction_count = (*score * multiplier).ceil().to_usize().unwrap();
+            top.reproduction_count = (*score * multiplier).round().to_usize().unwrap();
         }
         self.ev_number_.reset();
         for species in self.species_.iter_mut() {
