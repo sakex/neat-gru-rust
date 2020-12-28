@@ -200,15 +200,13 @@ where
             None => panic!("Didn't provide a number of inputs"),
         };
 
-        for _ in 0..self.max_species_ {
-            self.species_.push(Species::new_uniform(
-                inputs,
-                outputs,
-                self.max_layers_,
-                self.max_per_layers_,
-                &self.ev_number_,
-            ));
-        }
+        self.species_.push(Species::new_uniform(
+            inputs,
+            outputs,
+            self.max_layers_,
+            self.max_per_layers_,
+            &self.ev_number_,
+        ));
 
         self.reset_players();
         for i in 0..self.iterations_ {
@@ -303,7 +301,7 @@ where
             .flatten()
             .collect::<Vec<(F, Rc<RefCell<Topology<F>>>)>>();
         let sum: F = adjusted_fitness.iter().map(|(score, _)| *score).sum();
-        let multiplier: F = F::from(self.max_individuals_ * 2).unwrap() / sum.clone();
+        let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
         for (score, top) in adjusted_fitness.iter_mut() {
             let rc_cp = &*top.clone();
             let mut top = rc_cp.borrow_mut();
