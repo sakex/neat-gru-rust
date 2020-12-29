@@ -3,21 +3,24 @@ use crate::train::evolution_number::EvNumber;
 use num::Float;
 use rand::prelude::ThreadRng;
 use std::cell::RefCell;
+use std::iter::Sum;
 use std::rc::Rc;
 
 pub struct Species<T>
 where
-    T: Float,
+    T: Float + Sum,
 {
     pub topologies: Vec<Rc<RefCell<Topology<T>>>>,
     pub best_topology: Rc<RefCell<Topology<T>>>,
     best_historical_score: T,
     pub stagnation_counter: u8,
+    pub adjusted_fitness: T,
+    pub max_topologies: usize,
 }
 
 impl<T> Species<T>
 where
-    T: Float,
+    T: Float + Sum,
 {
     pub fn new(first_topology: Rc<RefCell<Topology<T>>>) -> Species<T> {
         Species {
@@ -25,9 +28,12 @@ where
             best_topology: first_topology,
             best_historical_score: T::from(0).unwrap(),
             stagnation_counter: 0,
+            adjusted_fitness: T::from(0).unwrap(),
+            max_topologies: 0,
         }
     }
 
+    #[allow(dead_code)]
     pub fn new_random(
         max_individuals: usize,
         input_count: usize,
@@ -55,6 +61,8 @@ where
             best_topology,
             best_historical_score: T::from(0).unwrap(),
             stagnation_counter: 0,
+            adjusted_fitness: T::from(0).unwrap(),
+            max_topologies: 0,
         }
     }
 
@@ -82,6 +90,8 @@ where
             best_topology,
             best_historical_score: T::from(0).unwrap(),
             stagnation_counter: 0,
+            adjusted_fitness: T::from(0).unwrap(),
+            max_topologies: 0,
         }
     }
 
@@ -118,8 +128,12 @@ where
         }
 
         // Kill half
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
-            self.topologies.iter().skip(size / 2).cloned().collect();
+        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = self
+            .topologies
+            .iter()
+            .skip(self.max_topologies / 2)
+            .cloned()
+            .collect();
 
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
         if self.topologies.len() >= 5 {
@@ -135,7 +149,7 @@ where
         let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
         for topology in surviving_topologies.iter().rev() {
             let top = topology.borrow_mut();
-            top.new_generation(&mut new_topologies, &ev_number);
+            top.new_generation(&mut new_topologies, &ev_number, 2);
         }
         new_topologies
     }
@@ -162,5 +176,18 @@ where
         let best_top_cell = &*self.best_topology;
         let best_topology = best_top_cell.borrow();
         best_topology.clone()
+    }
+
+    pub fn compute_adjusted_fitness(&mut self) {
+        let top_len = T::from(self.topologies.len()).unwrap();
+        self.adjusted_fitness = self
+            .topologies
+            .iter()
+            .map(|top| {
+                let borrowed = top.borrow();
+                borrowed.get_last_result()
+            })
+            .sum::<T>()
+            / top_len;
     }
 }

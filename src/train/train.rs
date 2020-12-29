@@ -284,28 +284,20 @@ where
     }
 
     fn natural_selection(&mut self) {
-        self.get_topologies();
-        let mut adjusted_fitness = self
+        self.species_.iter_mut().for_each(|spec| {
+            spec.compute_adjusted_fitness();
+        });
+        let sum: F = self
             .species_
             .iter()
-            .map(|spec| {
-                let top_len = F::from(spec.topologies.len()).unwrap();
-                spec.topologies
-                    .iter()
-                    .map(|top| {
-                        let borrowed = top.borrow();
-                        (borrowed.get_last_result() / top_len, top.clone())
-                    })
-                    .collect::<Vec<(F, Rc<RefCell<Topology<F>>>)>>()
-            })
-            .flatten()
-            .collect::<Vec<(F, Rc<RefCell<Topology<F>>>)>>();
-        let sum: F = adjusted_fitness.iter().map(|(score, _)| *score).sum();
+            .map(|spec| spec.adjusted_fitness.clone())
+            .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
-        for (score, top) in adjusted_fitness.iter_mut() {
-            let rc_cp = &*top.clone();
-            let mut top = rc_cp.borrow_mut();
-            top.reproduction_count = (*score * multiplier).round().to_usize().unwrap();
+        for spec in self.species_.iter_mut() {
+            spec.max_topologies = (spec.adjusted_fitness * multiplier)
+                .round()
+                .to_usize()
+                .unwrap();
         }
         self.ev_number_.reset();
         for species in self.species_.iter_mut() {
@@ -314,7 +306,7 @@ where
     }
 
     fn reset_species(&mut self) {
-        self.species_.retain(|spec| spec.stagnation_counter < 20);
+        self.species_.retain(|spec| spec.stagnation_counter < 15);
         self.get_topologies();
         for topology_rc in self.topologies_.iter() {
             let top_cp = topology_rc.clone();
@@ -323,7 +315,7 @@ where
             for spec in self.species_.iter_mut() {
                 let top2 = spec.get_best();
                 let delta = Topology::delta_compatibility(&top_borrow, &top2);
-                if delta <= F::from(2).unwrap() {
+                if delta <= F::from(3).unwrap() {
                     spec.push(spec.best_topology.clone());
                     assigned = true;
                     break;

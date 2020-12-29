@@ -23,7 +23,6 @@ where
     pub output_bias: Vec<Bias<T>>,
     pub genes_point: HashMap<Point, BiasAndGenes<T>>,
     genes_ev_number: HashMap<usize, Rc<RefCell<Gene<T>>>>,
-    pub reproduction_count: usize,
 }
 
 impl<T> Clone for Topology<T>
@@ -70,7 +69,6 @@ where
             output_bias: self.output_bias.clone(),
             genes_point,
             genes_ev_number,
-            reproduction_count: 2,
         }
     }
 }
@@ -89,7 +87,6 @@ where
             output_bias: Vec::new(),
             genes_point: HashMap::new(),
             genes_ev_number: HashMap::new(),
-            reproduction_count: 2,
         }
     }
 
@@ -290,8 +287,9 @@ where
         &self,
         new_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>,
         ev_number: &EvNumber,
+        reproduction_count: usize,
     ) {
-        for _ in 0..self.reproduction_count {
+        for _ in 0..reproduction_count {
             let mut cp = self.clone();
             cp.mutate(&ev_number);
             new_topologies.push(Rc::new(RefCell::new(cp)));
@@ -302,7 +300,7 @@ where
         for (_point, gene_and_bias) in self.genes_point.iter_mut() {
             let change_bias = rng.gen_range(0.0, 1.0);
             if change_bias < 0.8 {
-                let mutation = T::from(1.0 * rng.gen_range(-1.0, 1.0)).unwrap();
+                let mutation = T::from(1.0 + rng.gen_range(-0.1, 0.1)).unwrap();
                 gene_and_bias.bias.bias_input = gene_and_bias.bias.bias_input * mutation;
                 gene_and_bias.bias.bias_update = gene_and_bias.bias.bias_update * mutation;
                 gene_and_bias.bias.bias_reset = gene_and_bias.bias.bias_reset * mutation;
@@ -311,7 +309,7 @@ where
                 let mut gene_cp = gene.borrow_mut();
                 let change_weights = rng.gen_range(0.0, 1.0);
                 if change_weights < 0.8 {
-                    let mutation = T::from(1.0 * rng.gen_range(-1.0, 1.0)).unwrap();
+                    let mutation = T::from(1.0 + rng.gen_range(-0.1, 0.1)).unwrap();
                     gene_cp.input_weight = gene_cp.input_weight * mutation;
                     gene_cp.memory_weight = gene_cp.memory_weight * mutation;
                     gene_cp.reset_input_weight = gene_cp.reset_input_weight * mutation;
