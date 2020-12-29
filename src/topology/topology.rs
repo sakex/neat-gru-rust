@@ -81,8 +81,8 @@ where
         Topology {
             max_layers,
             max_per_layers,
-            last_result: T::from(0).unwrap(),
-            result_before_mutation: T::from(0).unwrap(),
+            last_result: T::zero(),
+            result_before_mutation: T::zero(),
             layers_sizes: Vec::new(),
             output_bias: Vec::new(),
             genes_point: HashMap::new(),
@@ -91,11 +91,11 @@ where
     }
 
     pub fn delta_compatibility(top1: &Topology<T>, top2: &Topology<T>) -> T {
-        let mut disjoints = T::from(0).unwrap();
-        let mut common = T::from(0).unwrap();
-        let mut w = T::from(0).unwrap();
+        let mut disjoints = T::zero();
+        let mut common = T::zero();
+        let mut w = T::zero();
 
-        let one = T::from(1).unwrap();
+        let one = T::one();
         for (ev_number, gene1) in top1.genes_ev_number.iter() {
             let cell = &**gene1;
             let gene1 = &*cell.borrow();

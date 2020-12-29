@@ -40,9 +40,9 @@ where
 
     pub fn new_zero() -> Bias<T> {
         Bias {
-            bias_input: T::from(0).unwrap(),
-            bias_update: T::from(0).unwrap(),
-            bias_reset: T::from(0).unwrap(),
+            bias_input: T::zero(),
+            bias_update: T::zero(),
+            bias_reset: T::zero(),
         }
     }
 

@@ -26,9 +26,9 @@ where
         Species {
             topologies: vec![first_topology.clone()],
             best_topology: first_topology,
-            best_historical_score: T::from(0).unwrap(),
+            best_historical_score: T::zero(),
             stagnation_counter: 0,
-            adjusted_fitness: T::from(0).unwrap(),
+            adjusted_fitness: T::zero(),
             max_topologies: 0,
         }
     }
@@ -59,9 +59,9 @@ where
         Species {
             topologies,
             best_topology,
-            best_historical_score: T::from(0).unwrap(),
+            best_historical_score: T::zero(),
             stagnation_counter: 0,
-            adjusted_fitness: T::from(0).unwrap(),
+            adjusted_fitness: T::zero(),
             max_topologies: 0,
         }
     }
@@ -88,9 +88,9 @@ where
         Species {
             topologies,
             best_topology,
-            best_historical_score: T::from(0).unwrap(),
+            best_historical_score: T::zero(),
             stagnation_counter: 0,
-            adjusted_fitness: T::from(0).unwrap(),
+            adjusted_fitness: T::zero(),
             max_topologies: 0,
         }
     }

@@ -28,6 +28,8 @@ where
     species_: Vec<Species<F>>,
     history_: Vec<Topology<F>>,
     ev_number_: EvNumber,
+    best_historical_score: F,
+    no_progress_counter: usize,
 }
 
 impl<'a, T, F> Train<'a, T, F>
@@ -67,6 +69,8 @@ where
             species_: Vec::new(),
             history_: Vec::new(),
             ev_number_: EvNumber::new(),
+            best_historical_score: F::zero(),
+            no_progress_counter: 0,
         }
     }
 
@@ -252,11 +256,26 @@ where
         self.species_
             .sort_by(|s1, s2| s1.score().partial_cmp(&s2.score()).unwrap());
 
+        let best = self.species_.last().unwrap().score();
+
         println!(
             "BEST OF WORST: {} BEST: {}",
             num::cast::<F, f32>(self.species_[0].score()).unwrap(),
-            num::cast::<F, f32>(self.species_.last().unwrap().score()).unwrap()
+            best
         );
+
+        if best > self.best_historical_score {
+            self.best_historical_score = best;
+            self.no_progress_counter = 0;
+        } else {
+            self.no_progress_counter += 1;
+            if self.no_progress_counter >= 20 {
+                self.best_historical_score = F::zero();
+                self.no_progress_counter = 0;
+                self.species_ = self.species_.split_off(self.species_.len() - 2);
+            }
+        }
+
         for species in self.species_.iter() {
             self.history_.push(species.get_best())
         }

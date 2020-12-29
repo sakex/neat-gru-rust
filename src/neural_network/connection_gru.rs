@@ -32,8 +32,8 @@ where
         output: *mut Neuron<T>,
     ) -> ConnectionGru<T> {
         ConnectionGru {
-            memory: T::from(0).unwrap(),
-            prev_input: T::from(0).unwrap(),
+            memory: T::zero(),
+            prev_input: T::zero(),
             input_weight,
             memory_weight,
             reset_input_weight,
