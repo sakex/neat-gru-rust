@@ -321,7 +321,12 @@ where
         }
     }
 
-    fn change_topology(&mut self, ev_number: &EvNumber, mut rng: &mut ThreadRng) {
+    fn change_topology(
+        &mut self,
+        ev_number: &EvNumber,
+        mut rng: &mut ThreadRng,
+        guaranteed_new_neuron: bool,
+    ) {
         let mut new_output = false;
         let max_layer = self.layers_sizes.len().min(self.max_layers);
         let input_layer = if self.layers_sizes.len() > 2 {
@@ -334,8 +339,14 @@ where
         let mut output_index: u8 = 0;
 
         if (output_layer as usize) < self.layers_sizes.len() - 1 {
-            output_index =
-                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8);
+            output_index = if guaranteed_new_neuron {
+                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)
+            } else {
+                rng.gen_range(
+                    0,
+                    self.layers_sizes[output_layer as usize].min(self.max_per_layers as u8) + 1,
+                )
+            };
             if output_index >= self.layers_sizes[output_layer as usize] {
                 new_output = true
             }
@@ -367,8 +378,10 @@ where
         let change_weights = rng.gen_range(0.0, 1.0);
         if change_weights < 0.8 {
             self.change_weights(&mut rng);
+        } else if change_weights < 0.9 {
+            self.change_topology(&ev_number, &mut rng, true);
         } else {
-            self.change_topology(&ev_number, &mut rng);
+            self.change_topology(&ev_number, &mut rng, false);
         }
     }
 
@@ -386,7 +399,71 @@ where
         new_gene
     }
 
+    fn check_disabled(&mut self, gene: &Gene<T>) {
+        let output = &gene.output;
+        let mut vec_check_disabled = Vec::new();
+        if !self.check_no_inputs(&output) {
+            let bias_and_gene = self.genes_point.get(&output).unwrap();
+            for gene_rc in &bias_and_gene.genes {
+                vec_check_disabled.push(gene_rc.clone());
+                let gene = gene_rc.borrow();
+                self.genes_ev_number.remove(&gene.evolution_number);
+            }
+            self.genes_point.remove(&output);
+            self.layers_sizes[output.layer as usize] -= 1;
+            let is_removed_layer = self.layers_sizes[output.layer as usize] == 0;
+            if is_removed_layer {
+                self.layers_sizes.retain(|&v| v != 0);
+            };
+            self.genes_point = self
+                .genes_point
+                .iter_mut()
+                .map(|(point, bias_and_gene)| {
+                    let mut point = point.clone();
+                    if point.layer == output.layer && point.index > output.index {
+                        point.index -= 1;
+                    }
+                    if is_removed_layer && point.layer > output.layer {
+                        point.layer -= 1;
+                    }
+                    for gene_rc in &bias_and_gene.genes {
+                        let mut gene = gene_rc.borrow_mut();
+                        if gene.input.layer == output.layer && gene.input.index > output.index {
+                            gene.input.index -= 1;
+                        }
+                        if gene.output.layer == output.layer && gene.output.index > output.index {
+                            gene.output.index -= 1;
+                        }
+                        if is_removed_layer {
+                            if gene.input.layer > output.layer {
+                                gene.input.layer -= 1;
+                            }
+                            if gene.output.layer > output.layer {
+                                gene.output.layer -= 1;
+                            }
+                        }
+                    }
+                    (point, bias_and_gene.clone())
+                })
+                .collect();
+        }
+        for gene_rc in &vec_check_disabled {
+            let gene = gene_rc.borrow();
+            self.check_disabled(&gene);
+        }
+    }
+
+    fn check_no_inputs(&self, output: &Point) -> bool {
+        self.genes_point.iter().any(|(_point, gene_and_bias)| {
+            gene_and_bias.genes.iter().any(|gene_rc| {
+                let gene = gene_rc.borrow();
+                !gene.disabled && gene.output == *output
+            })
+        })
+    }
+
     fn disable_genes(&mut self, input: Point, output: Point) {
+        let mut disabled_genes = Vec::new();
         match self.genes_point.get(&input) {
             Some(found) => {
                 let genes = &found.genes;
@@ -395,6 +472,7 @@ where
                     if gene_rc == last {
                         continue;
                     }
+                    let cloned_rc = gene_rc.clone();
                     let cell = &**gene_rc;
                     let compared_output = {
                         let gene = cell.borrow();
@@ -409,10 +487,14 @@ where
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;
+                        disabled_genes.push(cloned_rc);
                     }
                 }
             }
             None => {}
+        }
+        for gene_rc in disabled_genes {
+            self.check_disabled(&*gene_rc.borrow());
         }
     }
 
