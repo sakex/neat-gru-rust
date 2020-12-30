@@ -123,7 +123,7 @@ where
 
     fn do_selection(&mut self, ev_number: &EvNumber) {
         let size = self.topologies.len();
-        if size <= 1 || self.max_topologies == 0 {
+        if size == 0 || self.max_topologies == 0 {
             self.topologies.clear();
             return;
         }
