@@ -132,11 +132,10 @@ where
             return;
         }
 
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = if size >= self.max_topologies
-        {
+        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = if size > 1 {
             self.topologies.iter().skip(size / 2).cloned().collect()
         } else {
-            self.topologies.clone()
+            self.topologies.iter().cloned().collect()
         };
 
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
@@ -151,6 +150,7 @@ where
         ev_number: &EvNumber,
     ) -> Vec<Rc<RefCell<Topology<T>>>> {
         let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
+        new_topologies.reserve_exact(self.max_topologies);
         loop {
             for topology in surviving_topologies.iter().rev() {
                 let top = topology.borrow_mut();

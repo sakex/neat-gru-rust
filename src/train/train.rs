@@ -313,7 +313,9 @@ where
                 .unwrap()
         });
         if self.species_.len() >= self.max_species_ {
-            self.species_ = self.species_.split_off(self.species_.len() / 2);
+            self.species_ = self
+                .species_
+                .split_off(self.species_.len() - self.max_species_);
         }
         let sum: F = self
             .species_
