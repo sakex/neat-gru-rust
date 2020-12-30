@@ -312,11 +312,6 @@ where
                 .partial_cmp(&spec2.adjusted_fitness)
                 .unwrap()
         });
-        if self.species_.len() >= self.max_species_ {
-            self.species_ = self
-                .species_
-                .split_off(self.species_.len() - self.max_species_);
-        }
         let sum: F = self
             .species_
             .iter()
@@ -357,5 +352,12 @@ where
             }
         }
         self.species_.retain(|spec| spec.topologies.len() > 0);
+        let biggest_species = self
+            .species_
+            .iter()
+            .map(|spec| spec.topologies.len())
+            .max()
+            .unwrap_or(0);
+        println!("BIGGEST SPECIES: {}", biggest_species);
     }
 }

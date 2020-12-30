@@ -123,20 +123,13 @@ where
 
     fn do_selection(&mut self, ev_number: &EvNumber) {
         let size = self.topologies.len();
-        if size == 0 {
-            return;
-        }
-
-        if self.max_topologies == 0 {
+        if size <= 1 || self.max_topologies == 0 {
             self.topologies.clear();
             return;
         }
 
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = if size > 2 {
-            self.topologies.iter().skip(size / 2).cloned().collect()
-        } else {
-            self.topologies.iter().cloned().collect()
-        };
+        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
+            self.topologies.iter().skip(size / 2).cloned().collect();
 
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
         if self.topologies.len() >= 5 {
