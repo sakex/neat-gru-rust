@@ -309,7 +309,7 @@ where
         self.species_.sort_by(|spec1, spec2| {
             spec1
                 .adjusted_fitness
-                .partial_cmp(spec2.adjusted_fitness)
+                .partial_cmp(&spec2.adjusted_fitness)
                 .unwrap()
         });
         if self.species_.len() >= self.max_species_ {
