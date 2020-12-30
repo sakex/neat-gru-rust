@@ -127,11 +127,10 @@ where
             return;
         }
 
-        // Kill half
         let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = self
             .topologies
             .iter()
-            .skip(self.max_topologies / 2)
+            .skip(self.topologies.len() - (self.max_topologies / 2))
             .cloned()
             .collect();
 
