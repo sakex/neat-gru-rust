@@ -313,11 +313,10 @@ where
             .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
         for spec in self.species_.iter_mut() {
-            spec.max_topologies =
-                (spec.adjusted_fitness * multiplier * F::from(spec.topologies.len()).unwrap())
-                    .round()
-                    .to_usize()
-                    .unwrap();
+            spec.max_topologies = (spec.adjusted_fitness * multiplier)
+                .round()
+                .to_usize()
+                .unwrap();
         }
         self.ev_number_.reset();
         for species in self.species_.iter_mut() {

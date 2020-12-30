@@ -127,12 +127,21 @@ where
             return;
         }
 
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = self
-            .topologies
-            .iter()
-            .skip(self.topologies.len() - (self.max_topologies / 2))
-            .cloned()
-            .collect();
+        if self.max_topologies == 0 {
+            self.topologies.clear();
+            return;
+        }
+
+        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
+            if self.topologies.len() >= (self.max_topologies / 2) {
+                self.topologies
+                    .iter()
+                    .skip(self.topologies.len() - (self.max_topologies / 2))
+                    .cloned()
+                    .collect()
+            } else {
+                self.topologies.clone()
+            };
 
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
         if self.topologies.len() >= 5 {
