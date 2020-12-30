@@ -132,16 +132,12 @@ where
             return;
         }
 
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
-            if self.topologies.len() >= (self.max_topologies / 2) {
-                self.topologies
-                    .iter()
-                    .skip(self.topologies.len() - (self.max_topologies / 2))
-                    .cloned()
-                    .collect()
-            } else {
-                self.topologies.clone()
-            };
+        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = if size >= self.max_topologies
+        {
+            self.topologies.iter().skip(size / 2).cloned().collect()
+        } else {
+            self.topologies.clone()
+        };
 
         self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
         if self.topologies.len() >= 5 {
@@ -155,11 +151,16 @@ where
         ev_number: &EvNumber,
     ) -> Vec<Rc<RefCell<Topology<T>>>> {
         let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
-        for topology in surviving_topologies.iter().rev() {
-            let top = topology.borrow_mut();
-            top.new_generation(&mut new_topologies, &ev_number, 2);
+        loop {
+            for topology in surviving_topologies.iter().rev() {
+                let top = topology.borrow_mut();
+                top.new_generation(&mut new_topologies, &ev_number, 1);
+                let full = new_topologies.len() == self.max_topologies;
+                if full {
+                    return new_topologies;
+                }
+            }
         }
-        new_topologies
     }
 
     pub fn push(&mut self, top: Rc<RefCell<Topology<T>>>) {

@@ -306,6 +306,15 @@ where
         self.species_.iter_mut().for_each(|spec| {
             spec.compute_adjusted_fitness();
         });
+        self.species_.sort_by(|spec1, spec2| {
+            spec1
+                .adjusted_fitness
+                .partial_cmp(spec2.adjusted_fitness)
+                .unwrap()
+        });
+        if self.species_.len() >= self.max_species_ {
+            self.species_ = self.species_.split_off(self.species_.len() / 2);
+        }
         let sum: F = self
             .species_
             .iter()
