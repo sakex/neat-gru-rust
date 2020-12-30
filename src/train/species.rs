@@ -132,7 +132,7 @@ where
             return;
         }
 
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = if size > 1 {
+        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> = if size > 2 {
             self.topologies.iter().skip(size / 2).cloned().collect()
         } else {
             self.topologies.iter().cloned().collect()
