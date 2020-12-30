@@ -4,10 +4,12 @@ use crate::topology::topology::Topology;
 use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
 use num::Float;
+use rayon::prelude::*;
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::iter::Sum;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
@@ -27,7 +29,7 @@ where
     topologies_: Vec<Rc<RefCell<Topology<F>>>>,
     species_: Vec<Species<F>>,
     history_: Vec<Topology<F>>,
-    ev_number_: EvNumber,
+    ev_number_: Arc<EvNumber>,
     best_historical_score: F,
     no_progress_counter: usize,
 }
@@ -68,7 +70,7 @@ where
             topologies_: Vec::new(),
             species_: Vec::new(),
             history_: Vec::new(),
-            ev_number_: EvNumber::new(),
+            ev_number_: Arc::new(EvNumber::new()),
             best_historical_score: F::zero(),
             no_progress_counter: 0,
         }
@@ -312,6 +314,11 @@ where
                 .partial_cmp(&spec2.adjusted_fitness)
                 .unwrap()
         });
+        if self.species_.len() > self.max_species_ {
+            self.species_ = self
+                .species_
+                .split_off(self.species_.len() - self.max_species_);
+        }
         let sum: F = self
             .species_
             .iter()
@@ -325,22 +332,50 @@ where
                 .unwrap();
         }
         self.ev_number_.reset();
-        for species in self.species_.iter_mut() {
-            species.natural_selection(&self.ev_number_);
-        }
+        let ev_number = self.ev_number_.clone();
+        self.species_.par_iter_mut().for_each(|species| {
+            species.natural_selection(ev_number.clone());
+        })
     }
 
     fn reset_species(&mut self) {
         self.species_.retain(|spec| spec.stagnation_counter < 15);
         self.get_topologies();
+        self.topologies_.sort_by(|top1, top2| {
+            top1.borrow()
+                .get_last_result()
+                .partial_cmp(&top2.borrow().get_last_result())
+                .unwrap()
+        });
+        if self.topologies_.len() > self.max_individuals_ {
+            self.topologies_ = self
+                .topologies_
+                .split_off(self.topologies_.len() - self.max_individuals_);
+        }
+        for spec in &mut self.species_ {
+            let best_top = spec.best_topology.clone();
+            spec.topologies.clear();
+            spec.topologies.push(best_top);
+        }
         for topology_rc in self.topologies_.iter() {
             let top_cp = topology_rc.clone();
+            let mut is_one_of_best = false;
+            for spec in &self.species_ {
+                let best_top_rc = &spec.best_topology;
+                if Rc::ptr_eq(best_top_rc, &top_cp) {
+                    is_one_of_best = true;
+                    break;
+                }
+            }
+            if is_one_of_best {
+                continue;
+            }
             let top_borrow = top_cp.borrow();
             let mut assigned = false;
             for spec in self.species_.iter_mut() {
                 let top2 = spec.get_best();
                 let delta = Topology::delta_compatibility(&top_borrow, &top2);
-                if delta <= F::from(3).unwrap() {
+                if delta <= F::from(6).unwrap() {
                     spec.push(spec.best_topology.clone());
                     assigned = true;
                     break;

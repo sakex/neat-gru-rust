@@ -5,6 +5,7 @@ use rand::prelude::ThreadRng;
 use std::cell::RefCell;
 use std::iter::Sum;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Species<T>
 where
@@ -17,6 +18,9 @@ where
     pub adjusted_fitness: T,
     pub max_topologies: usize,
 }
+
+unsafe impl<T> Sync for Species<T> where T: Float + Sum {}
+unsafe impl<T> Send for Species<T> where T: Float + Sum {}
 
 impl<T> Species<T>
 where
@@ -95,7 +99,7 @@ where
         }
     }
 
-    pub fn natural_selection(&mut self, ev_number: &EvNumber) {
+    pub fn natural_selection(&mut self, ev_number: Arc<EvNumber>) {
         self.topologies.sort_by(|top1, top2| {
             let top1_borrow = &**top1;
             let top1 = top1_borrow.borrow();
@@ -118,20 +122,20 @@ where
             self.stagnation_counter += 1;
         }
         self.best_topology = best_topology.clone();
-        self.do_selection(&ev_number);
+        self.do_selection(ev_number);
     }
 
-    fn do_selection(&mut self, ev_number: &EvNumber) {
+    fn do_selection(&mut self, ev_number: Arc<EvNumber>) {
         let size = self.topologies.len();
         if size == 0 || self.max_topologies == 0 {
             self.topologies.clear();
             return;
         }
 
-        let mut surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
+        let surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
             self.topologies.iter().skip(size / 2).cloned().collect();
 
-        self.topologies = self.evolve(&mut surviving_topologies, &ev_number);
+        self.topologies = self.evolve(&surviving_topologies, ev_number);
         if self.topologies.len() >= 5 {
             self.topologies.push(self.best_topology.clone());
         }
@@ -140,7 +144,7 @@ where
     fn evolve(
         &mut self,
         surviving_topologies: &Vec<Rc<RefCell<Topology<T>>>>,
-        ev_number: &EvNumber,
+        ev_number: Arc<EvNumber>,
     ) -> Vec<Rc<RefCell<Topology<T>>>> {
         let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
         new_topologies.reserve_exact(self.max_topologies);

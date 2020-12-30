@@ -365,12 +365,12 @@ where
     pub fn mutate(&mut self, ev_number: &EvNumber) {
         let mut rng = thread_rng();
         let change_weights = rng.gen_range(0.0, 1.0);
-        if change_weights < 0.8 {
+        if change_weights < 0.4 {
             self.change_weights(&mut rng);
         } else if change_weights < 0.9 {
-            self.change_topology(&ev_number, &mut rng, true);
-        } else {
             self.change_topology(&ev_number, &mut rng, false);
+        } else {
+            self.change_topology(&ev_number, &mut rng, true);
         }
     }
 
@@ -421,7 +421,7 @@ where
                         point.layer -= 1;
                     }
                     for gene_rc in &bias_and_gene.genes {
-                        if *gene_rc == gene {
+                        if Rc::ptr_eq(gene_rc, &gene) {
                             continue;
                         }
                         let mut gene = gene_rc.borrow_mut();
@@ -464,7 +464,7 @@ where
             Some(found) => {
                 let genes = &found.genes;
                 for gene_rc in genes {
-                    if *gene_rc == last {
+                    if Rc::ptr_eq(gene_rc, &last) {
                         continue;
                     }
                     let cloned_rc = gene_rc.clone();
