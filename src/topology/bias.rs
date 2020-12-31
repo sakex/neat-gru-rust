@@ -32,9 +32,9 @@ where
     #[replace_numeric_literals(T::from(literal).unwrap())]
     pub fn new_uniform() -> Bias<T> {
         Bias {
-            bias_input: 0,
-            bias_update: 0,
-            bias_reset: 0,
+            bias_input: 1,
+            bias_update: 1,
+            bias_reset: 1,
         }
     }
 

@@ -3,13 +3,14 @@ use crate::train::evolution_number::EvNumber;
 use num::Float;
 use rand::prelude::ThreadRng;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::iter::Sum;
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Species<T>
 where
-    T: Float + Sum,
+    T: Float + Sum + std::ops::AddAssign + Display,
 {
     pub topologies: Vec<Rc<RefCell<Topology<T>>>>,
     pub best_topology: Rc<RefCell<Topology<T>>>,
@@ -19,12 +20,12 @@ where
     pub max_topologies: usize,
 }
 
-unsafe impl<T> Sync for Species<T> where T: Float + Sum {}
-unsafe impl<T> Send for Species<T> where T: Float + Sum {}
+unsafe impl<T> Sync for Species<T> where T: Float + Sum + std::ops::AddAssign + Display {}
+unsafe impl<T> Send for Species<T> where T: Float + Sum + std::ops::AddAssign + Display {}
 
 impl<T> Species<T>
 where
-    T: Float + Sum,
+    T: Float + Sum + std::ops::AddAssign + Display,
 {
     pub fn new(first_topology: Rc<RefCell<Topology<T>>>) -> Species<T> {
         Species {

@@ -1,6 +1,6 @@
 [package]
 name = "neat-gru"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["sakex <alexandre@senges.ch>"]
 edition = "2018"
 description = "NEAT algorithm with GRU gates"

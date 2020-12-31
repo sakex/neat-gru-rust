@@ -4,10 +4,11 @@ use crate::neural_network::neuron::Neuron;
 use crate::topology::connection_type::ConnectionType;
 use crate::topology::topology::Topology;
 use num::Float;
+use std::fmt::Display;
 
 pub struct NeuralNetwork<T>
 where
-    T: Float,
+    T: Float + std::ops::AddAssign + Display,
 {
     output_size: usize,
     neurons: Vec<Neuron<T>>,
@@ -15,7 +16,7 @@ where
 
 impl<T> NeuralNetwork<T>
 where
-    T: Float,
+    T: Float + std::ops::AddAssign + Display,
 {
     pub unsafe fn new(topology: &Topology<T>) -> NeuralNetwork<T> {
         let layer_count = topology.layers_sizes.len();

@@ -5,15 +5,17 @@ use crate::topology::gene::{Gene, Point};
 use crate::topology::serialization::{SerializationBias, SerializationGene, SerializationTopology};
 use crate::train::evolution_number::EvNumber;
 use num::traits::Float;
+use numeric_literals::replace_numeric_literals;
 use rand::prelude::ThreadRng;
 use rand::{thread_rng, Rng};
+use serde::export::fmt::Display;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct Topology<T>
 where
-    T: Float,
+    T: Float + std::ops::AddAssign,
 {
     max_layers: usize,
     max_per_layers: usize,
@@ -27,7 +29,7 @@ where
 
 impl<T> Clone for Topology<T>
 where
-    T: Float,
+    T: Float + std::ops::AddAssign + Display,
 {
     fn clone(&self) -> Topology<T> {
         let genes_point: HashMap<Point, BiasAndGenes<T>> = self
@@ -75,7 +77,7 @@ where
 
 impl<T> Topology<T>
 where
-    T: Float,
+    T: Float + std::ops::AddAssign + Display,
 {
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
@@ -90,6 +92,7 @@ where
         }
     }
 
+    #[replace_numeric_literals(T::from(literal).unwrap())]
     pub fn delta_compatibility(top1: &Topology<T>, top2: &Topology<T>) -> T {
         let mut disjoints = T::zero();
         let mut common = T::zero();
@@ -103,29 +106,30 @@ where
                 Some(gene2) => {
                     let cell2 = &**gene2;
                     let gene2 = &*cell2.borrow();
-                    common = common + one;
-                    w = w
-                        + (gene1.input_weight - gene2.input_weight).abs()
+                    common += one;
+                    w += ((gene1.input_weight - gene2.input_weight).abs()
                         + (gene1.memory_weight - gene2.memory_weight).abs()
                         + (gene1.reset_input_weight - gene2.reset_input_weight).abs()
                         + (gene1.update_input_weight - gene2.update_input_weight).abs()
                         + (gene1.reset_memory_weight - gene2.reset_memory_weight).abs()
-                        + (gene1.update_memory_weight - gene2.update_memory_weight).abs();
+                        + (gene1.update_memory_weight - gene2.update_memory_weight).abs())
+                        / 6;
                 }
                 None => {
                     disjoints = disjoints + one;
                 }
             }
         }
+        w = w / common;
         let size_1 = T::from(top1.genes_ev_number.len()).unwrap();
         let size_2 = T::from(top2.genes_ev_number.len()).unwrap();
-        disjoints = disjoints + size_1 - common;
-        let n = if size_1 + size_2 <= T::from(60).unwrap() {
-            one
+        let n = if size_1 >= 20 || size_2 >= 20 {
+            size_1.max(size_2)
         } else {
-            T::from(size_1 + size_2).unwrap() / T::from(60).unwrap()
+            one
         };
-        T::from(2).unwrap() * disjoints / n + w / (common * T::from(3).unwrap())
+        disjoints = disjoints + size_1 - common;
+        12 * disjoints / n + w * 3
     }
 
     pub fn new_random(
@@ -288,8 +292,10 @@ where
     fn change_weights(&mut self, rng: &mut ThreadRng) {
         for (_point, gene_and_bias) in self.genes_point.iter_mut() {
             let change_bias = rng.gen_range(0.0, 1.0);
+            let pick_from = [T::from(-0.1).unwrap(), T::from(0.1).unwrap()];
             if change_bias < 0.8 {
-                let mutation = T::from(1.0 + rng.gen_range(-0.1, 0.1)).unwrap();
+                let ten_percent = rng.gen_range(0, 2);
+                let mutation = T::one() + pick_from[ten_percent];
                 gene_and_bias.bias.bias_input = gene_and_bias.bias.bias_input * mutation;
                 gene_and_bias.bias.bias_update = gene_and_bias.bias.bias_update * mutation;
                 gene_and_bias.bias.bias_reset = gene_and_bias.bias.bias_reset * mutation;
@@ -298,7 +304,8 @@ where
                 let mut gene_cp = gene.borrow_mut();
                 let change_weights = rng.gen_range(0.0, 1.0);
                 if change_weights < 0.8 {
-                    let mutation = T::from(1.0 + rng.gen_range(-0.1, 0.1)).unwrap();
+                    let ten_percent = rng.gen_range(0, 2);
+                    let mutation = T::one() + pick_from[ten_percent];
                     gene_cp.input_weight = gene_cp.input_weight * mutation;
                     gene_cp.memory_weight = gene_cp.memory_weight * mutation;
                     gene_cp.reset_input_weight = gene_cp.reset_input_weight * mutation;
@@ -365,7 +372,7 @@ where
     pub fn mutate(&mut self, ev_number: &EvNumber) {
         let mut rng = thread_rng();
         let change_weights = rng.gen_range(0.0, 1.0);
-        if change_weights < 0.4 {
+        if change_weights < 0.5 {
             self.change_weights(&mut rng);
         } else if change_weights < 0.9 {
             self.change_topology(&ev_number, &mut rng, false);

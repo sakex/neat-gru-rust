@@ -15,7 +15,7 @@ use std::time::Instant;
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
 where
-    F: Float + Sum + Display,
+    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign,
     T: Game<F>,
 {
     simulation: &'a mut T,
@@ -24,6 +24,7 @@ where
     max_species_: usize,
     max_layers_: usize,
     max_per_layers_: usize,
+    delta_threshold_: F,
     inputs_: Option<usize>,
     outputs_: Option<usize>,
     topologies_: Vec<Rc<RefCell<Topology<F>>>>,
@@ -37,7 +38,7 @@ where
 impl<'a, T, F> Train<'a, T, F>
 where
     T: Game<F>,
-    F: Float + Sum + Display,
+    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign,
 {
     /// Creates a Train<T: Game> instance
     ///
@@ -65,6 +66,7 @@ where
             max_species_,
             max_layers_: 4,
             max_per_layers_: 20,
+            delta_threshold_: F::from(4).unwrap(),
             inputs_,
             outputs_,
             topologies_: Vec::new(),
@@ -111,6 +113,19 @@ where
     #[inline]
     pub fn max_species(&mut self, v: usize) -> &mut Self {
         self.max_species_ = v;
+        self
+    }
+
+    /// Sets the delta threshold at which two topologies don't belong to the same species
+    ///
+    /// This function is optional as the number of max individuals defaults to 100
+    ///
+    /// # Arguments
+    ///
+    /// `v` - The new delta threshold
+    #[inline]
+    pub fn delta_threshold(&mut self, v: F) -> &mut Self {
+        self.delta_threshold_ = v;
         self
     }
 
@@ -305,6 +320,14 @@ where
     }
 
     fn natural_selection(&mut self) {
+        if self.species_.len() == 1 {
+            self.species_[0].max_topologies = self.max_individuals_;
+            self.ev_number_.reset();
+            let ev_number = self.ev_number_.clone();
+            self.species_[0].natural_selection(ev_number.clone());
+            return;
+        }
+        self.species_.retain(|spec| spec.stagnation_counter < 15);
         self.species_.iter_mut().for_each(|spec| {
             spec.compute_adjusted_fitness();
         });
@@ -314,22 +337,23 @@ where
                 .partial_cmp(&spec2.adjusted_fitness)
                 .unwrap()
         });
-        if self.species_.len() > self.max_species_ {
-            self.species_ = self
-                .species_
-                .split_off(self.species_.len() - self.max_species_);
-        }
+        let worst_score = self.species_[0].adjusted_fitness.clone();
         let sum: F = self
             .species_
             .iter()
-            .map(|spec| spec.adjusted_fitness.clone())
+            .map(|spec| spec.adjusted_fitness.clone() - worst_score)
             .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
+        let mut assigned_count: usize = 0;
         for spec in self.species_.iter_mut() {
-            spec.max_topologies = (spec.adjusted_fitness * multiplier)
+            let to_assign = ((spec.adjusted_fitness - worst_score) * multiplier)
+                .max(F::zero())
                 .round()
                 .to_usize()
-                .unwrap();
+                .unwrap()
+                .min(self.max_individuals_ - assigned_count);
+            assigned_count += to_assign;
+            spec.max_topologies = to_assign;
         }
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
@@ -339,27 +363,13 @@ where
     }
 
     fn reset_species(&mut self) {
-        self.species_.retain(|spec| spec.stagnation_counter < 15);
         self.get_topologies();
-        self.topologies_.sort_by(|top1, top2| {
-            top1.borrow()
-                .get_last_result()
-                .partial_cmp(&top2.borrow().get_last_result())
-                .unwrap()
-        });
-        if self.topologies_.len() > self.max_individuals_ {
-            self.topologies_ = self
-                .topologies_
-                .split_off(self.topologies_.len() - self.max_individuals_);
-        }
         for spec in &mut self.species_ {
-            let best_top = spec.best_topology.clone();
             spec.topologies.clear();
-            spec.topologies.push(best_top);
         }
         for topology_rc in self.topologies_.iter() {
             let top_cp = topology_rc.clone();
-            let mut is_one_of_best = false;
+            /*let mut is_one_of_best = false;
             for spec in &self.species_ {
                 let best_top_rc = &spec.best_topology;
                 if Rc::ptr_eq(best_top_rc, &top_cp) {
@@ -369,14 +379,14 @@ where
             }
             if is_one_of_best {
                 continue;
-            }
+            }*/
             let top_borrow = top_cp.borrow();
             let mut assigned = false;
             for spec in self.species_.iter_mut() {
                 let top2 = spec.get_best();
                 let delta = Topology::delta_compatibility(&top_borrow, &top2);
-                if delta <= F::from(6).unwrap() {
-                    spec.push(spec.best_topology.clone());
+                if delta <= self.delta_threshold_ {
+                    spec.push(topology_rc.clone());
                     assigned = true;
                     break;
                 }
