@@ -2,12 +2,13 @@ use crate::topology::bias::Bias;
 use crate::topology::bias_and_genes::BiasAndGenes;
 use crate::topology::connection_type::ConnectionType;
 use crate::topology::gene::{Gene, Point};
+use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::serialization::{SerializationBias, SerializationGene, SerializationTopology};
 use crate::train::evolution_number::EvNumber;
 use num::traits::Float;
 use numeric_literals::replace_numeric_literals;
-use rand::prelude::ThreadRng;
-use rand::{thread_rng, Rng};
+use rand::prelude::*;
+use rand_distr::{Distribution, Normal};
 use serde::export::fmt::Display;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -281,37 +282,34 @@ where
         new_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>,
         ev_number: &EvNumber,
         reproduction_count: usize,
+        proba: &MutationProbabilities,
     ) {
         for _ in 0..reproduction_count {
             let mut cp = self.clone();
-            cp.mutate(&ev_number);
+            cp.mutate(&ev_number, &proba);
             new_topologies.push(Rc::new(RefCell::new(cp)));
         }
     }
 
     fn change_weights(&mut self, rng: &mut ThreadRng) {
         for (_point, gene_and_bias) in self.genes_point.iter_mut() {
-            let change_bias = rng.gen_range(0.0, 1.0);
-            let pick_from = [T::from(-0.1).unwrap(), T::from(0.1).unwrap()];
+            let change_bias = rng.gen_range(0.0..1.0);
+            let normal = Normal::new(0.0, 0.1).unwrap();
             if change_bias < 0.8 {
-                let ten_percent = rng.gen_range(0, 2);
-                let mutation = T::one() + pick_from[ten_percent];
-                gene_and_bias.bias.bias_input = gene_and_bias.bias.bias_input * mutation;
-                gene_and_bias.bias.bias_update = gene_and_bias.bias.bias_update * mutation;
-                gene_and_bias.bias.bias_reset = gene_and_bias.bias.bias_reset * mutation;
+                gene_and_bias.bias.bias_input += T::from(normal.sample(rng)).unwrap();
+                gene_and_bias.bias.bias_update += T::from(normal.sample(rng)).unwrap();
+                gene_and_bias.bias.bias_reset += T::from(normal.sample(rng)).unwrap();
             }
             for gene in gene_and_bias.genes.iter_mut() {
                 let mut gene_cp = gene.borrow_mut();
-                let change_weights = rng.gen_range(0.0, 1.0);
+                let change_weights = rng.gen_range(0.0..1.0);
                 if change_weights < 0.8 {
-                    let ten_percent = rng.gen_range(0, 2);
-                    let mutation = T::one() + pick_from[ten_percent];
-                    gene_cp.input_weight = gene_cp.input_weight * mutation;
-                    gene_cp.memory_weight = gene_cp.memory_weight * mutation;
-                    gene_cp.reset_input_weight = gene_cp.reset_input_weight * mutation;
-                    gene_cp.update_input_weight = gene_cp.update_input_weight * mutation;
-                    gene_cp.reset_memory_weight = gene_cp.reset_memory_weight * mutation;
-                    gene_cp.update_memory_weight = gene_cp.update_memory_weight * mutation;
+                    gene_cp.input_weight += T::from(normal.sample(rng)).unwrap();
+                    gene_cp.memory_weight += T::from(normal.sample(rng)).unwrap();
+                    gene_cp.reset_input_weight += T::from(normal.sample(rng)).unwrap();
+                    gene_cp.update_input_weight += T::from(normal.sample(rng)).unwrap();
+                    gene_cp.reset_memory_weight += T::from(normal.sample(rng)).unwrap();
+                    gene_cp.update_memory_weight += T::from(normal.sample(rng)).unwrap();
                 }
             }
         }
@@ -326,12 +324,12 @@ where
         let mut new_output = false;
         let max_layer = self.layers_sizes.len().min(self.max_layers);
         let input_layer = if self.layers_sizes.len() > 2 {
-            rng.gen_range(0, max_layer - 2) as u8
+            rng.gen_range(0..(max_layer - 2)) as u8
         } else {
             0
         };
-        let input_index: u8 = rng.gen_range(0, self.layers_sizes[input_layer as usize]);
-        let output_layer: u8 = rng.gen_range(input_layer + 1, (max_layer + 1) as u8);
+        let input_index: u8 = rng.gen_range(0..self.layers_sizes[input_layer as usize]);
+        let output_layer: u8 = rng.gen_range((input_layer + 1)..(max_layer + 1) as u8);
         let mut output_index: u8 = 0;
 
         if (output_layer as usize) < self.layers_sizes.len() - 1 {
@@ -339,15 +337,15 @@ where
                 (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)
             } else {
                 rng.gen_range(
-                    0,
-                    self.layers_sizes[output_layer as usize].min(self.max_per_layers as u8) + 1,
+                    0..(self.layers_sizes[output_layer as usize].min(self.max_per_layers as u8)
+                        + 1),
                 )
             };
             if output_index >= self.layers_sizes[output_layer as usize] {
                 new_output = true
             }
         } else if (output_layer as usize) == self.layers_sizes.len() - 1 {
-            output_index = rng.gen_range(0, self.layers_sizes[output_layer as usize]);
+            output_index = rng.gen_range(0..self.layers_sizes[output_layer as usize]);
         } else {
             // if output_index == layers
             new_output = true;
@@ -363,18 +361,18 @@ where
             let just_created = self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
             self.disable_genes(input.clone(), output_cp.clone(), just_created);
             let last_layer_size = self.layers_sizes.last().unwrap();
-            let index = rng.gen_range(0, last_layer_size);
+            let index = rng.gen_range(0..*last_layer_size);
             let output_of_output = Point::new((self.layers_sizes.len() - 1) as u8, index);
             self.new_gene(&mut rng, output_cp.clone(), output_of_output, &ev_number);
         }
     }
 
-    pub fn mutate(&mut self, ev_number: &EvNumber) {
+    pub fn mutate(&mut self, ev_number: &EvNumber, proba: &MutationProbabilities) {
         let mut rng = thread_rng();
-        let change_weights = rng.gen_range(0.0, 1.0);
-        if change_weights < 0.5 {
+        let change_weights = rng.gen_range(0.0..1.0);
+        if change_weights < proba.change_weights {
             self.change_weights(&mut rng);
-        } else if change_weights < 0.9 {
+        } else if change_weights < 1.0 - proba.guaranteed_new_neuron {
             self.change_topology(&ev_number, &mut rng, false);
         } else {
             self.change_topology(&ev_number, &mut rng, true);

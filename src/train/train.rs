@@ -1,5 +1,6 @@
 use crate::game::Game;
 use crate::neural_network::nn::NeuralNetwork;
+use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::Topology;
 use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
@@ -15,7 +16,7 @@ use std::time::Instant;
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
 where
-    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign,
+    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     T: Game<F>,
 {
     simulation: &'a mut T,
@@ -33,12 +34,13 @@ where
     ev_number_: Arc<EvNumber>,
     best_historical_score: F,
     no_progress_counter: usize,
+    proba: MutationProbabilities,
 }
 
 impl<'a, T, F> Train<'a, T, F>
 where
     T: Game<F>,
-    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign,
+    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
 {
     /// Creates a Train<T: Game> instance
     ///
@@ -51,6 +53,47 @@ where
     /// Mandatory fields (use setters):
     /// - inputs -> the number of neurons on the first layer
     /// - outputs -> the number of neurons on the last layer
+    ///
+    /// # Example  
+    ///
+    /// ```
+    /// use neat_gru::neural_network::nn::NeuralNetwork;;
+    /// use neat_gru::topology::topology::Topology;
+    /// use neat_gru::game::Game;
+    ///
+    /// struct TestGame {
+    ///     nets: Vec<NeuralNetwork<f64>>,
+    /// }
+    ///
+    /// impl TestGame {
+    ///     pub fn new() -> TestGame {
+    ///         TestGame { nets: Vec::new() }
+    ///     }
+    /// }
+    ///
+    /// impl Game<f64> for TestGame {
+    ///     fn run_generation(&mut self) -> Vec<f64> {
+    ///         self.nets
+    ///             .iter_mut()
+    ///             .map(|network| {
+    ///                 let inputs = vec![0.1, 0.2, 0.3, 0.4, 0.5];
+    ///                 let out = network.compute(&*inputs);
+    ///                 let mut diff = 0f64;
+    ///                 inputs.iter().zip(out.iter()).for_each(|(a, b)| {
+    ///                     diff -= (a - b).abs();
+    ///                 });
+    ///                 diff
+    ///             })
+    ///             .collect()
+    ///     }
+    ///
+    ///     fn reset_players(&mut self, nets: Vec<NeuralNetwork<f64>>) {
+    ///         self.nets = nets;
+    ///     }
+    ///
+    ///     fn post_training(&mut self, _history: &[Topology<f64>]) {}
+    /// }
+    /// ```
     #[inline]
     pub fn new(simulation: &'a mut T) -> Train<'a, T, F> {
         let iterations_: usize = 1000;
@@ -75,6 +118,10 @@ where
             ev_number_: Arc::new(EvNumber::new()),
             best_historical_score: F::zero(),
             no_progress_counter: 0,
+            proba: MutationProbabilities {
+                change_weights: 0.4,
+                guaranteed_new_neuron: 0.1,
+            },
         }
     }
 
@@ -126,6 +173,17 @@ where
     #[inline]
     pub fn delta_threshold(&mut self, v: F) -> &mut Self {
         self.delta_threshold_ = v;
+        self
+    }
+
+    /// Sets the probabilities of different mutations
+    ///
+    /// # Arguments
+    ///
+    /// `v` - The new probabilities
+    #[inline]
+    pub fn mutation_probabilities(&mut self, v: MutationProbabilities) -> &mut Self {
+        self.proba = v;
         self
     }
 
@@ -324,29 +382,45 @@ where
             self.species_[0].max_topologies = self.max_individuals_;
             self.ev_number_.reset();
             let ev_number = self.ev_number_.clone();
-            self.species_[0].natural_selection(ev_number.clone());
+            self.species_[0].natural_selection(ev_number.clone(), self.proba.clone());
             return;
         }
         self.species_.retain(|spec| spec.stagnation_counter < 15);
         self.species_.iter_mut().for_each(|spec| {
             spec.compute_adjusted_fitness();
         });
+        let mean = self
+            .species_
+            .par_iter()
+            .map(|spec| spec.adjusted_fitness)
+            .sum::<F>()
+            / F::from(self.species_.len()).unwrap();
+        let variance = self
+            .species_
+            .par_iter()
+            .map(|spec| (spec.adjusted_fitness - mean).powf(F::from(2.0).unwrap()))
+            .sum::<F>()
+            / F::from(self.species_.len() - 1).unwrap();
+        let volatility = variance.sqrt();
+        self.species_.iter_mut().for_each(|spec| {
+            spec.adjusted_fitness = ((spec.adjusted_fitness - mean) / volatility).exp2();
+        });
+
         self.species_.sort_by(|spec1, spec2| {
             spec1
                 .adjusted_fitness
                 .partial_cmp(&spec2.adjusted_fitness)
                 .unwrap()
         });
-        let worst_score = self.species_[0].adjusted_fitness.clone();
         let sum: F = self
             .species_
             .iter()
-            .map(|spec| spec.adjusted_fitness.clone() - worst_score)
+            .map(|spec| spec.adjusted_fitness.clone())
             .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
         let mut assigned_count: usize = 0;
         for spec in self.species_.iter_mut() {
-            let to_assign = ((spec.adjusted_fitness - worst_score) * multiplier)
+            let to_assign = (spec.adjusted_fitness * multiplier)
                 .max(F::zero())
                 .round()
                 .to_usize()
@@ -357,8 +431,9 @@ where
         }
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
+        let proba = self.proba.clone();
         self.species_.par_iter_mut().for_each(|species| {
-            species.natural_selection(ev_number.clone());
+            species.natural_selection(ev_number.clone(), proba.clone());
         })
     }
 
@@ -369,7 +444,8 @@ where
         }
         for topology_rc in self.topologies_.iter() {
             let top_cp = topology_rc.clone();
-            /*let mut is_one_of_best = false;
+            // We could have the same topology in a species twice if it was one of the best
+            let mut is_one_of_best = false;
             for spec in &self.species_ {
                 let best_top_rc = &spec.best_topology;
                 if Rc::ptr_eq(best_top_rc, &top_cp) {
@@ -379,7 +455,7 @@ where
             }
             if is_one_of_best {
                 continue;
-            }*/
+            }
             let top_borrow = top_cp.borrow();
             let mut assigned = false;
             for spec in self.species_.iter_mut() {

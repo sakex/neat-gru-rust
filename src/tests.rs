@@ -1,7 +1,9 @@
 use crate::game::Game;
 use crate::neural_network::nn::NeuralNetwork;
+use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::Topology;
 use crate::train::train::Train;
+use rand::{thread_rng, Rng};
 use std::fs;
 
 #[test]
@@ -69,6 +71,73 @@ pub fn test_train() {
     let mut game = TestGame::new();
     let mut runner = Train::new(&mut game);
     runner
+        .iterations(100)
+        .max_individuals(50)
+        .max_species(5)
+        .inputs(5)
+        .outputs(5);
+    runner.start();
+}
+
+struct MemoryCount {
+    nets: Vec<NeuralNetwork<f64>>,
+}
+
+impl MemoryCount {
+    pub fn new() -> MemoryCount {
+        MemoryCount { nets: Vec::new() }
+    }
+}
+
+impl Game<f64> for MemoryCount {
+    fn run_generation(&mut self) -> Vec<f64> {
+        let mut values: Vec<usize> = Vec::new();
+        let mut rng = thread_rng();
+        for _ in 0..100 {
+            values.push(rng.gen_range(0..4));
+        }
+        self.nets
+            .iter_mut()
+            .map(|net| {
+                let mut current_counts = [0usize; 4];
+                values
+                    .iter()
+                    .map(|&v| {
+                        current_counts[v] += 1;
+                        let mut inputs = [0.0; 4];
+                        inputs[v] = 1.0;
+                        let outputs = net.compute(&inputs);
+                        let (index_output, _) = outputs
+                            .iter()
+                            .enumerate()
+                            .fold((0usize, &outputs[0]), |a, b| if a.1 > b.1 { a } else { b });
+                        let (real_index, _) = current_counts.iter().enumerate().fold(
+                            (0, &current_counts[0]),
+                            |a, b| if a.1 > b.1 { a } else { b },
+                        );
+                        (index_output == real_index) as usize as f64
+                    })
+                    .sum()
+            })
+            .collect()
+    }
+
+    fn reset_players(&mut self, nets: Vec<NeuralNetwork<f64>>) {
+        self.nets = nets;
+    }
+
+    fn post_training(&mut self, history: &[Topology<f64>]) {
+        println!("TRAINING DONE");
+    }
+}
+
+#[test]
+pub fn test_train_memory() {
+    let mut game = MemoryCount::new();
+    let proba = MutationProbabilities::new(0.4, 0.2).unwrap();
+    let mut runner = Train::new(&mut game);
+    runner
+        .mutation_probabilities(proba)
         .iterations(100)
         .max_individuals(50)
         .max_species(5)

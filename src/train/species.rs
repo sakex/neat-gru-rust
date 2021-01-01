@@ -1,3 +1,4 @@
+use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::Topology;
 use crate::train::evolution_number::EvNumber;
 use num::Float;
@@ -100,7 +101,7 @@ where
         }
     }
 
-    pub fn natural_selection(&mut self, ev_number: Arc<EvNumber>) {
+    pub fn natural_selection(&mut self, ev_number: Arc<EvNumber>, proba: MutationProbabilities) {
         self.topologies.sort_by(|top1, top2| {
             let top1_borrow = &**top1;
             let top1 = top1_borrow.borrow();
@@ -123,10 +124,10 @@ where
             self.stagnation_counter += 1;
         }
         self.best_topology = best_topology.clone();
-        self.do_selection(ev_number);
+        self.do_selection(ev_number, proba);
     }
 
-    fn do_selection(&mut self, ev_number: Arc<EvNumber>) {
+    fn do_selection(&mut self, ev_number: Arc<EvNumber>, proba: MutationProbabilities) {
         let size = self.topologies.len();
         if size == 0 || self.max_topologies == 0 {
             self.topologies.clear();
@@ -136,7 +137,7 @@ where
         let surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
             self.topologies.iter().skip(size / 2).cloned().collect();
 
-        self.topologies = self.evolve(&surviving_topologies, ev_number);
+        self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
         if self.topologies.len() >= 5 {
             self.topologies.push(self.best_topology.clone());
         }
@@ -146,13 +147,14 @@ where
         &mut self,
         surviving_topologies: &Vec<Rc<RefCell<Topology<T>>>>,
         ev_number: Arc<EvNumber>,
+        proba: MutationProbabilities,
     ) -> Vec<Rc<RefCell<Topology<T>>>> {
         let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
         new_topologies.reserve_exact(self.max_topologies);
         loop {
             for topology in surviving_topologies.iter().rev() {
                 let top = topology.borrow_mut();
-                top.new_generation(&mut new_topologies, &ev_number, 1);
+                top.new_generation(&mut new_topologies, &ev_number, 1, &proba);
                 let full = new_topologies.len() == self.max_topologies;
                 if full {
                     return new_topologies;

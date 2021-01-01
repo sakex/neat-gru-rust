@@ -1,6 +1,6 @@
 [package]
 name = "neat-gru"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["sakex <alexandre@senges.ch>"]
 edition = "2018"
 description = "NEAT algorithm with GRU gates"
@@ -13,7 +13,8 @@ crate-type = ["cdylib", "rlib"]
 serde = { version = "1.0.118", features = ["derive"] }
 serde_json = "1.0.60"
 num = "0.3.1"
-rand = "0.7.3"
+rand = "0.8.0"
+rand_distr = "0.4.0"
 numeric_literals = "0.1.1"
 rayon = "1.5.0"
 
