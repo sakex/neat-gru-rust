@@ -427,7 +427,7 @@ where
             self.no_progress_counter = 0;
         } else {
             self.no_progress_counter += 1;
-            if self.no_progress_counter >= 30 {
+            if self.no_progress_counter >= self.iterations_ / 10 {
                 println!("=========================RESET TO TWO SPECIES=========================");
                 self.best_historical_score = F::zero();
                 self.no_progress_counter = 0;
