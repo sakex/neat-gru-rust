@@ -393,11 +393,61 @@ where
         new_gene
     }
 
+    fn remove_gene(&mut self, gene: Rc<RefCell<Gene<T>>>) {
+        let (input, ev_number) = {
+            let gene_ref = gene.borrow();
+            (gene_ref.input.clone(), gene_ref.evolution_number)
+        };
+        // Remove the gene from genes_ev_number
+        self.genes_ev_number.remove(&ev_number);
+        // Remove from gene_points
+        self.genes_point.remove(&input);
+        // Lower layer size
+        self.layers_sizes[input.layer as usize] -= 1;
+        let is_removed_layer = self.layers_sizes[input.layer as usize] == 0;
+        if is_removed_layer {
+            self.layers_sizes.retain(|&v| v != 0);
+        };
+        // Adjust all genes with inputs or outputs on the layer after the index
+        // If the layer only had one neuron, do the same on further layers
+        self.genes_point = self
+            .genes_point
+            .iter_mut()
+            .map(|(point, bias_and_gene)| {
+                let mut point = point.clone();
+                if point.layer == input.layer && point.index > input.index {
+                    point.index -= 1;
+                }
+                if is_removed_layer && point.layer > input.layer {
+                    point.layer -= 1;
+                }
+                for gene_rc in &bias_and_gene.genes {
+                    if Rc::ptr_eq(gene_rc, &gene) {
+                        continue;
+                    }
+                    let mut gene = gene_rc.borrow_mut();
+                    if gene.input.layer == input.layer && gene.input.index > input.index {
+                        gene.input.index -= 1;
+                    }
+                    if gene.output.layer == input.layer && gene.output.index > input.index {
+                        gene.output.index -= 1;
+                    }
+                    if is_removed_layer {
+                        if gene.input.layer > input.layer {
+                            gene.input.layer -= 1;
+                        }
+                        if gene.output.layer > input.layer {
+                            gene.output.layer -= 1;
+                        }
+                    }
+                }
+                (point, bias_and_gene.clone())
+            })
+            .collect();
+    }
+
     fn remove_no_inputs(&mut self, gene: Rc<RefCell<Gene<T>>>) {
         let input = { gene.borrow().input.clone() };
-        if input.layer == 0 {
-            return;
-        }
         let mut vec_check_disabled = Vec::new();
         if !self.check_has_inputs(&input) {
             let bias_and_gene = match self.genes_point.get(&input) {
@@ -406,53 +456,14 @@ where
                 }
                 Some(v) => v,
             };
+            vec_check_disabled.reserve_exact(bias_and_gene.genes.len());
             // Add the outputs of the gene to delete to a vector for later checks
             for gene_rc in &bias_and_gene.genes {
                 vec_check_disabled.push(gene_rc.clone());
-                let gene = gene_rc.borrow();
-                // Remove the gene from genes_ev_number
-                self.genes_ev_number.remove(&gene.evolution_number);
             }
-            self.genes_point.remove(&input);
-            self.layers_sizes[input.layer as usize] -= 1;
-            let is_removed_layer = self.layers_sizes[input.layer as usize] == 0;
-            if is_removed_layer {
-                self.layers_sizes.retain(|&v| v != 0);
-            };
-            self.genes_point = self
-                .genes_point
-                .iter_mut()
-                .map(|(point, bias_and_gene)| {
-                    let mut point = point.clone();
-                    if point.layer == input.layer && point.index > input.index {
-                        point.index -= 1;
-                    }
-                    if is_removed_layer && point.layer > input.layer {
-                        point.layer -= 1;
-                    }
-                    for gene_rc in &bias_and_gene.genes {
-                        if Rc::ptr_eq(gene_rc, &gene) {
-                            continue;
-                        }
-                        let mut gene = gene_rc.borrow_mut();
-                        if gene.input.layer == input.layer && gene.input.index > input.index {
-                            gene.input.index -= 1;
-                        }
-                        if gene.output.layer == input.layer && gene.output.index > input.index {
-                            gene.output.index -= 1;
-                        }
-                        if is_removed_layer {
-                            if gene.input.layer > input.layer {
-                                gene.input.layer -= 1;
-                            }
-                            if gene.output.layer > input.layer {
-                                gene.output.layer -= 1;
-                            }
-                        }
-                    }
-                    (point, bias_and_gene.clone())
-                })
-                .collect();
+            if input.layer > 0 {
+                self.remove_gene(gene);
+            }
         }
         for gene_rc in &vec_check_disabled {
             self.remove_no_inputs(gene_rc.clone());
