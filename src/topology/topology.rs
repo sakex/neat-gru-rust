@@ -393,7 +393,7 @@ where
         new_gene
     }
 
-    fn remove_gene(&mut self, gene: Rc<RefCell<Gene<T>>>) {
+    fn remove_neuron(&mut self, gene: Rc<RefCell<Gene<T>>>) {
         let (input, ev_number) = {
             let gene_ref = gene.borrow();
             (gene_ref.input.clone(), gene_ref.evolution_number)
@@ -462,11 +462,11 @@ where
                 vec_check_disabled.push(gene_rc.clone());
             }
             if input.layer > 0 {
-                self.remove_gene(gene);
+                self.remove_neuron(gene);
+                for gene_rc in &vec_check_disabled {
+                    self.remove_no_inputs(gene_rc.clone());
+                }
             }
-        }
-        for gene_rc in &vec_check_disabled {
-            self.remove_no_inputs(gene_rc.clone());
         }
     }
 
@@ -475,10 +475,10 @@ where
     /// # Argument
     ///
     /// `output` - The point to check if any gene points to it
-    fn check_has_inputs(&self, output: &Point) -> bool {
+    fn check_has_inputs(&self, input: &Point) -> bool {
         self.genes_ev_number.iter().any(|(_ev_number, gene_rc)| {
             let gene = gene_rc.borrow();
-            !gene.disabled && gene.output == *output
+            !gene.disabled && gene.output == *input
         })
     }
 
