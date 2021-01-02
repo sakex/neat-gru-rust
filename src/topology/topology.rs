@@ -395,6 +395,9 @@ where
 
     fn remove_no_inputs(&mut self, gene: Rc<RefCell<Gene<T>>>) {
         let input = { gene.borrow().input.clone() };
+        if input.layer == 0 {
+            return;
+        }
         let mut vec_check_disabled = Vec::new();
         if !self.check_has_inputs(&input) {
             let bias_and_gene = match self.genes_point.get(&input) {
