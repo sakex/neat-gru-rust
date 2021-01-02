@@ -360,9 +360,7 @@ where
             self.species_[0].natural_selection(ev_number.clone(), self.proba.clone());
             return;
         }
-        let threshold = (self.max_individuals_ * 2) as u8;
-        self.species_
-            .retain(|spec| spec.stagnation_counter < threshold);
+        self.species_.retain(|spec| spec.stagnation_counter < 15);
         self.species_.iter_mut().for_each(|spec| {
             spec.compute_adjusted_fitness();
         });
@@ -429,7 +427,7 @@ where
             self.no_progress_counter = 0;
         } else {
             self.no_progress_counter += 1;
-            if self.no_progress_counter >= 100 {
+            if self.no_progress_counter >= 30 {
                 println!("=========================RESET TO TWO SPECIES=========================");
                 self.best_historical_score = F::zero();
                 self.no_progress_counter = 0;

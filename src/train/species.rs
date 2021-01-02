@@ -121,7 +121,7 @@ where
             self.best_historical_score = last_result;
             self.stagnation_counter = 0;
         } else {
-            self.stagnation_counter += self.topologies.len() as u8;
+            self.stagnation_counter += 1;
         }
         self.best_topology = best_topology.clone();
         self.do_selection(ev_number, proba);
