@@ -130,7 +130,7 @@ where
             one
         };
         disjoints = disjoints + size_1 - common;
-        12 * disjoints / n + w * 3
+        12 * disjoints / n + w * 6
     }
 
     pub fn new_random(
@@ -217,7 +217,7 @@ where
         let last_layer_size = self.layers_sizes.last().unwrap();
         self.output_bias = (0..*last_layer_size)
             .into_iter()
-            .map(|_| Bias::new_uniform())
+            .map(|_| Bias::new_zero())
             .collect();
     }
 
@@ -394,10 +394,10 @@ where
     }
 
     fn remove_no_inputs(&mut self, gene: Rc<RefCell<Gene<T>>>) {
-        let output = { gene.borrow().output.clone() };
+        let input = { gene.borrow().input.clone() };
         let mut vec_check_disabled = Vec::new();
-        if !self.check_has_inputs(&output) {
-            let bias_and_gene = match self.genes_point.get(&output) {
+        if !self.check_has_inputs(&input) {
+            let bias_and_gene = match self.genes_point.get(&input) {
                 None => {
                     return;
                 }
@@ -410,9 +410,9 @@ where
                 // Remove the gene from genes_ev_number
                 self.genes_ev_number.remove(&gene.evolution_number);
             }
-            self.genes_point.remove(&output);
-            self.layers_sizes[output.layer as usize] -= 1;
-            let is_removed_layer = self.layers_sizes[output.layer as usize] == 0;
+            self.genes_point.remove(&input);
+            self.layers_sizes[input.layer as usize] -= 1;
+            let is_removed_layer = self.layers_sizes[input.layer as usize] == 0;
             if is_removed_layer {
                 self.layers_sizes.retain(|&v| v != 0);
             };
@@ -421,10 +421,10 @@ where
                 .iter_mut()
                 .map(|(point, bias_and_gene)| {
                     let mut point = point.clone();
-                    if point.layer == output.layer && point.index > output.index {
+                    if point.layer == input.layer && point.index > input.index {
                         point.index -= 1;
                     }
-                    if is_removed_layer && point.layer > output.layer {
+                    if is_removed_layer && point.layer > input.layer {
                         point.layer -= 1;
                     }
                     for gene_rc in &bias_and_gene.genes {
@@ -432,17 +432,17 @@ where
                             continue;
                         }
                         let mut gene = gene_rc.borrow_mut();
-                        if gene.input.layer == output.layer && gene.input.index > output.index {
+                        if gene.input.layer == input.layer && gene.input.index > input.index {
                             gene.input.index -= 1;
                         }
-                        if gene.output.layer == output.layer && gene.output.index > output.index {
+                        if gene.output.layer == input.layer && gene.output.index > input.index {
                             gene.output.index -= 1;
                         }
                         if is_removed_layer {
-                            if gene.input.layer > output.layer {
+                            if gene.input.layer > input.layer {
                                 gene.input.layer -= 1;
                             }
-                            if gene.output.layer > output.layer {
+                            if gene.output.layer > input.layer {
                                 gene.output.layer -= 1;
                             }
                         }

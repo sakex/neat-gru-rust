@@ -297,6 +297,7 @@ where
             self.set_last_results(&results);
             let now = Instant::now();
             self.natural_selection();
+            self.push_to_history();
             self.reset_species();
             if self.species_.is_empty() {
                 break;
@@ -328,32 +329,6 @@ where
 
     fn reset_players(&mut self) {
         self.get_topologies();
-        self.species_
-            .sort_by(|s1, s2| s1.score().partial_cmp(&s2.score()).unwrap());
-
-        let best = self.species_.last().unwrap().score();
-
-        println!(
-            "BEST OF WORST: {} BEST: {}",
-            num::cast::<F, f32>(self.species_[0].score()).unwrap(),
-            best
-        );
-
-        if best > self.best_historical_score {
-            self.best_historical_score = best;
-            self.no_progress_counter = 0;
-        } else {
-            self.no_progress_counter += 1;
-            if self.no_progress_counter >= 20 {
-                self.best_historical_score = F::zero();
-                self.no_progress_counter = 0;
-                self.species_ = self.species_.split_off(self.species_.len() - 2);
-            }
-        }
-
-        for species in self.species_.iter() {
-            self.history_.push(species.get_best())
-        }
 
         let networks: Vec<NeuralNetwork<F>> = self
             .topologies_
@@ -385,7 +360,9 @@ where
             self.species_[0].natural_selection(ev_number.clone(), self.proba.clone());
             return;
         }
-        self.species_.retain(|spec| spec.stagnation_counter < 15);
+        let threshold = (self.max_individuals_ * 2) as u8;
+        self.species_
+            .retain(|spec| spec.stagnation_counter < threshold);
         self.species_.iter_mut().for_each(|spec| {
             spec.compute_adjusted_fitness();
         });
@@ -403,7 +380,7 @@ where
             / F::from(self.species_.len() - 1).unwrap();
         let volatility = variance.sqrt();
         self.species_.iter_mut().for_each(|spec| {
-            spec.adjusted_fitness = F::from(1.5)
+            spec.adjusted_fitness = F::from(1.1)
                 .unwrap()
                 .powf((spec.adjusted_fitness - mean) / volatility);
         });
@@ -436,7 +413,35 @@ where
         let proba = self.proba.clone();
         self.species_.par_iter_mut().for_each(|species| {
             species.natural_selection(ev_number.clone(), proba.clone());
-        })
+        });
+    }
+
+    fn push_to_history(&mut self) {
+        self.species_
+            .sort_by(|s1, s2| s1.score().partial_cmp(&s2.score()).unwrap());
+
+        let best = self.species_.last().unwrap().score();
+
+        println!("BEST OF WORST: {} BEST: {}", self.species_[0].score(), best);
+
+        if best > self.best_historical_score {
+            self.best_historical_score = best;
+            self.no_progress_counter = 0;
+        } else {
+            self.no_progress_counter += 1;
+            if self.no_progress_counter >= 100 {
+                println!("=========================RESET TO TWO SPECIES=========================");
+                self.best_historical_score = F::zero();
+                self.no_progress_counter = 0;
+                if self.species_.len() >= 2 {
+                    self.species_ = self.species_.split_off(self.species_.len() - 2);
+                }
+            }
+        }
+
+        for species in self.species_.iter() {
+            self.history_.push(species.get_best())
+        }
     }
 
     fn reset_species(&mut self) {

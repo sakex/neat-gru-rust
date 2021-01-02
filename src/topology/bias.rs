@@ -1,5 +1,4 @@
 use num::traits::Float;
-use numeric_literals::replace_numeric_literals;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
@@ -26,15 +25,6 @@ where
             bias_input: T::from(uniform.sample(rng)).unwrap(),
             bias_update: T::from(uniform.sample(rng)).unwrap(),
             bias_reset: T::from(uniform.sample(rng)).unwrap(),
-        }
-    }
-
-    #[replace_numeric_literals(T::from(literal).unwrap())]
-    pub fn new_uniform() -> Bias<T> {
-        Bias {
-            bias_input: 1,
-            bias_update: 1,
-            bias_reset: 1,
         }
     }
 

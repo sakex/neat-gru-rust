@@ -121,7 +121,7 @@ where
             self.best_historical_score = last_result;
             self.stagnation_counter = 0;
         } else {
-            self.stagnation_counter += 1;
+            self.stagnation_counter += self.topologies.len() as u8;
         }
         self.best_topology = best_topology.clone();
         self.do_selection(ev_number, proba);
@@ -164,17 +164,7 @@ where
     }
 
     pub fn push(&mut self, top: Rc<RefCell<Topology<T>>>) {
-        self.update_best(&top);
         self.topologies.push(top);
-    }
-
-    fn update_best(&mut self, top: &Rc<RefCell<Topology<T>>>) {
-        if top.borrow().get_last_result() >= self.best_topology.borrow().get_last_result() {
-            self.best_topology = top.clone();
-            let top_borrow = &*self.best_topology;
-            let best_top = top_borrow.borrow();
-            self.best_historical_score = best_top.get_last_result();
-        }
     }
 
     pub fn score(&self) -> T {
