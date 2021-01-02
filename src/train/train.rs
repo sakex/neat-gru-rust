@@ -109,7 +109,7 @@ where
             max_species_,
             max_layers_: 4,
             max_per_layers_: 20,
-            delta_threshold_: F::from(4).unwrap(),
+            delta_threshold_: F::from(3).unwrap(),
             inputs_,
             outputs_,
             topologies_: Vec::new(),
@@ -119,7 +119,7 @@ where
             best_historical_score: F::zero(),
             no_progress_counter: 0,
             proba: MutationProbabilities {
-                change_weights: 0.4,
+                change_weights: 0.8,
                 guaranteed_new_neuron: 0.1,
             },
         }
@@ -403,7 +403,9 @@ where
             / F::from(self.species_.len() - 1).unwrap();
         let volatility = variance.sqrt();
         self.species_.iter_mut().for_each(|spec| {
-            spec.adjusted_fitness = ((spec.adjusted_fitness - mean) / volatility).exp2();
+            spec.adjusted_fitness = F::from(1.5)
+                .unwrap()
+                .powf((spec.adjusted_fitness - mean) / volatility);
         });
 
         self.species_.sort_by(|spec1, spec2| {

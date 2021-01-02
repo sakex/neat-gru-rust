@@ -396,16 +396,18 @@ where
     fn remove_no_inputs(&mut self, gene: Rc<RefCell<Gene<T>>>) {
         let output = { gene.borrow().output.clone() };
         let mut vec_check_disabled = Vec::new();
-        if !self.check_no_inputs(&output) {
+        if !self.check_has_inputs(&output) {
             let bias_and_gene = match self.genes_point.get(&output) {
                 None => {
                     return;
                 }
                 Some(v) => v,
             };
+            // Add the outputs of the gene to delete to a vector for later checks
             for gene_rc in &bias_and_gene.genes {
                 vec_check_disabled.push(gene_rc.clone());
                 let gene = gene_rc.borrow();
+                // Remove the gene from genes_ev_number
                 self.genes_ev_number.remove(&gene.evolution_number);
             }
             self.genes_point.remove(&output);
@@ -454,12 +456,15 @@ where
         }
     }
 
-    fn check_no_inputs(&self, output: &Point) -> bool {
-        self.genes_point.iter().any(|(_point, gene_and_bias)| {
-            gene_and_bias.genes.iter().any(|gene_rc| {
-                let gene = gene_rc.borrow();
-                !gene.disabled && gene.output == *output
-            })
+    /// Returns true if no Gene has the given output
+    ///
+    /// # Argument
+    ///
+    /// `output` - The point to check if any gene points to it
+    fn check_has_inputs(&self, output: &Point) -> bool {
+        self.genes_ev_number.iter().any(|(_ev_number, gene_rc)| {
+            let gene = gene_rc.borrow();
+            !gene.disabled && gene.output == *output
         })
     }
 
@@ -613,6 +618,7 @@ where
             .map(|(_point, gene)| {
                 gene.genes
                     .iter()
+                    .filter(|gene| !gene.borrow().disabled)
                     .map(|gene| {
                         let cell = &**gene;
                         let gene = &*cell.borrow();
