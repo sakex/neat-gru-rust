@@ -119,8 +119,9 @@ where
             best_historical_score: F::zero(),
             no_progress_counter: 0,
             proba: MutationProbabilities {
-                change_weights: 0.8,
+                change_weights: 0.4,
                 guaranteed_new_neuron: 0.1,
+                delete_neuron: 0.1,
             },
         }
     }
@@ -215,7 +216,7 @@ where
 
     /// Sets the maximum number of layers for the networks
     ///
-    /// This function is optional as the max number of layers defaults to 10
+    /// This function is optional as the max number of layers defaults to 4
     ///
     /// # Arguments
     ///
@@ -361,6 +362,9 @@ where
             return;
         }
         self.species_.retain(|spec| spec.stagnation_counter < 15);
+        if self.species_.len() == 0 {
+            return;
+        }
         self.species_.iter_mut().for_each(|spec| {
             spec.compute_adjusted_fitness();
         });
@@ -427,7 +431,7 @@ where
             self.no_progress_counter = 0;
         } else {
             self.no_progress_counter += 1;
-            if self.no_progress_counter >= self.iterations_ / 10 {
+            if self.no_progress_counter >= self.iterations_ / 10 && self.iterations_ > 500 {
                 println!("=========================RESET TO TWO SPECIES=========================");
                 self.best_historical_score = F::zero();
                 self.no_progress_counter = 0;

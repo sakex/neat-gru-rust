@@ -221,40 +221,43 @@ where
             .collect();
     }
 
-    pub fn add_relationship(&mut self, gene: Rc<RefCell<Gene<T>>>, init: bool) {
-        let gene_cp = gene.clone();
+    pub fn add_relationship(&mut self, gene_rc: Rc<RefCell<Gene<T>>>, init: bool) {
+        let gene_cp = gene_rc.clone();
         // Drop refcell
         let (input, ev_number) = {
-            let cell = &*gene;
-            let gene = &mut *cell.borrow_mut();
+            let gene = &mut *gene_cp.borrow_mut();
             let input = gene.input.clone();
             let output = gene.output.clone();
             let ev_number = gene.evolution_number;
-            if input.index + 1 > self.layers_sizes[input.layer as usize] {
+            if !gene.disabled && input.index + 1 > self.layers_sizes[input.layer as usize] {
                 self.layers_sizes[input.layer as usize] = input.index + 1;
             }
-            if !init && output.layer as usize == self.layers_sizes.len() {
+            if !gene.disabled && !init && output.layer as usize == self.layers_sizes.len() {
                 self.resize(output.layer as usize);
                 gene.decrement_output();
-            } else if output.index + 1 > self.layers_sizes[output.layer as usize] {
+            } else if !gene.disabled && output.index + 1 > self.layers_sizes[output.layer as usize]
+            {
                 self.layers_sizes[output.layer as usize] = output.index + 1;
             }
             (input, ev_number)
         };
         let mut rng = thread_rng();
-        match self.genes_point.get_mut(&input) {
-            Some(found) => {
-                found.genes.push(gene_cp.clone());
-                found.genes.sort();
-            }
-            None => {
-                let bias = Bias::new_random(&mut rng);
-                let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
-                bias_and_genes.genes = vec![gene_cp.clone()];
-                self.genes_point.insert(input.clone(), bias_and_genes);
+        let gene = gene_cp.borrow();
+        if !gene.disabled {
+            match self.genes_point.get_mut(&input) {
+                Some(found) => {
+                    found.genes.push(gene_cp.clone());
+                    found.genes.sort();
+                }
+                None => {
+                    let bias = Bias::new_random(&mut rng);
+                    let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
+                    bias_and_genes.genes = vec![gene_cp.clone()];
+                    self.genes_point.insert(input.clone(), bias_and_genes);
+                }
             }
         }
-        self.genes_ev_number.insert(ev_number, gene_cp);
+        self.genes_ev_number.insert(ev_number, gene_rc);
     }
 
     fn resize(&mut self, layers: usize) {
@@ -337,8 +340,8 @@ where
                 (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)
             } else {
                 rng.gen_range(
-                    0..(self.layers_sizes[output_layer as usize].min(self.max_per_layers as u8)
-                        + 1),
+                    0..((self.layers_sizes[output_layer as usize] + 1)
+                        .min(self.max_per_layers as u8)),
                 )
             };
             if output_index >= self.layers_sizes[output_layer as usize] {
@@ -367,15 +370,25 @@ where
         }
     }
 
+    fn delete_neuron(&mut self, rng: &mut ThreadRng) {
+        let input_layer = rng.gen_range(1..self.layers_sizes.len() - 2) as u8;
+        let input_index: u8 = rng.gen_range(0..self.layers_sizes[input_layer as usize]);
+        let input = Point::new(input_layer, input_index);
+        self.remove_neuron(&input);
+    }
+
     pub fn mutate(&mut self, ev_number: &EvNumber, proba: &MutationProbabilities) {
         let mut rng = thread_rng();
         let change_weights = rng.gen_range(0.0..1.0);
         if change_weights < proba.change_weights {
             self.change_weights(&mut rng);
-        } else if change_weights < 1.0 - proba.guaranteed_new_neuron {
+        } else if change_weights < 1.0 - proba.guaranteed_new_neuron - proba.delete_neuron {
             self.change_topology(&ev_number, &mut rng, false);
-        } else {
+        } else if change_weights < 1.0 - proba.guaranteed_new_neuron || self.layers_sizes.len() <= 3
+        {
             self.change_topology(&ev_number, &mut rng, true);
+        } else {
+            self.delete_neuron(&mut rng);
         }
     }
 
@@ -393,15 +406,22 @@ where
         new_gene
     }
 
-    fn remove_neuron(&mut self, gene: Rc<RefCell<Gene<T>>>) {
-        let (input, ev_number) = {
-            let gene_ref = gene.borrow();
-            (gene_ref.input.clone(), gene_ref.evolution_number)
+    fn remove_neuron(&mut self, input: &Point) {
+        // get bias_and_gene
+        let bias_and_gene = match self.genes_point.get(&input) {
+            None => {
+                return;
+            }
+            Some(v) => v,
         };
-        // Remove the gene from genes_ev_number
-        self.genes_ev_number.remove(&ev_number);
-        // Remove from gene_points
-        self.genes_point.remove(&input);
+        let mut vec_check_disabled = Vec::new();
+        vec_check_disabled.reserve_exact(bias_and_gene.genes.len());
+        // disable all outputs from this neuron
+        for gene_rc in &bias_and_gene.genes {
+            let mut gene = gene_rc.borrow_mut();
+            gene.disabled = true;
+            vec_check_disabled.push((gene.input.clone(), gene.output.clone()));
+        }
         // Lower layer size
         self.layers_sizes[input.layer as usize] -= 1;
         let is_removed_layer = self.layers_sizes[input.layer as usize] == 0;
@@ -422,9 +442,6 @@ where
                     point.layer -= 1;
                 }
                 for gene_rc in &bias_and_gene.genes {
-                    if Rc::ptr_eq(gene_rc, &gene) {
-                        continue;
-                    }
                     let mut gene = gene_rc.borrow_mut();
                     if gene.input.layer == input.layer && gene.input.index > input.index {
                         gene.input.index -= 1;
@@ -444,29 +461,18 @@ where
                 (point, bias_and_gene.clone())
             })
             .collect();
+
+        for (input, output) in &vec_check_disabled {
+            self.remove_no_inputs(&input, &output);
+        }
     }
 
-    fn remove_no_inputs(&mut self, gene: Rc<RefCell<Gene<T>>>) {
-        let input = { gene.borrow().input.clone() };
-        let mut vec_check_disabled = Vec::new();
-        if !self.check_has_inputs(&input) {
-            let bias_and_gene = match self.genes_point.get(&input) {
-                None => {
-                    return;
-                }
-                Some(v) => v,
-            };
-            vec_check_disabled.reserve_exact(bias_and_gene.genes.len());
-            // Add the outputs of the gene to delete to a vector for later checks
-            for gene_rc in &bias_and_gene.genes {
-                vec_check_disabled.push(gene_rc.clone());
-            }
-            if input.layer > 0 {
-                self.remove_neuron(gene);
-                for gene_rc in &vec_check_disabled {
-                    self.remove_no_inputs(gene_rc.clone());
-                }
-            }
+    fn remove_no_inputs(&mut self, input: &Point, output: &Point) {
+        if input.layer != 0
+            && input.layer != (self.layers_sizes.len() - 1) as u8
+            && (!self.check_has_inputs(&output) || !self.check_has_outputs(&input))
+        {
+            self.remove_neuron(&input);
         }
     }
 
@@ -482,6 +488,16 @@ where
         })
     }
 
+    fn check_has_outputs(&self, input: &Point) -> bool {
+        match self.genes_point.get(&input) {
+            None => false,
+            Some(bias_and_genes) => bias_and_genes
+                .genes
+                .iter()
+                .any(|gene| !gene.borrow().disabled),
+        }
+    }
+
     fn disable_genes(&mut self, input: Point, output: Point, last: Rc<RefCell<Gene<T>>>) {
         let mut disabled_genes = Vec::new();
         match self.genes_point.get(&input) {
@@ -491,7 +507,6 @@ where
                     if Rc::ptr_eq(gene_rc, &last) {
                         continue;
                     }
-                    let cloned_rc = gene_rc.clone();
                     let cell = &**gene_rc;
                     let compared_output = {
                         let gene = cell.borrow();
@@ -506,14 +521,14 @@ where
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;
-                        disabled_genes.push(cloned_rc);
+                        disabled_genes.push((gene.input.clone(), gene.output.clone()));
                     }
                 }
             }
             None => {}
         }
-        for gene_rc in disabled_genes {
-            self.remove_no_inputs(gene_rc.clone());
+        for (input, output) in disabled_genes {
+            self.remove_no_inputs(&input, &output);
         }
     }
 
@@ -546,10 +561,7 @@ where
         if neuron.layer as usize != self.layers_sizes.len() - 1 {
             match self.genes_point.get_mut(&neuron) {
                 Some(found) => found.bias = bias,
-                None => panic!(
-                    "Error in serialization, Neuron {} {} doesn't exist",
-                    neuron.layer, neuron.index
-                ),
+                None => return,
             }
         } else {
             if self.output_bias.len() != *self.layers_sizes.last().unwrap() as usize {
@@ -572,7 +584,7 @@ where
             .map(|ser_gene| {
                 let input = Point::new(ser_gene.input.0, ser_gene.input.1);
                 let output = Point::new(ser_gene.output.0, ser_gene.output.1);
-                if output.layer > max_layers {
+                if !ser_gene.disabled && output.layer > max_layers {
                     max_layers = output.layer;
                 }
                 let gene = Rc::new(RefCell::new(Gene::new(

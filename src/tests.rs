@@ -63,7 +63,18 @@ impl Game<f64> for TestGame {
         self.nets = nets;
     }
 
-    fn post_training(&mut self, _history: &[Topology<f64>]) {}
+    fn post_training(&mut self, history: &[Topology<f64>]) {
+        for (index, top) in history.iter().enumerate() {
+            let as_str = top.to_string();
+            let network = unsafe { NeuralNetwork::new(&top) };
+            let network_from_string: NeuralNetwork<f64> = NeuralNetwork::from_string(&*as_str);
+            self.nets = vec![network, network_from_string];
+            let output = self.run_generation();
+            if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
+                panic!("{}: {} != {}", index, output[0], output[1])
+            }
+        }
+    }
 }
 
 #[test]
@@ -71,6 +82,8 @@ pub fn test_train() {
     let mut game = TestGame::new();
     let mut runner = Train::new(&mut game);
     runner
+        .max_layers(5)
+        .max_per_layers(10)
         .iterations(100)
         .max_individuals(50)
         .max_species(5)
@@ -126,7 +139,7 @@ impl Game<f64> for MemoryCount {
         self.nets = nets;
     }
 
-    fn post_training(&mut self, history: &[Topology<f64>]) {
+    fn post_training(&mut self, _history: &[Topology<f64>]) {
         println!("TRAINING DONE");
     }
 }
@@ -134,9 +147,11 @@ impl Game<f64> for MemoryCount {
 #[test]
 pub fn test_train_memory() {
     let mut game = MemoryCount::new();
-    let proba = MutationProbabilities::new(0.4, 0.2).unwrap();
+    let proba = MutationProbabilities::new(0.2, 0.0, 0.0).unwrap();
     let mut runner = Train::new(&mut game);
     runner
+        .max_layers(5)
+        .max_per_layers(3)
         .mutation_probabilities(proba)
         .iterations(100)
         .max_individuals(50)
