@@ -1,10 +1,11 @@
 use crate::topology::bias::Bias;
 use crate::topology::gene::Gene;
 use num::Float;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct BiasAndGenes<T>
 where
     T: Float,

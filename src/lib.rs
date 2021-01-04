@@ -4,3 +4,4 @@ pub mod neural_network;
 mod tests;
 pub mod topology;
 pub mod train;
+mod utils;

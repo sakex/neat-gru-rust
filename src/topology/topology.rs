@@ -9,11 +9,12 @@ use num::traits::Float;
 use numeric_literals::replace_numeric_literals;
 use rand::prelude::*;
 use rand_distr::{Distribution, Normal};
-use serde::export::fmt::Display;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+#[derive(Deserialize, Serialize)]
 pub struct Topology<T>
 where
     T: Float + std::ops::AddAssign,
@@ -28,9 +29,9 @@ where
     genes_ev_number: HashMap<usize, Rc<RefCell<Gene<T>>>>,
 }
 
-impl<T> Clone for Topology<T>
+impl<'a, T> Clone for Topology<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign,
 {
     fn clone(&self) -> Topology<T> {
         let genes_point: HashMap<Point, BiasAndGenes<T>> = self
@@ -76,9 +77,9 @@ where
     }
 }
 
-impl<T> Topology<T>
+impl<'a, T> Topology<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign,
 {
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
@@ -242,19 +243,16 @@ where
             (input, ev_number)
         };
         let mut rng = thread_rng();
-        let gene = gene_cp.borrow();
-        if !gene.disabled {
-            match self.genes_point.get_mut(&input) {
-                Some(found) => {
-                    found.genes.push(gene_cp.clone());
-                    found.genes.sort();
-                }
-                None => {
-                    let bias = Bias::new_random(&mut rng);
-                    let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
-                    bias_and_genes.genes = vec![gene_cp.clone()];
-                    self.genes_point.insert(input.clone(), bias_and_genes);
-                }
+        match self.genes_point.get_mut(&input) {
+            Some(found) => {
+                found.genes.push(gene_cp.clone());
+                found.genes.sort();
+            }
+            None => {
+                let bias = Bias::new_random(&mut rng);
+                let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
+                bias_and_genes.genes = vec![gene_cp.clone()];
+                self.genes_point.insert(input.clone(), bias_and_genes);
             }
         }
         self.genes_ev_number.insert(ev_number, gene_rc);
@@ -340,8 +338,7 @@ where
                 (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)
             } else {
                 rng.gen_range(
-                    0..((self.layers_sizes[output_layer as usize] + 1)
-                        .min(self.max_per_layers as u8)),
+                    0..((self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)),
                 )
             };
             if output_index >= self.layers_sizes[output_layer as usize] {
@@ -362,11 +359,20 @@ where
             let mut output_cp = output.clone();
             output_cp.layer -= 1;
             let just_created = self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
-            self.disable_genes(input.clone(), output_cp.clone(), just_created);
+            self.disable_genes(input.clone(), output_cp.clone(), just_created.clone());
             let last_layer_size = self.layers_sizes.last().unwrap();
             let index = rng.gen_range(0..*last_layer_size);
             let output_of_output = Point::new((self.layers_sizes.len() - 1) as u8, index);
-            self.new_gene(&mut rng, output_cp.clone(), output_of_output, &ev_number);
+            if just_created.borrow().disabled {
+                return;
+            }
+            let extra_gene = self.new_gene(
+                &mut rng,
+                just_created.borrow().output.clone(),
+                output_of_output,
+                &ev_number,
+            );
+            self.disable_genes(input.clone(), output.clone(), extra_gene);
         }
     }
 
@@ -392,6 +398,7 @@ where
             self.change_topology(&ev_number, &mut rng, false);
             // self.delete_neuron(&mut rng);
         }
+        // println!("{:?}", self.layers_sizes);
     }
 
     fn new_gene(
@@ -410,7 +417,7 @@ where
 
     fn remove_neuron(&mut self, input: &Point) {
         // get bias_and_gene
-        let bias_and_gene = match self.genes_point.get(&input) {
+        let bias_and_gene = match self.genes_point.remove(&input) {
             None => {
                 return;
             }
@@ -484,9 +491,11 @@ where
     ///
     /// `output` - The point to check if any gene points to it
     fn check_has_inputs(&self, input: &Point) -> bool {
-        self.genes_ev_number.iter().any(|(_ev_number, gene_rc)| {
-            let gene = gene_rc.borrow();
-            !gene.disabled && gene.output == *input
+        self.genes_point.iter().any(|(_point, b_and_c)| {
+            b_and_c.genes.iter().any(|gene_rc| {
+                let gene = gene_rc.borrow();
+                !gene.disabled && gene.output == *input
+            })
         })
     }
 
@@ -532,6 +541,31 @@ where
         for (input, output) in disabled_genes {
             self.remove_no_inputs(&input, &output);
         }
+        loop {
+            let dont_have_outputs: Vec<Point> = self
+                .genes_point
+                .iter()
+                .filter_map(|(input, gene_and_bias)| {
+                    if input.layer != 0
+                        && (gene_and_bias.genes.is_empty()
+                            || gene_and_bias
+                                .genes
+                                .iter()
+                                .all(|gene_rc| gene_rc.borrow().disabled))
+                    {
+                        Some(input.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if dont_have_outputs.is_empty() {
+                break;
+            }
+            for input in &dont_have_outputs {
+                self.remove_neuron(&input);
+            }
+        }
     }
 
     fn path_overrides(&self, input: &Point, output: &Point) -> bool {
@@ -559,69 +593,72 @@ where
         }
     }
 
-    fn set_bias(&mut self, neuron: Point, bias: Bias<T>) {
-        if neuron.layer as usize != self.layers_sizes.len() - 1 {
-            match self.genes_point.get_mut(&neuron) {
-                Some(found) => found.bias = bias,
-                None => return,
-            }
-        } else {
-            if self.output_bias.len() != *self.layers_sizes.last().unwrap() as usize {
-                self.output_bias.resize(
-                    *self.layers_sizes.last().unwrap() as usize,
-                    Bias::new_zero(),
-                );
-            }
-            self.output_bias[neuron.index as usize] = bias;
-        }
-    }
-
     pub fn from_string(serialized: &str) -> Topology<T> {
         let serialization: SerializationTopology =
             SerializationTopology::from_string(serialized).unwrap();
-        let mut max_layers = 0u8;
-        let gene_vec: Vec<Rc<RefCell<Gene<T>>>> = serialization
-            .genes
-            .iter()
-            .map(|ser_gene| {
-                let input = Point::new(ser_gene.input.0, ser_gene.input.1);
-                let output = Point::new(ser_gene.output.0, ser_gene.output.1);
-                if !ser_gene.disabled && output.layer > max_layers {
-                    max_layers = output.layer;
-                }
-                let gene = Rc::new(RefCell::new(Gene::new(
-                    input,
-                    output,
-                    T::from(ser_gene.input_weight).unwrap(),
-                    T::from(ser_gene.memory_weight).unwrap(),
-                    T::from(ser_gene.reset_input_weight).unwrap(),
-                    T::from(ser_gene.update_input_weight).unwrap(),
-                    T::from(ser_gene.reset_memory_weight).unwrap(),
-                    T::from(ser_gene.update_memory_weight).unwrap(),
-                    0,
-                    ConnectionType::from_int(ser_gene.connection_type),
-                    ser_gene.disabled,
-                )));
-                gene
-            })
-            .collect();
-        let mut new_top = Topology::new(max_layers as usize, max_layers as usize);
-        new_top.set_layers((max_layers + 1).into());
-        for gene in gene_vec {
-            new_top.add_relationship(gene.clone(), true);
+        let mut layers_sizes = Vec::new();
+        let mut output_bias: Vec<Bias<T>> = Vec::new();
+        let mut genes_point = HashMap::new();
+        let genes_ev_number = HashMap::new();
+
+        for ser_bias in &serialization.biases {
+            let input = Point::new(ser_bias.neuron.0, ser_bias.neuron.1);
+            if input.layer >= layers_sizes.len() as u8 {
+                layers_sizes.resize((input.layer + 1) as usize, 0);
+                layers_sizes[input.layer as usize] = 1;
+            } else {
+                layers_sizes[input.layer as usize] += 1;
+            }
         }
-        for bias in serialization.biases {
-            let neuron = Point::new(bias.neuron.0, bias.neuron.1);
-            new_top.set_bias(
-                neuron,
-                Bias::new(
-                    T::from(bias.bias.bias_input).unwrap(),
-                    T::from(bias.bias.bias_update).unwrap(),
-                    T::from(bias.bias.bias_reset).unwrap(),
-                ),
-            );
+
+        output_bias.resize(*layers_sizes.last().unwrap() as usize, Bias::new_zero());
+        for ser_bias in &serialization.biases {
+            let input = Point::new(ser_bias.neuron.0, ser_bias.neuron.1);
+            if input.layer < (layers_sizes.len() - 1) as u8 {
+                let bias_and_gene = BiasAndGenes::new(ser_bias.bias.cast());
+                genes_point.insert(input, bias_and_gene);
+            } else {
+                output_bias[input.index as usize] = ser_bias.bias.cast();
+            }
         }
-        new_top
+
+        for gene in &serialization.genes {
+            let input = Point::new(gene.input.0, gene.input.1);
+            let output = Point::new(gene.output.0, gene.output.1);
+            let new_gene = Rc::new(RefCell::new(Gene::new(
+                input.clone(),
+                output,
+                num::cast(gene.input_weight).unwrap(),
+                num::cast(gene.memory_weight).unwrap(),
+                num::cast(gene.reset_input_weight).unwrap(),
+                num::cast(gene.update_input_weight).unwrap(),
+                num::cast(gene.reset_memory_weight).unwrap(),
+                num::cast(gene.update_memory_weight).unwrap(),
+                0,
+                ConnectionType::from_int(gene.connection_type),
+                gene.disabled,
+            )));
+
+            if gene.disabled {
+                continue;
+            }
+
+            match genes_point.get_mut(&input) {
+                Some(b_and_g) => b_and_g.genes.push(new_gene),
+                None => panic!("Gene doesn't have a neuron"),
+            }
+        }
+
+        Topology {
+            max_layers: layers_sizes.len(),
+            max_per_layers: *layers_sizes.iter().max().unwrap() as usize,
+            last_result: T::zero(),
+            result_before_mutation: T::zero(),
+            layers_sizes,
+            output_bias,
+            genes_point,
+            genes_ev_number,
+        }
     }
 
     pub fn to_string(&self) -> String {
@@ -646,7 +683,6 @@ where
             .map(|(_point, gene)| {
                 gene.genes
                     .iter()
-                    .filter(|gene| !gene.borrow().disabled)
                     .map(|gene| {
                         let cell = &**gene;
                         let gene = &*cell.borrow();
@@ -669,5 +705,80 @@ where
             .collect();
         let serialization = SerializationTopology::new(biases, genes);
         serde_json::to_string(&serialization).unwrap()
+    }
+}
+
+impl<'a, T> PartialEq for Topology<T>
+where
+    T: Float + std::ops::AddAssign,
+{
+    fn eq(&self, other: &Self) -> bool {
+        if self.layers_sizes.len() != other.layers_sizes.len()
+            || self.genes_ev_number.len() != other.genes_ev_number.len()
+            || self.genes_point.len() != other.genes_point.len()
+        {
+            return false;
+        }
+        if self
+            .layers_sizes
+            .iter()
+            .zip(other.layers_sizes.iter())
+            .any(|(&a, &b)| a != b)
+        {
+            return false;
+        }
+        for (ev_number, gene) in &self.genes_ev_number {
+            match other.genes_ev_number.get(ev_number) {
+                Some(gene2) => {
+                    let gene = gene.borrow();
+                    let gene2 = gene2.borrow();
+                    if *gene != *gene2 {
+                        return false;
+                    }
+                }
+                None => {
+                    return false;
+                }
+            }
+        }
+        for (point, b_and_g) in &self.genes_point {
+            match other.genes_point.get(point) {
+                Some(b_and_g2) => {
+                    if b_and_g.bias != b_and_g2.bias {
+                        return false;
+                    }
+                    if b_and_g
+                        .genes
+                        .iter()
+                        .zip(b_and_g2.genes.iter())
+                        .any(|(gene1, gene2)| {
+                            let gene1 = &*gene1.borrow();
+                            let gene2 = &*gene2.borrow();
+                            *gene1 != *gene2
+                        })
+                    {
+                        return false;
+                    }
+                }
+                None => {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+impl<'a, T> Topology<T>
+where
+    T: Float + std::ops::AddAssign + Deserialize<'a> + Serialize,
+{
+    pub fn from_serde_string(serialized: &'a str) -> Topology<T> {
+        let new_top: Topology<T> = serde_json::from_str(serialized).unwrap();
+        new_top
+    }
+
+    pub fn to_serde_string(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 }

@@ -2,12 +2,14 @@ use crate::neural_network::connection_gru::ConnectionGru;
 use crate::neural_network::connection_sigmoid::ConnectionSigmoid;
 use crate::neural_network::functions::{fast_sigmoid, fast_tanh};
 use crate::topology::bias::Bias;
+use crate::utils::floats_almost_equal;
 use num::Float;
 use numeric_literals::replace_numeric_literals;
+use std::ops::AddAssign;
 
 pub struct Neuron<T>
 where
-    T: Float,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
 {
     input: T,
     memory: T,
@@ -21,7 +23,7 @@ where
 
 impl<T> Neuron<T>
 where
-    T: Float,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
 {
     pub fn new() -> Neuron<T> {
         Neuron {
@@ -40,8 +42,8 @@ where
     #[inline]
     pub fn set_input_value(&mut self, input: T) {
         self.input = input;
-        self.update = -10;
-        self.reset = -10;
+        self.update = -100;
+        self.reset = -100;
     }
 
     #[replace_numeric_literals(T::from(literal).unwrap())]
@@ -111,5 +113,41 @@ where
         self.bias = bias;
         self.prev_reset = T::zero();
         self.reset_value();
+    }
+}
+
+impl<T> PartialEq for Neuron<T>
+where
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+{
+    fn eq(&self, other: &Neuron<T>) -> bool {
+        if self.connections_sigmoid.len() != other.connections_sigmoid.len()
+            || self.connections_gru.len() != other.connections_gru.len()
+        {
+            return false;
+        }
+
+        if !(floats_almost_equal(self.input, other.input)
+            && floats_almost_equal(self.memory, other.memory)
+            && floats_almost_equal(self.update, other.update)
+            && floats_almost_equal(self.reset, other.reset)
+            && floats_almost_equal(self.prev_reset, other.prev_reset)
+            && self.bias == other.bias)
+        {
+            return false;
+        }
+        if !self
+            .connections_gru
+            .iter()
+            .zip(other.connections_gru.iter())
+            .all(|(c1, c2)| *c1 == *c2)
+        {
+            return false;
+        }
+
+        self.connections_sigmoid
+            .iter()
+            .zip(other.connections_sigmoid.iter())
+            .all(|(c1, c2)| *c1 == *c2)
     }
 }

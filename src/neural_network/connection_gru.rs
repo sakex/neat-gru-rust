@@ -1,10 +1,11 @@
 use crate::neural_network::functions::fast_tanh;
 use crate::neural_network::neuron::Neuron;
+use crate::utils::floats_almost_equal;
 use num::Float;
 
 pub struct ConnectionGru<T>
 where
-    T: Float,
+    T: Float + std::ops::AddAssign + std::cmp::PartialEq,
 {
     memory: T,
     prev_input: T,
@@ -19,7 +20,7 @@ where
 
 impl<T> ConnectionGru<T>
 where
-    T: Float,
+    T: Float + std::ops::AddAssign + std::cmp::PartialEq,
 {
     pub fn new(
         input_weight: T,
@@ -68,3 +69,20 @@ where
         self.prev_input = T::zero();
     }
 }
+
+impl<T> PartialEq for ConnectionGru<T>
+where
+    T: Float + std::ops::AddAssign + std::cmp::PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        floats_almost_equal(self.memory, other.memory)
+            && floats_almost_equal(self.prev_input, other.prev_input)
+            && floats_almost_equal(self.input_weight, other.input_weight)
+            && floats_almost_equal(self.reset_input_weight, other.reset_input_weight)
+            && floats_almost_equal(self.update_input_weight, other.update_input_weight)
+            && floats_almost_equal(self.reset_memory_weight, other.reset_memory_weight)
+            && floats_almost_equal(self.update_memory_weight, other.update_memory_weight)
+    }
+}
+
+impl<T> Eq for ConnectionGru<T> where T: Float + std::ops::AddAssign + std::cmp::PartialEq {}

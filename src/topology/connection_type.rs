@@ -1,4 +1,6 @@
-#[derive(Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Deserialize, Serialize)]
 pub enum ConnectionType {
     Sigmoid,
     GRU,

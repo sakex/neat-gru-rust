@@ -240,42 +240,6 @@ where
         self
     }
 
-    /// Starts the training with the given parameters
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use neat_gru::train::train::Train;
-    /// use neat_gru::game::Game;
-    /// use neat_gru::topology::topology::Topology;
-    /// use neat_gru::neural_network::nn::NeuralNetwork;
-    /// struct Simulation {
-    ///     nets: Vec<NeuralNetwork<f64>>
-    /// }
-    ///
-    /// impl Game<f64> for Simulation {
-    ///     fn run_generation(&mut self) -> Vec<f64> {
-    ///         (0..50).into_iter().map(|x| x.into()).collect()
-    ///     }
-    ///
-    /// fn reset_players(&mut self, nets: Vec<NeuralNetwork<f64>>) {
-    ///     self.nets = nets;
-    /// }
-    ///
-    /// fn post_training(&mut self,history: &[Topology<f64>]) { }
-    ///
-    /// }
-    ///
-    /// fn main() {   
-    ///     let mut sim = Simulation {
-    ///         nets: Vec::new()
-    ///     };
-    ///
-    ///     let mut runner: Train<Simulation, f64> = Train::new(&mut sim);
-    ///     runner.max_individuals(50).inputs(5).outputs(1);
-    ///     runner.start();
-    /// }
-    /// ```
     #[inline]
     pub fn start(&mut self) {
         let inputs = match self.inputs_ {
@@ -424,7 +388,8 @@ where
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
         let proba = self.proba.clone();
-        self.species_.par_iter_mut().for_each(|species| {
+        // self.species_.par_iter_mut().for_each(|species| {
+        self.species_.iter_mut().for_each(|species| {
             species.natural_selection(ev_number.clone(), proba.clone());
         });
     }

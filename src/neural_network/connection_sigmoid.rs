@@ -1,9 +1,11 @@
 use crate::neural_network::neuron::Neuron;
+use crate::utils::floats_almost_equal;
 use num::Float;
+use std::ops::AddAssign;
 
 pub struct ConnectionSigmoid<T>
 where
-    T: Float,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
 {
     weight: T,
     output: *mut Neuron<T>,
@@ -11,7 +13,7 @@ where
 
 impl<T> ConnectionSigmoid<T>
 where
-    T: Float,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
 {
     pub fn new(weight: T, output: *mut Neuron<T>) -> ConnectionSigmoid<T> {
         ConnectionSigmoid { weight, output }
@@ -24,3 +26,14 @@ where
         };
     }
 }
+
+impl<T> PartialEq for ConnectionSigmoid<T>
+where
+    T: Float + std::cmp::PartialEq + AddAssign,
+{
+    fn eq(&self, other: &Self) -> bool {
+        floats_almost_equal(self.weight, other.weight)
+    }
+}
+
+impl<T> Eq for ConnectionSigmoid<T> where T: Float + std::cmp::PartialEq + AddAssign {}

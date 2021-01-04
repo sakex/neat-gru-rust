@@ -11,7 +11,12 @@ pub fn test_import_network() {
     let serialized: String =
         fs::read_to_string("topology_test.json").expect("Something went wrong reading the file");
 
+    let top = Topology::from_string(&serialized);
+    let cloned: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top) };
     let mut net = NeuralNetwork::from_string(&serialized);
+    if cloned != net {
+        panic!("Cloned != net");
+    }
     let input_1: Vec<f64> = vec![0.5, 0.5, 0.1, -0.2];
     let input_2: Vec<f64> = vec![-0.5, -0.5, -0.1, 0.2];
 
@@ -65,12 +70,25 @@ impl Game<f64> for TestGame {
 
     fn post_training(&mut self, history: &[Topology<f64>]) {
         for (index, top) in history.iter().enumerate() {
+            let top_cp = top.clone();
+            if top_cp != *top {
+                panic!("Topologies not equal")
+            }
             let as_str = top.to_string();
             let network = unsafe { NeuralNetwork::new(&top) };
-            let network_from_string: NeuralNetwork<f64> = NeuralNetwork::from_string(&*as_str);
+            let top2 = Topology::from_string(&*as_str);
+            let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
+            if network != network_from_string {
+                println!("{:?}, {:?}", top.layers_sizes, top2.layers_sizes);
+                println!("{}", as_str);
+                println!("========================================");
+                println!("{}", top2.to_string());
+                panic!("Network != Network from string");
+            }
             self.nets = vec![network, network_from_string];
             let output = self.run_generation();
             if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
+                println!("{}", as_str);
                 panic!("{}: {} != {}", index, output[0], output[1])
             }
         }
@@ -146,12 +164,24 @@ impl Game<f64> for MemoryCount {
 
     fn post_training(&mut self, history: &[Topology<f64>]) {
         for (index, top) in history.iter().enumerate() {
+            let top_cp = top.clone();
+            if top_cp != *top {
+                panic!("Topologies not equal")
+            }
             let as_str = top.to_string();
             let network = unsafe { NeuralNetwork::new(&top) };
-            let network_from_string: NeuralNetwork<f64> = NeuralNetwork::from_string(&*as_str);
+            let top2 = Topology::from_string(&*as_str);
+            let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
+            if network != network_from_string {
+                println!("{}", as_str);
+                println!("=========================================");
+                println!("{}", top2.to_string());
+                panic!("Network != Network from string");
+            }
             self.nets = vec![network, network_from_string];
             let output = self.run_generation();
             if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
+                println!("{}", as_str);
                 panic!("{}: {} != {}", index, output[0], output[1])
             }
         }
@@ -167,7 +197,7 @@ pub fn test_train_memory() {
         .max_layers(5)
         .max_per_layers(3)
         .mutation_probabilities(proba)
-        .iterations(300)
+        .iterations(50)
         .max_individuals(50)
         .max_species(5)
         .inputs(5)

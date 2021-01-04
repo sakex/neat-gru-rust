@@ -5,9 +5,10 @@ use num::traits::Float;
 use numeric_literals::replace_numeric_literals;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
+use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Point {
     pub layer: u8,
     pub index: u8,
@@ -65,7 +66,7 @@ impl Hash for Coordinate {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Gene<T>
 where
     T: Float,

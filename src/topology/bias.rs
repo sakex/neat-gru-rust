@@ -1,3 +1,4 @@
+use crate::utils::floats_almost_equal;
 use num::traits::Float;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
@@ -11,6 +12,19 @@ where
     pub bias_input: T,
     pub bias_update: T,
     pub bias_reset: T,
+}
+
+impl Bias<f64> {
+    pub fn cast<T>(&self) -> Bias<T>
+    where
+        T: Float,
+    {
+        Bias {
+            bias_input: num::cast(self.bias_input).unwrap(),
+            bias_update: num::cast(self.bias_update).unwrap(),
+            bias_reset: num::cast(self.bias_reset).unwrap(),
+        }
+    }
 }
 
 impl<T> Bias<T>
@@ -44,3 +58,16 @@ where
         }
     }
 }
+
+impl<T> PartialEq for Bias<T>
+where
+    T: Float,
+{
+    fn eq(&self, other: &Self) -> bool {
+        floats_almost_equal(self.bias_input, other.bias_input)
+            && floats_almost_equal(self.bias_update, other.bias_update)
+            && floats_almost_equal(self.bias_reset, other.bias_reset)
+    }
+}
+
+impl<T> Eq for Bias<T> where T: Float {}

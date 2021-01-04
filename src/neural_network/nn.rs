@@ -4,11 +4,10 @@ use crate::neural_network::neuron::Neuron;
 use crate::topology::connection_type::ConnectionType;
 use crate::topology::topology::Topology;
 use num::Float;
-use std::fmt::Display;
 
 pub struct NeuralNetwork<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign,
 {
     output_size: usize,
     neurons: Vec<Neuron<T>>,
@@ -16,7 +15,7 @@ where
 
 impl<T> NeuralNetwork<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign,
 {
     pub unsafe fn new(topology: &Topology<T>) -> NeuralNetwork<T> {
         let layer_count = topology.layers_sizes.len();
@@ -36,10 +35,11 @@ where
         let neurons_ptr = neurons.as_mut_ptr();
 
         for (point, gene_and_bias) in topology.genes_point.iter() {
-            if !gene_and_bias
-                .genes
-                .iter()
-                .any(|gene| !gene.borrow().disabled)
+            if gene_and_bias.genes.is_empty()
+                || gene_and_bias
+                    .genes
+                    .iter()
+                    .all(|gene| gene.borrow().disabled)
             {
                 continue;
             }
@@ -121,5 +121,20 @@ where
         let top = Topology::from_string(serialized);
         let net = unsafe { NeuralNetwork::new(&top) };
         net
+    }
+}
+
+impl<T> PartialEq for NeuralNetwork<T>
+where
+    T: Float + std::ops::AddAssign,
+{
+    fn eq(&self, other: &Self) -> bool {
+        if self.output_size != other.output_size {
+            return false;
+        }
+        self.neurons
+            .iter()
+            .zip(other.neurons.iter())
+            .all(|(first, second)| *first == *second)
     }
 }
