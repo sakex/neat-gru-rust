@@ -84,7 +84,7 @@ pub fn test_train() {
     runner
         .max_layers(5)
         .max_per_layers(10)
-        .iterations(100)
+        .iterations(300)
         .max_individuals(50)
         .max_species(5)
         .inputs(5)
@@ -93,22 +93,27 @@ pub fn test_train() {
 }
 
 struct MemoryCount {
+    values: Vec<usize>,
     nets: Vec<NeuralNetwork<f64>>,
 }
 
 impl MemoryCount {
     pub fn new() -> MemoryCount {
-        MemoryCount { nets: Vec::new() }
-    }
-}
-
-impl Game<f64> for MemoryCount {
-    fn run_generation(&mut self) -> Vec<f64> {
         let mut values: Vec<usize> = Vec::new();
         let mut rng = thread_rng();
         for _ in 0..100 {
             values.push(rng.gen_range(0..4));
         }
+        MemoryCount {
+            values,
+            nets: Vec::new(),
+        }
+    }
+}
+
+impl Game<f64> for MemoryCount {
+    fn run_generation(&mut self) -> Vec<f64> {
+        let values = self.values.clone();
         self.nets
             .iter_mut()
             .map(|net| {
@@ -117,8 +122,8 @@ impl Game<f64> for MemoryCount {
                     .iter()
                     .map(|&v| {
                         current_counts[v] += 1;
-                        let mut inputs = [0.0; 4];
-                        inputs[v] = 1.0;
+                        let mut inputs = [0.; 4];
+                        inputs[v] = 1.;
                         let outputs = net.compute(&inputs);
                         let (index_output, _) = outputs
                             .iter()
@@ -139,21 +144,30 @@ impl Game<f64> for MemoryCount {
         self.nets = nets;
     }
 
-    fn post_training(&mut self, _history: &[Topology<f64>]) {
-        println!("TRAINING DONE");
+    fn post_training(&mut self, history: &[Topology<f64>]) {
+        for (index, top) in history.iter().enumerate() {
+            let as_str = top.to_string();
+            let network = unsafe { NeuralNetwork::new(&top) };
+            let network_from_string: NeuralNetwork<f64> = NeuralNetwork::from_string(&*as_str);
+            self.nets = vec![network, network_from_string];
+            let output = self.run_generation();
+            if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
+                panic!("{}: {} != {}", index, output[0], output[1])
+            }
+        }
     }
 }
 
 #[test]
 pub fn test_train_memory() {
     let mut game = MemoryCount::new();
-    let proba = MutationProbabilities::new(0.2, 0.0, 0.0).unwrap();
+    let proba = MutationProbabilities::new(0.2, 0., 0.).unwrap();
     let mut runner = Train::new(&mut game);
     runner
         .max_layers(5)
         .max_per_layers(3)
         .mutation_probabilities(proba)
-        .iterations(100)
+        .iterations(300)
         .max_individuals(50)
         .max_species(5)
         .inputs(5)

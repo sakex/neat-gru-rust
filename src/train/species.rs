@@ -179,6 +179,10 @@ where
 
     pub fn compute_adjusted_fitness(&mut self) {
         let top_len = T::from(self.topologies.len()).unwrap();
+        if top_len == T::zero() {
+            self.adjusted_fitness = T::zero();
+            return;
+        }
         self.adjusted_fitness = self
             .topologies
             .iter()

@@ -36,10 +36,17 @@ where
         let neurons_ptr = neurons.as_mut_ptr();
 
         for (point, gene_and_bias) in topology.genes_point.iter() {
+            if !gene_and_bias
+                .genes
+                .iter()
+                .any(|gene| !gene.borrow().disabled)
+            {
+                continue;
+            }
             let neuron_index = layer_addresses[point.layer as usize] + point.index as usize;
-            let mut input_neuron: *mut Neuron<T> = neurons_ptr.offset(neuron_index as isize);
+            let input_neuron: *mut Neuron<T> = neurons_ptr.offset(neuron_index as isize);
             let bias = &gene_and_bias.bias;
-            (*input_neuron).bias = bias.clone();
+            (*input_neuron).set_initial_bias(bias.clone());
             for gene_rc in &gene_and_bias.genes {
                 let gene = gene_rc.borrow();
                 if gene.disabled {
@@ -72,7 +79,8 @@ where
         let base = output_size as isize - neurons_count as isize;
 
         for it in (neurons_count - output_size) as isize..neurons_count as isize {
-            neurons[it as usize].bias = topology.output_bias[(it + base) as usize].clone();
+            neurons[it as usize]
+                .set_initial_bias(topology.output_bias[(it + base) as usize].clone());
         }
 
         NeuralNetwork {

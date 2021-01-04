@@ -250,23 +250,31 @@ where
     /// use neat_gru::topology::topology::Topology;
     /// use neat_gru::neural_network::nn::NeuralNetwork;
     /// struct Simulation {
+    ///     nets: Vec<NeuralNetwork<f64>>
     /// }
     ///
     /// impl Game<f64> for Simulation {
     ///     fn run_generation(&mut self) -> Vec<f64> {
-    ///         vec![1.; 5]
+    ///         (0..50).into_iter().map(|x| x.into()).collect()
     ///     }
     ///
-    /// fn reset_players(&mut self,nets: Vec<NeuralNetwork<f64>>) { }
+    /// fn reset_players(&mut self, nets: Vec<NeuralNetwork<f64>>) {
+    ///     self.nets = nets;
+    /// }
     ///
     /// fn post_training(&mut self,history: &[Topology<f64>]) { }
     ///
     /// }
     ///
-    /// let mut sim = Simulation {}; // Has to implement trait Game
-    /// let mut runner: Train<Simulation, f64> = Train::new(&mut sim);
-    /// runner.max_individuals(5).inputs(5).outputs(1);
-    /// runner.start();
+    /// fn main() {   
+    ///     let mut sim = Simulation {
+    ///         nets: Vec::new()
+    ///     };
+    ///
+    ///     let mut runner: Train<Simulation, f64> = Train::new(&mut sim);
+    ///     runner.max_individuals(50).inputs(5).outputs(1);
+    ///     runner.start();
+    /// }
     /// ```
     #[inline]
     pub fn start(&mut self) {
@@ -354,6 +362,7 @@ where
     }
 
     fn natural_selection(&mut self) {
+        self.species_.retain(|spec| spec.stagnation_counter < 15);
         if self.species_.len() == 1 {
             self.species_[0].max_topologies = self.max_individuals_;
             self.ev_number_.reset();
@@ -361,8 +370,7 @@ where
             self.species_[0].natural_selection(ev_number.clone(), self.proba.clone());
             return;
         }
-        self.species_.retain(|spec| spec.stagnation_counter < 15);
-        if self.species_.len() == 0 {
+        if self.species_.is_empty() {
             return;
         }
         self.species_.iter_mut().for_each(|spec| {
@@ -377,7 +385,7 @@ where
         let variance = self
             .species_
             .par_iter()
-            .map(|spec| (spec.adjusted_fitness - mean).powf(F::from(2.0).unwrap()))
+            .map(|spec| (spec.adjusted_fitness - mean).powf(F::from(2.).unwrap()))
             .sum::<F>()
             / F::from(self.species_.len() - 1).unwrap();
         let volatility = variance.sqrt();
@@ -391,7 +399,10 @@ where
             spec1
                 .adjusted_fitness
                 .partial_cmp(&spec2.adjusted_fitness)
-                .unwrap()
+                .expect(&*format!(
+                    "First: {}, second: {}",
+                    spec1.adjusted_fitness, spec2.adjusted_fitness
+                ))
         });
         let sum: F = self
             .species_
@@ -419,6 +430,9 @@ where
     }
 
     fn push_to_history(&mut self) {
+        if self.species_.is_empty() {
+            return;
+        }
         self.species_
             .sort_by(|s1, s2| s1.score().partial_cmp(&s2.score()).unwrap());
 

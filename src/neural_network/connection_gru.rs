@@ -1,7 +1,6 @@
 use crate::neural_network::functions::fast_tanh;
 use crate::neural_network::neuron::Neuron;
 use num::Float;
-use numeric_literals::replace_numeric_literals;
 
 pub struct ConnectionGru<T>
 where
@@ -63,10 +62,9 @@ where
         }
     }
 
-    #[replace_numeric_literals(T::from(literal).unwrap())]
     #[inline]
     pub fn reset_state(&mut self) {
-        self.memory = 0;
-        self.prev_input = 0;
+        self.memory = T::zero();
+        self.prev_input = T::zero();
     }
 }

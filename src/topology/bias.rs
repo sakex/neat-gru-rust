@@ -18,8 +18,8 @@ where
     T: Float,
 {
     pub fn new_random(rng: &mut ThreadRng) -> Bias<T> {
-        let min: f64 = -1.0;
-        let max: f64 = 1.0;
+        let min: f64 = -1.;
+        let max: f64 = 1.;
         let uniform = Uniform::from(min..max);
         Bias {
             bias_input: T::from(uniform.sample(rng)).unwrap(),

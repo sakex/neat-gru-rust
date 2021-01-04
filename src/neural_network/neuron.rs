@@ -23,14 +23,13 @@ impl<T> Neuron<T>
 where
     T: Float,
 {
-    #[replace_numeric_literals(T::from(literal).unwrap())]
     pub fn new() -> Neuron<T> {
         Neuron {
-            input: 0,
-            memory: 0,
-            update: 0,
-            reset: 0,
-            prev_reset: 0,
+            input: T::zero(),
+            memory: T::zero(),
+            update: T::zero(),
+            reset: T::zero(),
+            prev_reset: T::zero(),
             bias: Bias::new_zero(),
             connections_gru: vec![],
             connections_sigmoid: vec![],
@@ -77,20 +76,18 @@ where
         self.reset_value();
     }
 
-    #[replace_numeric_literals(T::from(literal).unwrap())]
     #[inline]
     pub fn reset_value(&mut self) {
         self.input = self.bias.bias_input;
         self.update = self.bias.bias_update;
         self.reset = self.bias.bias_reset;
-        self.memory = 0;
+        self.memory = T::zero();
     }
 
-    #[replace_numeric_literals(T::from(literal).unwrap())]
     #[inline]
     pub fn reset_state(&mut self) {
         self.reset_value();
-        self.prev_reset = 0;
+        self.prev_reset = T::zero();
         for connection in self.connections_gru.iter_mut() {
             connection.reset_state();
         }
@@ -107,5 +104,12 @@ where
     #[inline]
     pub fn increment_value(&mut self, value: T) {
         self.input = self.input + value;
+    }
+
+    #[inline]
+    pub fn set_initial_bias(&mut self, bias: Bias<T>) {
+        self.bias = bias;
+        self.prev_reset = T::zero();
+        self.reset_value();
     }
 }

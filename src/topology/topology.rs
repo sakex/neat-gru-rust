@@ -167,8 +167,8 @@ where
                     rng,
                     input.clone(),
                     output,
-                    -1.0,
-                    1.0,
+                    -1.,
+                    1.,
                     &ev_number,
                 )));
                 new_topology.add_relationship(gene, true);
@@ -296,7 +296,7 @@ where
 
     fn change_weights(&mut self, rng: &mut ThreadRng) {
         for (_point, gene_and_bias) in self.genes_point.iter_mut() {
-            let change_bias = rng.gen_range(0.0..1.0);
+            let change_bias = rng.gen_range(0.0..1.);
             let normal = Normal::new(0.0, 0.1).unwrap();
             if change_bias < 0.8 {
                 gene_and_bias.bias.bias_input += T::from(normal.sample(rng)).unwrap();
@@ -305,7 +305,7 @@ where
             }
             for gene in gene_and_bias.genes.iter_mut() {
                 let mut gene_cp = gene.borrow_mut();
-                let change_weights = rng.gen_range(0.0..1.0);
+                let change_weights = rng.gen_range(0.0..1.);
                 if change_weights < 0.8 {
                     gene_cp.input_weight += T::from(normal.sample(rng)).unwrap();
                     gene_cp.memory_weight += T::from(normal.sample(rng)).unwrap();
@@ -370,6 +370,7 @@ where
         }
     }
 
+    #[allow(dead_code)]
     fn delete_neuron(&mut self, rng: &mut ThreadRng) {
         let input_layer = rng.gen_range(1..self.layers_sizes.len() - 2) as u8;
         let input_index: u8 = rng.gen_range(0..self.layers_sizes[input_layer as usize]);
@@ -379,16 +380,17 @@ where
 
     pub fn mutate(&mut self, ev_number: &EvNumber, proba: &MutationProbabilities) {
         let mut rng = thread_rng();
-        let change_weights = rng.gen_range(0.0..1.0);
+        let change_weights = rng.gen_range(0.0..1.);
         if change_weights < proba.change_weights {
             self.change_weights(&mut rng);
-        } else if change_weights < 1.0 - proba.guaranteed_new_neuron - proba.delete_neuron {
+        } else if change_weights < 1. - proba.guaranteed_new_neuron - proba.delete_neuron {
             self.change_topology(&ev_number, &mut rng, false);
-        } else if change_weights < 1.0 - proba.guaranteed_new_neuron || self.layers_sizes.len() <= 3
+        } else if change_weights < 1. - proba.guaranteed_new_neuron || self.layers_sizes.len() <= 3
         {
             self.change_topology(&ev_number, &mut rng, true);
         } else {
-            self.delete_neuron(&mut rng);
+            self.change_topology(&ev_number, &mut rng, false);
+            // self.delete_neuron(&mut rng);
         }
     }
 
@@ -400,7 +402,7 @@ where
         ev_number: &EvNumber,
     ) -> Rc<RefCell<Gene<T>>> {
         let new_gene = Rc::new(RefCell::new(Gene::new_random(
-            rng, input, output, -1.0, 1.0, &ev_number,
+            rng, input, output, -1., 1., &ev_number,
         )));
         self.add_relationship(new_gene.clone(), false);
         new_gene
