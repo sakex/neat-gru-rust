@@ -320,7 +320,9 @@ where
     }
 
     fn set_last_results(&mut self, results: &Vec<F>) {
+        println!("LEN: {}", results.len());
         for (topology, result) in self.topologies_.iter_mut().zip(results.iter()) {
+            println!("{}", result);
             topology.borrow_mut().set_last_result(*result);
         }
     }
@@ -414,7 +416,7 @@ where
                 println!("=========================RESET TO TWO SPECIES=========================");
                 self.best_historical_score = F::zero();
                 self.no_progress_counter = 0;
-                if self.species_.len() >= 2 {
+                if self.species_.len() > 2 {
                     self.species_ = self.species_.split_off(self.species_.len() - 2);
                 }
             }
