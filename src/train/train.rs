@@ -388,10 +388,18 @@ where
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
         let proba = self.proba.clone();
-        // self.species_.iter_mut().for_each(|species| {
-        self.species_.par_iter_mut().for_each(|species| {
-            species.natural_selection(ev_number.clone(), proba.clone());
-        });
+        #[cfg(debug_assertions)]
+        {
+            self.species_.iter_mut().for_each(|species| {
+                species.natural_selection(ev_number.clone(), proba.clone());
+            });
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            self.species_.par_iter_mut().for_each(|species| {
+                species.natural_selection(ev_number.clone(), proba.clone());
+            });
+        }
     }
 
     fn push_to_history(&mut self) {

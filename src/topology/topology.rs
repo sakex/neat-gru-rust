@@ -340,7 +340,8 @@ where
                 (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)
             } else {
                 rng.gen_range(
-                    0..((self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)),
+                    0..((self.layers_sizes[output_layer as usize] + 1)
+                        .min(self.max_per_layers as u8 + 1)),
                 )
             };
             if output_index >= self.layers_sizes[output_layer as usize] {
@@ -349,7 +350,7 @@ where
         } else if (output_layer as usize) == self.layers_sizes.len() - 1 {
             output_index = rng.gen_range(0..self.layers_sizes[output_layer as usize]);
         } else {
-            // if output_index == layers
+            // Case where we create a new layer, output_index is 0
             new_output = true;
         }
         let input = Point::new(input_layer, input_index);
@@ -371,10 +372,14 @@ where
             let extra_gene = self.new_gene(
                 &mut rng,
                 just_created.borrow().output.clone(),
-                output_of_output,
+                output_of_output.clone(),
                 &ev_number,
             );
-            self.disable_genes(input.clone(), output.clone(), extra_gene);
+            self.disable_genes(
+                just_created.borrow().output.clone(),
+                output_of_output,
+                extra_gene,
+            );
         }
     }
 
@@ -429,7 +434,7 @@ where
                             .filter(|gene| {
                                 let borrow = gene.borrow();
                                 let input = borrow.input.clone();
-                                !self.check_has_inputs(&input)
+                                !borrow.disabled && !self.check_has_inputs(&input)
                             })
                             .collect()
                     } else {
@@ -443,10 +448,14 @@ where
                 break;
             }
             for gene in &dont_have_outputs {
-                self.remove_neuron(&gene);
+                if !gene.borrow().disabled {
+                    self.remove_neuron(&gene);
+                }
             }
             for gene in &dont_have_inputs {
-                self.remove_neuron(&gene);
+                if !gene.borrow().disabled {
+                    self.remove_neuron(&gene);
+                }
             }
         }
     }
@@ -537,6 +546,7 @@ where
             (gene.input.clone(), gene.output.clone())
         };
         if input.layer != 0
+            && !gene_rc.borrow().disabled
             && input.layer != (self.layers_sizes.len() - 1) as u8
             && (!self.check_has_inputs(&output) || !self.check_has_outputs(&input))
         {
@@ -587,7 +597,7 @@ where
                         gene.output.clone()
                     };
                     if output == compared_output
-                        || self.path_overrides(&compared_output, &output)
+                        || self.path_overrides(&input, &compared_output)
                         || self.path_overrides(&output, &compared_output)
                     {
                         let mut gene = cell.borrow_mut();
