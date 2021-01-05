@@ -418,10 +418,34 @@ where
                     }
                 })
                 .collect();
-            if dont_have_outputs.is_empty() {
+            let dont_have_inputs: Vec<GeneSmrtPtr<T>> = self
+                .genes_point
+                .iter()
+                .map(|(input, gene_and_bias)| {
+                    if input.layer != 0 {
+                        gene_and_bias
+                            .genes
+                            .iter()
+                            .filter(|gene| {
+                                let borrow = gene.borrow();
+                                let input = borrow.input.clone();
+                                !self.check_has_inputs(&input)
+                            })
+                            .collect()
+                    } else {
+                        Vec::new()
+                    }
+                })
+                .flatten()
+                .cloned()
+                .collect();
+            if dont_have_outputs.is_empty() && dont_have_inputs.is_empty() {
                 break;
             }
             for gene in &dont_have_outputs {
+                self.remove_neuron(&gene);
+            }
+            for gene in &dont_have_inputs {
                 self.remove_neuron(&gene);
             }
         }
