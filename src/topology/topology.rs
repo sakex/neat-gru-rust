@@ -479,6 +479,10 @@ where
                 }
                 for gene_rc in &bias_and_gene.genes {
                     let mut gene = gene_rc.borrow_mut();
+                    if gene.output == input {
+                        gene.disabled = true;
+                        continue;
+                    }
                     if gene.input.layer == input.layer && gene.input.index > input.index {
                         gene.input.index -= 1;
                     }
@@ -612,9 +616,10 @@ where
             let input = Point::new(ser_bias.neuron.0, ser_bias.neuron.1);
             if input.layer >= layers_sizes.len() as u8 {
                 layers_sizes.resize((input.layer + 1) as usize, 0);
-                layers_sizes[input.layer as usize] = 1;
+                layers_sizes[input.layer as usize] = input.index + 1;
             } else {
-                layers_sizes[input.layer as usize] += 1;
+                layers_sizes[input.layer as usize] =
+                    layers_sizes[input.layer as usize].max(input.index + 1);
             }
         }
 
