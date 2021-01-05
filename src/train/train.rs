@@ -320,9 +320,7 @@ where
     }
 
     fn set_last_results(&mut self, results: &Vec<F>) {
-        println!("LEN: {}", results.len());
         for (topology, result) in self.topologies_.iter_mut().zip(results.iter()) {
-            println!("{}", result);
             topology.borrow_mut().set_last_result(*result);
         }
     }
