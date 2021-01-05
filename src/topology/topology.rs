@@ -14,6 +14,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
+
 #[derive(Deserialize, Serialize)]
 pub struct Topology<T>
 where
@@ -26,7 +28,7 @@ where
     pub layers_sizes: Vec<u8>,
     pub output_bias: Vec<Bias<T>>,
     pub genes_point: HashMap<Point, BiasAndGenes<T>>,
-    genes_ev_number: HashMap<usize, Rc<RefCell<Gene<T>>>>,
+    genes_ev_number: HashMap<usize, GeneSmrtPtr<T>>,
 }
 
 impl<'a, T> Clone for Topology<T>
@@ -53,7 +55,7 @@ where
             })
             .collect();
 
-        let genes_ev_number: HashMap<usize, Rc<RefCell<Gene<T>>>> = self
+        let genes_ev_number: HashMap<usize, GeneSmrtPtr<T>> = self
             .genes_ev_number
             .iter()
             .map(|(&ev_number, rc)| {
@@ -222,7 +224,7 @@ where
             .collect();
     }
 
-    pub fn add_relationship(&mut self, gene_rc: Rc<RefCell<Gene<T>>>, init: bool) {
+    pub fn add_relationship(&mut self, gene_rc: GeneSmrtPtr<T>, init: bool) {
         let gene_cp = gene_rc.clone();
         // Drop refcell
         let (input, ev_number) = {
@@ -376,13 +378,13 @@ where
         }
     }
 
-    #[allow(dead_code)]
+    /*#[allow(dead_code)]
     fn delete_neuron(&mut self, rng: &mut ThreadRng) {
         let input_layer = rng.gen_range(1..self.layers_sizes.len() - 2) as u8;
         let input_index: u8 = rng.gen_range(0..self.layers_sizes[input_layer as usize]);
         let input = Point::new(input_layer, input_index);
         self.remove_neuron(&input);
-    }
+    }*/
 
     pub fn mutate(&mut self, ev_number: &EvNumber, proba: &MutationProbabilities) {
         let mut rng = thread_rng();
@@ -398,7 +400,31 @@ where
             self.change_topology(&ev_number, &mut rng, false);
             // self.delete_neuron(&mut rng);
         }
-        // println!("{:?}", self.layers_sizes);
+        loop {
+            let dont_have_outputs: Vec<GeneSmrtPtr<T>> = self
+                .genes_point
+                .iter()
+                .filter_map(|(input, gene_and_bias)| {
+                    if input.layer != 0
+                        && (gene_and_bias.genes.is_empty()
+                            || gene_and_bias
+                                .genes
+                                .iter()
+                                .all(|gene_rc| gene_rc.borrow().disabled))
+                    {
+                        Some(gene_and_bias.genes.first().unwrap().clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if dont_have_outputs.is_empty() {
+                break;
+            }
+            for gene in &dont_have_outputs {
+                self.remove_neuron(&gene);
+            }
+        }
     }
 
     fn new_gene(
@@ -407,7 +433,7 @@ where
         input: Point,
         output: Point,
         ev_number: &EvNumber,
-    ) -> Rc<RefCell<Gene<T>>> {
+    ) -> GeneSmrtPtr<T> {
         let new_gene = Rc::new(RefCell::new(Gene::new_random(
             rng, input, output, -1., 1., &ev_number,
         )));
@@ -415,8 +441,9 @@ where
         new_gene
     }
 
-    fn remove_neuron(&mut self, input: &Point) {
+    fn remove_neuron(&mut self, gene_rc: &GeneSmrtPtr<T>) {
         // get bias_and_gene
+        let input = { gene_rc.borrow().input.clone() };
         let bias_and_gene = match self.genes_point.remove(&input) {
             None => {
                 return;
@@ -429,7 +456,7 @@ where
         for gene_rc in &bias_and_gene.genes {
             let mut gene = gene_rc.borrow_mut();
             gene.disabled = true;
-            vec_check_disabled.push((gene.input.clone(), gene.output.clone()));
+            vec_check_disabled.push(gene_rc.clone());
         }
         // Lower layer size
         self.layers_sizes[input.layer as usize] -= 1;
@@ -471,17 +498,21 @@ where
             })
             .collect();
 
-        for (input, output) in &vec_check_disabled {
-            self.remove_no_inputs(&input, &output);
+        for gene_rc in &vec_check_disabled {
+            self.remove_no_inputs(&gene_rc);
         }
     }
 
-    fn remove_no_inputs(&mut self, input: &Point, output: &Point) {
+    fn remove_no_inputs(&mut self, gene_rc: &GeneSmrtPtr<T>) {
+        let (input, output) = {
+            let gene = gene_rc.borrow();
+            (gene.input.clone(), gene.output.clone())
+        };
         if input.layer != 0
             && input.layer != (self.layers_sizes.len() - 1) as u8
             && (!self.check_has_inputs(&output) || !self.check_has_outputs(&input))
         {
-            self.remove_neuron(&input);
+            self.remove_neuron(&gene_rc);
         }
     }
 
@@ -509,7 +540,7 @@ where
         }
     }
 
-    fn disable_genes(&mut self, input: Point, output: Point, last: Rc<RefCell<Gene<T>>>) {
+    fn disable_genes(&mut self, input: Point, output: Point, last: GeneSmrtPtr<T>) {
         let mut disabled_genes = Vec::new();
         match self.genes_point.get(&input) {
             Some(found) => {
@@ -518,6 +549,7 @@ where
                     if Rc::ptr_eq(gene_rc, &last) {
                         continue;
                     }
+                    let rc_cp = gene_rc.clone();
                     let cell = &**gene_rc;
                     let compared_output = {
                         let gene = cell.borrow();
@@ -532,39 +564,14 @@ where
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;
-                        disabled_genes.push((gene.input.clone(), gene.output.clone()));
+                        disabled_genes.push(rc_cp);
                     }
                 }
             }
             None => {}
         }
-        for (input, output) in disabled_genes {
-            self.remove_no_inputs(&input, &output);
-        }
-        loop {
-            let dont_have_outputs: Vec<Point> = self
-                .genes_point
-                .iter()
-                .filter_map(|(input, gene_and_bias)| {
-                    if input.layer != 0
-                        && (gene_and_bias.genes.is_empty()
-                            || gene_and_bias
-                                .genes
-                                .iter()
-                                .all(|gene_rc| gene_rc.borrow().disabled))
-                    {
-                        Some(input.clone())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            if dont_have_outputs.is_empty() {
-                break;
-            }
-            for input in &dont_have_outputs {
-                self.remove_neuron(&input);
-            }
+        for gene_rc in disabled_genes {
+            self.remove_no_inputs(&gene_rc);
         }
     }
 
