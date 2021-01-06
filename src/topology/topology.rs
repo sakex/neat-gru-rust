@@ -577,6 +577,7 @@ where
         })
     }
 
+    // Returns true if the neuron has outputs
     fn check_has_outputs(&self, input: &Point) -> bool {
         match self.genes_point.get(&input) {
             None => false,
@@ -606,8 +607,8 @@ where
                         gene.output.clone()
                     };
                     if output == compared_output
-                        || self.path_overrides(&input, &compared_output)
-                        || self.path_overrides(&output, &compared_output)
+                        || self.path_overrides(&input, &compared_output, 1)
+                        || self.path_overrides(&output, &compared_output, 1)
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;
@@ -622,7 +623,10 @@ where
         }
     }
 
-    fn path_overrides(&self, input: &Point, output: &Point) -> bool {
+    fn path_overrides(&self, input: &Point, output: &Point, recursion: i8) -> bool {
+        if recursion <= 0 {
+            return false;
+        }
         match self.genes_point.get(&input) {
             Some(found) => {
                 let genes = &found.genes;
@@ -636,7 +640,7 @@ where
                     if *compared_output == *output {
                         return true;
                     } else if compared_output.layer < output.layer {
-                        if self.path_overrides(&compared_output, &output) {
+                        if self.path_overrides(&compared_output, &output, recursion - 1) {
                             return true;
                         }
                     }
