@@ -18,6 +18,8 @@ rand_distr = "0.4.0"
 numeric_literals = "0.1.1"
 rayon = "1.5.0"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2.1", features = ["js"] }
 
 [profile.release]
 # Link time optimisation, possibly even with C++, equivalent to G++'s -flto
