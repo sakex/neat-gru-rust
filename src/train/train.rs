@@ -326,7 +326,7 @@ where
     }
 
     fn natural_selection(&mut self) {
-        self.species_.retain(|spec| spec.stagnation_counter < 15);
+        self.species_.retain(|spec| spec.stagnation_counter < 20);
         if self.species_.len() == 1 {
             self.species_[0].max_topologies = self.max_individuals_;
             self.ev_number_.reset();
