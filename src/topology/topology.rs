@@ -36,25 +36,6 @@ where
     T: Float + std::ops::AddAssign,
 {
     fn clone(&self) -> Topology<T> {
-        let genes_point: HashMap<Point, BiasAndGenes<T>> = self
-            .genes_point
-            .iter()
-            .map(|(point, bias_and_genes)| {
-                let mut new_bg = BiasAndGenes::new(bias_and_genes.bias.clone());
-                new_bg.genes = bias_and_genes
-                    .genes
-                    .iter()
-                    .map(|rc| {
-                        let cell = &**rc;
-                        let ref_cell = &*cell.borrow();
-                        let cp = ref_cell.clone();
-                        Rc::new(RefCell::new(cp))
-                    })
-                    .collect();
-                (point.clone(), new_bg)
-            })
-            .collect();
-
         let genes_ev_number: HashMap<usize, GeneSmrtPtr<T>> = self
             .genes_ev_number
             .iter()
@@ -63,6 +44,34 @@ where
                 let ref_cell = &*cell.borrow();
                 let cp = ref_cell.clone();
                 (ev_number, Rc::new(RefCell::new(cp)))
+            })
+            .collect();
+
+        let genes_point: HashMap<Point, BiasAndGenes<T>> = self
+            .genes_point
+            .iter()
+            .map(|(point, bias_and_genes)| {
+                let mut new_bg = BiasAndGenes::new(bias_and_genes.bias.clone());
+                new_bg.genes = bias_and_genes
+                    .genes
+                    .iter()
+                    .filter_map(|rc| {
+                        let cell = &**rc;
+                        let Gene {
+                            evolution_number,
+                            disabled,
+                            ..
+                        } = &*cell.borrow();
+                        if !disabled {
+                            let smart_ptr_cp =
+                                genes_ev_number.get(evolution_number).unwrap().clone();
+                            Some(smart_ptr_cp)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                (point.clone(), new_bg)
             })
             .collect();
 
@@ -133,7 +142,7 @@ where
             one
         };
         disjoints = disjoints + size_1 - common;
-        12 * disjoints / n + w * 24
+        12 * disjoints / n + w * 6
     }
 
     pub fn new_random(
@@ -298,21 +307,25 @@ where
         for (_point, gene_and_bias) in self.genes_point.iter_mut() {
             let change_bias = rng.gen_range(0.0..1.);
             let normal = Normal::new(0.0, 0.1).unwrap();
-            if change_bias < 0.8 {
+            if change_bias < 0.9 {
                 gene_and_bias.bias.bias_input += T::from(normal.sample(rng)).unwrap();
                 gene_and_bias.bias.bias_update += T::from(normal.sample(rng)).unwrap();
                 gene_and_bias.bias.bias_reset += T::from(normal.sample(rng)).unwrap();
+            } else {
+                gene_and_bias.bias = Bias::new_random(rng);
             }
             for gene in gene_and_bias.genes.iter_mut() {
                 let mut gene_cp = gene.borrow_mut();
                 let change_weights = rng.gen_range(0.0..1.);
-                if change_weights < 0.8 {
+                if change_weights < 0.9 {
                     gene_cp.input_weight += T::from(normal.sample(rng)).unwrap();
                     gene_cp.memory_weight += T::from(normal.sample(rng)).unwrap();
                     gene_cp.reset_input_weight += T::from(normal.sample(rng)).unwrap();
                     gene_cp.update_input_weight += T::from(normal.sample(rng)).unwrap();
                     gene_cp.reset_memory_weight += T::from(normal.sample(rng)).unwrap();
                     gene_cp.update_memory_weight += T::from(normal.sample(rng)).unwrap();
+                } else {
+                    gene_cp.random_reassign(rng);
                 }
             }
         }
@@ -492,13 +505,10 @@ where
             }
             Some(v) => v,
         };
-        let mut vec_check_disabled = Vec::new();
-        vec_check_disabled.reserve_exact(bias_and_gene.genes.len());
         // disable all outputs from this neuron
         for gene_rc in &bias_and_gene.genes {
             let mut gene = gene_rc.borrow_mut();
             gene.disabled = true;
-            vec_check_disabled.push(gene_rc.clone());
         }
         // Lower layer size
         self.layers_sizes[input.layer as usize] -= 1;
@@ -543,24 +553,6 @@ where
                 (point, bias_and_gene.clone())
             })
             .collect();
-
-        for gene_rc in &vec_check_disabled {
-            self.remove_no_inputs(&gene_rc);
-        }
-    }
-
-    fn remove_no_inputs(&mut self, gene_rc: &GeneSmrtPtr<T>) {
-        let (input, output) = {
-            let gene = gene_rc.borrow();
-            (gene.input.clone(), gene.output.clone())
-        };
-        if input.layer != 0
-            && !gene_rc.borrow().disabled
-            && input.layer != (self.layers_sizes.len() - 1) as u8
-            && (!self.check_has_inputs(&output) || !self.check_has_outputs(&input))
-        {
-            self.remove_neuron(&gene_rc);
-        }
     }
 
     /// Returns true if no Gene has the given output
@@ -577,19 +569,7 @@ where
         })
     }
 
-    // Returns true if the neuron has outputs
-    fn check_has_outputs(&self, input: &Point) -> bool {
-        match self.genes_point.get(&input) {
-            None => false,
-            Some(bias_and_genes) => bias_and_genes
-                .genes
-                .iter()
-                .any(|gene| !gene.borrow().disabled),
-        }
-    }
-
     fn disable_genes(&mut self, input: Point, output: Point, last: GeneSmrtPtr<T>) {
-        let mut disabled_genes = Vec::new();
         match self.genes_point.get(&input) {
             Some(found) => {
                 let genes = &found.genes;
@@ -597,7 +577,6 @@ where
                     if Rc::ptr_eq(gene_rc, &last) {
                         continue;
                     }
-                    let rc_cp = gene_rc.clone();
                     let cell = &**gene_rc;
                     let compared_output = {
                         let gene = cell.borrow();
@@ -612,14 +591,10 @@ where
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;
-                        disabled_genes.push(rc_cp);
                     }
                 }
             }
             None => {}
-        }
-        for gene_rc in disabled_genes {
-            self.remove_no_inputs(&gene_rc);
         }
     }
 

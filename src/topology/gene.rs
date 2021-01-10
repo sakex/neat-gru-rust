@@ -143,6 +143,17 @@ where
         }
     }
 
+    #[inline]
+    pub fn random_reassign(&mut self, rng: &mut ThreadRng) {
+        let unif = Uniform::from(-1.0..1.);
+        self.input_weight = T::from(unif.sample(rng)).unwrap();
+        self.memory_weight = T::from(unif.sample(rng)).unwrap();
+        self.reset_input_weight = T::from(unif.sample(rng)).unwrap();
+        self.update_input_weight = T::from(unif.sample(rng)).unwrap();
+        self.reset_memory_weight = T::from(unif.sample(rng)).unwrap();
+        self.update_memory_weight = T::from(unif.sample(rng)).unwrap();
+    }
+
     #[replace_numeric_literals(T::from(literal).unwrap())]
     pub fn new_uniform(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
         let coordinate = Coordinate::new(input.clone(), output.clone());
