@@ -142,7 +142,7 @@ where
             one
         };
         disjoints = disjoints + size_1 - common;
-        2 * disjoints / n + w * 2
+        3 * disjoints / n + w * 3
     }
 
     pub fn new_random(
