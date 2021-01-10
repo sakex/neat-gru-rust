@@ -304,29 +304,29 @@ where
     }
 
     fn change_weights(&mut self, rng: &mut ThreadRng) {
-        for (_point, gene_and_bias) in self.genes_point.iter_mut() {
+        let normal = Normal::new(0.0, 0.1).unwrap();
+        for (_ev_number, gene) in &self.genes_ev_number {
+            let mut gene_cp = gene.borrow_mut();
+            let change_weights = rng.gen_range(0.0..1.);
+            if change_weights < 0.9 {
+                gene_cp.input_weight += T::from(normal.sample(rng)).unwrap();
+                gene_cp.memory_weight += T::from(normal.sample(rng)).unwrap();
+                gene_cp.reset_input_weight += T::from(normal.sample(rng)).unwrap();
+                gene_cp.update_input_weight += T::from(normal.sample(rng)).unwrap();
+                gene_cp.reset_memory_weight += T::from(normal.sample(rng)).unwrap();
+                gene_cp.update_memory_weight += T::from(normal.sample(rng)).unwrap();
+            } else {
+                gene_cp.random_reassign(rng);
+            }
+        }
+        for (_point, gene_and_bias) in &mut self.genes_point {
             let change_bias = rng.gen_range(0.0..1.);
-            let normal = Normal::new(0.0, 0.1).unwrap();
             if change_bias < 0.9 {
                 gene_and_bias.bias.bias_input += T::from(normal.sample(rng)).unwrap();
                 gene_and_bias.bias.bias_update += T::from(normal.sample(rng)).unwrap();
                 gene_and_bias.bias.bias_reset += T::from(normal.sample(rng)).unwrap();
             } else {
                 gene_and_bias.bias = Bias::new_random(rng);
-            }
-            for gene in gene_and_bias.genes.iter_mut() {
-                let mut gene_cp = gene.borrow_mut();
-                let change_weights = rng.gen_range(0.0..1.);
-                if change_weights < 0.9 {
-                    gene_cp.input_weight += T::from(normal.sample(rng)).unwrap();
-                    gene_cp.memory_weight += T::from(normal.sample(rng)).unwrap();
-                    gene_cp.reset_input_weight += T::from(normal.sample(rng)).unwrap();
-                    gene_cp.update_input_weight += T::from(normal.sample(rng)).unwrap();
-                    gene_cp.reset_memory_weight += T::from(normal.sample(rng)).unwrap();
-                    gene_cp.update_memory_weight += T::from(normal.sample(rng)).unwrap();
-                } else {
-                    gene_cp.random_reassign(rng);
-                }
             }
         }
         for bias in &mut self.output_bias {
