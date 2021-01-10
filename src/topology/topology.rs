@@ -586,8 +586,8 @@ where
                         gene.output.clone()
                     };
                     if output == compared_output
-                        || self.path_overrides(&input, &compared_output, 1)
-                        || self.path_overrides(&output, &compared_output, 1)
+                        || self.path_overrides(&input, &compared_output, &last, 1)
+                        || self.path_overrides(&output, &compared_output, &last, 1)
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;
@@ -598,7 +598,13 @@ where
         }
     }
 
-    fn path_overrides(&self, input: &Point, output: &Point, recursion: i8) -> bool {
+    fn path_overrides(
+        &self,
+        input: &Point,
+        output: &Point,
+        last: &GeneSmrtPtr<T>,
+        recursion: i8,
+    ) -> bool {
         if recursion <= 0 {
             return false;
         }
@@ -606,6 +612,9 @@ where
             Some(found) => {
                 let genes = &found.genes;
                 for gene_rc in genes {
+                    if Rc::ptr_eq(gene_rc, last) {
+                        continue;
+                    }
                     let cell = &**gene_rc;
                     let gene = &*cell.borrow();
                     if gene.disabled {
@@ -615,7 +624,7 @@ where
                     if *compared_output == *output {
                         return true;
                     } else if compared_output.layer < output.layer {
-                        if self.path_overrides(&compared_output, &output, recursion - 1) {
+                        if self.path_overrides(&compared_output, &output, &last, recursion - 1) {
                             return true;
                         }
                     }
