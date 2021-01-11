@@ -586,7 +586,7 @@ where
                         gene.output.clone()
                     };
                     if output == compared_output
-                        || self.path_overrides(&input, &compared_output, &last, 1)
+                        // self.path_overrides(&input, &compared_output, &last, 1)
                         || self.path_overrides(&output, &compared_output, &last, 1)
                     {
                         let mut gene = cell.borrow_mut();
