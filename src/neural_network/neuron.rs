@@ -64,7 +64,7 @@ where
     pub fn feed_forward(&mut self) {
         let update_gate = fast_sigmoid(self.update);
         let reset_gate = fast_sigmoid(self.reset);
-        let current_memory = self.input + self.memory * reset_gate;
+        let current_memory = fast_tanh(self.input + self.memory * reset_gate);
         let value = update_gate * self.memory + (1 - update_gate) * current_memory;
         for connection in self.connections_gru.iter_mut() {
             connection.activate(value);
