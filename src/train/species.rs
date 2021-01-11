@@ -173,7 +173,7 @@ where
     pub fn get_best(&self) -> Topology<T> {
         let best_top_cell = &*self.best_topology;
         let best_topology = best_top_cell.borrow();
-        best_topology.clone()
+        (*best_topology).clone()
     }
 
     pub fn compute_adjusted_fitness(&mut self) {
