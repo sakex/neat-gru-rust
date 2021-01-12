@@ -4,21 +4,22 @@ use crate::neural_network::neuron::Neuron;
 use crate::topology::connection_type::ConnectionType;
 use crate::topology::topology::Topology;
 use num::Float;
+use std::fmt::Display;
 
 pub struct NeuralNetwork<T>
 where
-    T: Float + std::ops::AddAssign,
+    T: Float + std::ops::AddAssign + Display,
 {
     output_size: usize,
     neurons: Vec<Neuron<T>>,
 }
 
-unsafe impl<T> Send for NeuralNetwork<T> where T: Float + std::ops::AddAssign {}
-unsafe impl<T> Sync for NeuralNetwork<T> where T: Float + std::ops::AddAssign {}
+unsafe impl<T> Send for NeuralNetwork<T> where T: Float + std::ops::AddAssign + Display {}
+unsafe impl<T> Sync for NeuralNetwork<T> where T: Float + std::ops::AddAssign + Display {}
 
 impl<T> NeuralNetwork<T>
 where
-    T: Float + std::ops::AddAssign,
+    T: Float + std::ops::AddAssign + Display,
 {
     pub unsafe fn new(topology: &Topology<T>) -> NeuralNetwork<T> {
         let layer_count = topology.layers_sizes.len();
@@ -129,7 +130,7 @@ where
 
 impl<T> PartialEq for NeuralNetwork<T>
 where
-    T: Float + std::ops::AddAssign,
+    T: Float + std::ops::AddAssign + Display,
 {
     fn eq(&self, other: &Self) -> bool {
         if self.output_size != other.output_size {

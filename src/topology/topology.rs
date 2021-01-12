@@ -12,6 +12,7 @@ use rand_distr::{Distribution, Normal};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -20,7 +21,7 @@ pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
 #[derive(Deserialize, Serialize)]
 pub struct Topology<T>
 where
-    T: Float + std::ops::AddAssign,
+    T: Float + std::ops::AddAssign + Display,
 {
     max_layers: usize,
     max_per_layers: usize,
@@ -34,12 +35,12 @@ where
 
 pub type TopologySmrtPtr<T> = Arc<Mutex<Topology<T>>>;
 
-unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign {}
-unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign {}
+unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign + Display {}
+unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign + Display {}
 
 impl<'a, T> Clone for Topology<T>
 where
-    T: Float + std::ops::AddAssign,
+    T: Float + std::ops::AddAssign + Display,
 {
     fn clone(&self) -> Topology<T> {
         let genes_ev_number: HashMap<usize, GeneSmrtPtr<T>> = self
@@ -96,7 +97,7 @@ where
 
 impl<'a, T> Topology<T>
 where
-    T: Float + std::ops::AddAssign,
+    T: Float + std::ops::AddAssign + Display,
 {
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
@@ -113,6 +114,7 @@ where
 
     #[replace_numeric_literals(T::from(literal).unwrap())]
     pub fn delta_compatibility(top1: &Topology<T>, top2: &Topology<T>) -> T {
+        // Disjoints = present in Gene1 but not Gene2
         let mut disjoints = T::zero();
         let mut common = T::zero();
         let mut w = T::zero();
@@ -142,13 +144,13 @@ where
         w = w / common;
         let size_1 = T::from(top1.genes_ev_number.len()).unwrap();
         let size_2 = T::from(top2.genes_ev_number.len()).unwrap();
-        let n = if size_1 >= 20 || size_2 >= 20 {
-            size_1.max(size_2)
-        } else {
-            one
-        };
-        disjoints = disjoints + size_1 - common;
-        6 * disjoints / n + w * 3
+        let larger = size_1.max(size_2);
+        let n = if larger > 20 { larger - 20 } else { one };
+        // Excess = present in gene2 but not gene1
+        let excess = size_2 - common;
+        let v = disjoints + excess;
+        let ret = 8 * v / n + w;
+        ret
     }
 
     pub fn new_random(
@@ -758,7 +760,7 @@ where
 
 impl<'a, T> PartialEq for Topology<T>
 where
-    T: Float + std::ops::AddAssign,
+    T: Float + std::ops::AddAssign + Display,
 {
     fn eq(&self, other: &Self) -> bool {
         if self.layers_sizes.len() != other.layers_sizes.len()
@@ -819,7 +821,7 @@ where
 
 impl<'a, T> Topology<T>
 where
-    T: Float + std::ops::AddAssign + Deserialize<'a> + Serialize,
+    T: Float + std::ops::AddAssign + Deserialize<'a> + Serialize + Display,
 {
     pub fn from_serde_string(serialized: &'a str) -> Topology<T> {
         let new_top: Topology<T> = serde_json::from_str(serialized).unwrap();
