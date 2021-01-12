@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
 
@@ -240,7 +241,7 @@ where
 
     pub fn new_generation(
         &self,
-        new_topologies: &mut Vec<Rc<RefCell<Topology<T>>>>,
+        new_topologies: &mut Vec<Arc<Mutex<Topology<T>>>>,
         ev_number: &EvNumber,
         reproduction_count: usize,
         proba: &MutationProbabilities,
@@ -248,7 +249,7 @@ where
         for _ in 0..reproduction_count {
             let mut cp = self.clone();
             cp.mutate(&ev_number, &proba);
-            new_topologies.push(Rc::new(RefCell::new(cp)));
+            new_topologies.push(Arc::new(Mutex::new(cp)));
         }
     }
 
@@ -827,3 +828,5 @@ where
         serde_json::to_string(&self).unwrap()
     }
 }
+
+pub type TopologySmrtPtr<T> = Arc<Mutex<Topology<T>>>;

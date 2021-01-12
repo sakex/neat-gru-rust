@@ -98,7 +98,7 @@ impl Game<f64> for TestGame {
 #[test]
 pub fn test_train() {
     let mut game = TestGame::new();
-    let mut runner = Train::new(&mut game);
+    let mut runner: Train<TestGame, f64> = Train::new(&mut game);
     runner
         .max_layers(5)
         .max_per_layers(10)

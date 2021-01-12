@@ -1,19 +1,17 @@
 use crate::topology::mutation_probabilities::MutationProbabilities;
-use crate::topology::topology::Topology;
+use crate::topology::topology::{Topology, TopologySmrtPtr};
 use crate::train::evolution_number::EvNumber;
 use num::Float;
 use rand::prelude::ThreadRng;
-use std::cell::RefCell;
 use std::iter::Sum;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct Species<T>
 where
     T: Float + Sum + std::ops::AddAssign,
 {
-    pub topologies: Vec<Rc<RefCell<Topology<T>>>>,
-    pub best_topology: Rc<RefCell<Topology<T>>>,
+    pub topologies: Vec<TopologySmrtPtr<T>>,
+    pub best_topology: TopologySmrtPtr<T>,
     best_historical_score: T,
     pub stagnation_counter: u8,
     pub adjusted_fitness: T,
@@ -27,7 +25,7 @@ impl<T> Species<T>
 where
     T: Float + Sum + std::ops::AddAssign,
 {
-    pub fn new(first_topology: Rc<RefCell<Topology<T>>>) -> Species<T> {
+    pub fn new(first_topology: TopologySmrtPtr<T>) -> Species<T> {
         Species {
             topologies: vec![first_topology.clone()],
             best_topology: first_topology,
@@ -48,9 +46,9 @@ where
         ev_number: &EvNumber,
     ) -> Species<T> {
         let mut rng: ThreadRng = rand::thread_rng();
-        let topologies: Vec<Rc<RefCell<Topology<T>>>> = (0..max_individuals)
+        let topologies: Vec<TopologySmrtPtr<T>> = (0..max_individuals)
             .map(|_| {
-                Rc::new(RefCell::new(Topology::<T>::new_random(
+                Arc::new(Mutex::new(Topology::<T>::new_random(
                     &mut rng,
                     input_count,
                     output_count,
@@ -78,9 +76,9 @@ where
         max_per_layers: usize,
         ev_number: &EvNumber,
     ) -> Species<T> {
-        let topologies: Vec<Rc<RefCell<Topology<T>>>> = (0..1)
+        let topologies: Vec<TopologySmrtPtr<T>> = (0..1)
             .map(|_| {
-                Rc::new(RefCell::new(Topology::<T>::new_uniform(
+                Arc::new(Mutex::new(Topology::<T>::new_uniform(
                     input_count,
                     output_count,
                     max_layers,
@@ -103,9 +101,9 @@ where
     pub fn natural_selection(&mut self, ev_number: Arc<EvNumber>, proba: MutationProbabilities) {
         self.topologies.sort_by(|top1, top2| {
             let top1_borrow = &**top1;
-            let top1 = top1_borrow.borrow();
+            let top1 = &*top1_borrow.lock().unwrap();
             let top2_borrow = &**top2;
-            let top2 = top2_borrow.borrow();
+            let top2 = &*top2_borrow.lock().unwrap();
             top1.get_last_result()
                 .partial_cmp(&top2.get_last_result())
                 .unwrap()
@@ -113,7 +111,7 @@ where
         let best_topology = self.topologies.last().unwrap();
         let last_result = {
             let top_borrow = &**best_topology;
-            let best_top = top_borrow.borrow();
+            let best_top = &*top_borrow.lock().unwrap();
             best_top.get_last_result()
         };
         if last_result > self.best_historical_score {
@@ -134,28 +132,28 @@ where
             return;
         }
 
-        let surviving_topologies: Vec<Rc<RefCell<Topology<T>>>> =
+        let surviving_topologies: Vec<TopologySmrtPtr<T>> =
             self.topologies.iter().skip(size / 2).cloned().collect();
 
         self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
-        let best_rc_refcell = self.best_topology.borrow();
+        let best_rc_refcell = self.best_topology.lock().unwrap();
         let best_top = (*best_rc_refcell).clone();
         if will_copy_best {
-            self.topologies.push(Rc::new(RefCell::new(best_top)));
+            self.topologies.push(Arc::new(Mutex::new(best_top)));
         }
     }
 
     fn evolve(
         &mut self,
-        surviving_topologies: &Vec<Rc<RefCell<Topology<T>>>>,
+        surviving_topologies: &Vec<TopologySmrtPtr<T>>,
         ev_number: Arc<EvNumber>,
         proba: MutationProbabilities,
-    ) -> Vec<Rc<RefCell<Topology<T>>>> {
-        let mut new_topologies: Vec<Rc<RefCell<Topology<T>>>> = Vec::new();
+    ) -> Vec<TopologySmrtPtr<T>> {
+        let mut new_topologies: Vec<TopologySmrtPtr<T>> = Vec::new();
         new_topologies.reserve_exact(self.max_topologies);
         loop {
             for topology in surviving_topologies.iter().rev() {
-                let top = topology.borrow_mut();
+                let top = &mut *topology.lock().unwrap();
                 top.new_generation(&mut new_topologies, &ev_number, 1, &proba);
                 let full = new_topologies.len() >= self.max_topologies;
                 if full {
@@ -165,17 +163,17 @@ where
         }
     }
 
-    pub fn push(&mut self, top: Rc<RefCell<Topology<T>>>) {
+    pub fn push(&mut self, top: TopologySmrtPtr<T>) {
         self.topologies.push(top);
     }
 
     pub fn score(&self) -> T {
-        self.best_topology.borrow().get_last_result()
+        self.best_topology.lock().unwrap().get_last_result()
     }
 
     pub fn get_best(&self) -> Topology<T> {
         let best_top_cell = &*self.best_topology;
-        let best_topology = best_top_cell.borrow();
+        let best_topology = best_top_cell.lock().unwrap();
         (*best_topology).clone()
     }
 
@@ -192,7 +190,7 @@ where
             .topologies
             .iter()
             .map(|top| {
-                let borrowed = top.borrow();
+                let borrowed = top.lock().unwrap();
                 borrowed.get_last_result()
             })
             .sum::<T>()

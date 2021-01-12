@@ -1,24 +1,23 @@
 use crate::game::Game;
 use crate::neural_network::nn::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
-use crate::topology::topology::Topology;
+use crate::topology::topology::{Topology, TopologySmrtPtr};
 use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
 use itertools::Itertools;
 use num::Float;
 use rayon::prelude::*;
-use std::cell::RefCell;
 use std::fmt::Display;
 use std::iter::Sum;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
 where
-    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
+    F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     T: Game<F>,
+    &'a [F]: rayon::iter::IntoParallelIterator,
 {
     simulation: &'a mut T,
     iterations_: usize,
@@ -29,7 +28,7 @@ where
     delta_threshold_: F,
     inputs_: Option<usize>,
     outputs_: Option<usize>,
-    topologies_: Vec<Rc<RefCell<Topology<F>>>>,
+    topologies_: Vec<TopologySmrtPtr<F>>,
     species_: Vec<Species<F>>,
     history_: Vec<Topology<F>>,
     ev_number_: Arc<EvNumber>,
@@ -41,7 +40,8 @@ where
 impl<'a, T, F> Train<'a, T, F>
 where
     T: Game<F>,
-    F: Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
+    F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
+    &'a [F]: rayon::iter::IntoParallelIterator,
 {
     /// Creates a Train<T: Game> instance
     ///
@@ -295,7 +295,7 @@ where
                     .topologies
                     .iter()
                     .map(|top| top.clone())
-                    .collect::<Vec<Rc<RefCell<Topology<F>>>>>()
+                    .collect::<Vec<TopologySmrtPtr<F>>>()
             })
             .flatten()
             .collect();
@@ -306,9 +306,10 @@ where
 
         let networks: Vec<NeuralNetwork<F>> = self
             .topologies_
-            .iter()
+            .par_iter()
             .map(|top_rc| {
-                let top = &*top_rc.borrow();
+                let lock = top_rc.lock().unwrap();
+                let top = &*lock;
                 unsafe { NeuralNetwork::new(&top) }
             })
             .collect();
@@ -321,12 +322,15 @@ where
     }
 
     fn set_last_results(&mut self, results: &Vec<F>) {
-        for (topology, result) in self.topologies_.iter_mut().zip(results.iter()) {
-            if result.is_nan() {
-                panic!("NaN result");
-            }
-            topology.borrow_mut().set_last_result(*result);
-        }
+        self.topologies_
+            .par_iter_mut()
+            .zip(results.into_par_iter())
+            .for_each(|(topology, result)| {
+                if result.is_nan() {
+                    panic!("NaN result");
+                }
+                topology.lock().unwrap().set_last_result(*result);
+            })
     }
 
     fn natural_selection(&mut self) {
@@ -472,7 +476,7 @@ where
             let mut is_one_of_best = false;
             for spec in &self.species_ {
                 let best_top_rc = &spec.best_topology;
-                if Rc::ptr_eq(best_top_rc, &top_cp) {
+                if Arc::ptr_eq(best_top_rc, &top_cp) {
                     is_one_of_best = true;
                     break;
                 }
@@ -480,11 +484,11 @@ where
             if is_one_of_best {
                 continue;
             }
-            let top_borrow = top_cp.borrow();
+            let lock = top_cp.lock().unwrap();
             let mut assigned = false;
             for spec in self.species_.iter_mut() {
                 let top2 = spec.get_best();
-                let delta = Topology::delta_compatibility(&top_borrow, &top2);
+                let delta = Topology::delta_compatibility(&*lock, &top2);
                 if delta <= self.delta_threshold_ {
                     spec.push(topology_rc.clone());
                     assigned = true;

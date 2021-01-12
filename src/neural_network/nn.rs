@@ -13,6 +13,9 @@ where
     neurons: Vec<Neuron<T>>,
 }
 
+unsafe impl<T> Send for NeuralNetwork<T> where T: Float + std::ops::AddAssign {}
+unsafe impl<T> Sync for NeuralNetwork<T> where T: Float + std::ops::AddAssign {}
+
 impl<T> NeuralNetwork<T>
 where
     T: Float + std::ops::AddAssign,
