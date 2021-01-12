@@ -4,6 +4,7 @@ use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::Topology;
 use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
+use itertools::Itertools;
 use num::Float;
 use rayon::prelude::*;
 use std::cell::RefCell;
@@ -358,7 +359,7 @@ where
         let volatility = variance.sqrt();
         if volatility != F::zero() {
             self.species_.iter_mut().for_each(|spec| {
-                spec.adjusted_fitness = F::from(1.1)
+                spec.adjusted_fitness = F::from(1.3)
                     .unwrap()
                     .powf((spec.adjusted_fitness - mean) / volatility);
             });
@@ -383,7 +384,7 @@ where
             .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
         let mut assigned_count: usize = 0;
-        for spec in self.species_.iter_mut() {
+        for spec in self.species_.iter_mut().rev() {
             let to_assign = (spec.adjusted_fitness * multiplier)
                 .max(F::zero())
                 .round()
@@ -408,6 +409,25 @@ where
                 species.natural_selection(ev_number.clone(), proba.clone());
             });
         }
+
+        let mut species_sizes_vec: Vec<(usize, usize)> = Vec::new();
+        let mut current_count: (usize, usize) = (0, 0);
+        for Species { topologies, .. } in &self.species_ {
+            if topologies.len() == current_count.0 {
+                current_count.1 += 1;
+            } else {
+                if current_count.1 != 0 {
+                    species_sizes_vec.push(current_count.clone());
+                }
+                current_count = (topologies.len(), 1);
+            }
+        }
+        species_sizes_vec.push(current_count);
+        let lengths_str = species_sizes_vec
+            .iter()
+            .map(|(value, count)| format!("{} x {}", count, value))
+            .join(" | ");
+        println!("SPECIES LENGTHS: {}", lengths_str);
     }
 
     fn push_to_history(&mut self) {

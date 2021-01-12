@@ -128,6 +128,7 @@ where
 
     fn do_selection(&mut self, ev_number: Arc<EvNumber>, proba: MutationProbabilities) {
         let size = self.topologies.len();
+        let will_copy_best = size >= 5;
         if size == 0 || self.max_topologies == 0 {
             self.topologies.clear();
             return;
@@ -139,7 +140,9 @@ where
         self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
         let best_rc_refcell = self.best_topology.borrow();
         let best_top = (*best_rc_refcell).clone();
-        self.topologies.push(Rc::new(RefCell::new(best_top)));
+        if will_copy_best {
+            self.topologies.push(Rc::new(RefCell::new(best_top)));
+        }
     }
 
     fn evolve(
@@ -154,7 +157,7 @@ where
             for topology in surviving_topologies.iter().rev() {
                 let top = topology.borrow_mut();
                 top.new_generation(&mut new_topologies, &ev_number, 1, &proba);
-                let full = new_topologies.len() + 1 >= self.max_topologies;
+                let full = new_topologies.len() >= self.max_topologies;
                 if full {
                     return new_topologies;
                 }
@@ -177,9 +180,10 @@ where
     }
 
     pub fn compute_adjusted_fitness(&mut self) {
-        self.adjusted_fitness = self.best_topology.borrow().get_last_result();
-    }
-    /*let top_len = T::from(self.topologies.len()).unwrap();
+        /*
+            self.adjusted_fitness = self.best_topology.borrow().get_last_result();
+        }*/
+        let top_len = T::from(self.topologies.len()).unwrap();
         if top_len == T::zero() {
             self.adjusted_fitness = T::zero();
             return;
@@ -193,5 +197,5 @@ where
             })
             .sum::<T>()
             / top_len;
-    }*/
+    }
 }

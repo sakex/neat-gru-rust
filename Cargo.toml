@@ -17,6 +17,7 @@ rand = "0.8.0"
 rand_distr = "0.4.0"
 numeric_literals = "0.1.1"
 rayon = "1.5.0"
+itertools = "0.10.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.1", features = ["js"] }
