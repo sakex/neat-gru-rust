@@ -379,7 +379,7 @@ where
         });
         let sum: F = self
             .species_
-            .iter()
+            .par_iter()
             .map(|spec| spec.adjusted_fitness.clone())
             .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
@@ -499,7 +499,7 @@ where
         self.species_.retain(|spec| spec.topologies.len() > 0);
         let biggest_species = self
             .species_
-            .iter()
+            .par_iter()
             .map(|spec| spec.topologies.len())
             .max()
             .unwrap_or(0);
