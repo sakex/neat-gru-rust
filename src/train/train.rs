@@ -120,8 +120,8 @@ where
             best_historical_score: F::zero(),
             no_progress_counter: 0,
             proba: MutationProbabilities {
-                change_weights: 0.5,
-                guaranteed_new_neuron: 0.1,
+                change_weights: 0.3,
+                guaranteed_new_neuron: 0.2,
                 delete_neuron: 0.0,
             },
         }
@@ -356,8 +356,8 @@ where
             .map(|spec| (spec.adjusted_fitness - mean).powf(F::from(2.).unwrap()))
             .sum::<F>()
             / F::from(self.species_.len() - 1).unwrap();
-        let volatility = variance.sqrt();
-        if volatility != F::zero() {
+        if variance >= F::from(0.00001).unwrap() {
+            let volatility = variance.sqrt();
             self.species_.iter_mut().for_each(|spec| {
                 spec.adjusted_fitness = F::from(1.3)
                     .unwrap()
@@ -373,8 +373,8 @@ where
                 .adjusted_fitness
                 .partial_cmp(&spec2.adjusted_fitness)
                 .expect(&*format!(
-                    "First: {}, second: {}",
-                    spec1.adjusted_fitness, spec2.adjusted_fitness
+                    "First: {}, second: {}, variance {}",
+                    spec1.adjusted_fitness, spec2.adjusted_fitness, variance
                 ))
         });
         let sum: F = self

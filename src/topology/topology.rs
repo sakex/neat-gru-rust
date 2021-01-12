@@ -31,6 +31,9 @@ where
     genes_ev_number: HashMap<usize, GeneSmrtPtr<T>>,
 }
 
+unsafe impl<T> Send for Topology<T> {}
+unsafe impl<T> Sync for Topology<T> {}
+
 impl<'a, T> Clone for Topology<T>
 where
     T: Float + std::ops::AddAssign,
@@ -142,7 +145,7 @@ where
             one
         };
         disjoints = disjoints + size_1 - common;
-        4 * disjoints / n + w * 4
+        6 * disjoints / n + w * 3
     }
 
     pub fn new_random(
@@ -585,9 +588,8 @@ where
                         gene.output.clone()
                     };
                     if output == compared_output
-                        || (self.layers_sizes.len() >= 4
-                            && (self.path_overrides(&input, &compared_output, &last, 1)
-                                || self.path_overrides(&output, &compared_output, &last, 1)))
+                        || self.path_overrides(&input, &compared_output, &last, 1)
+                        || self.path_overrides(&output, &compared_output, &last, 1)
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;
