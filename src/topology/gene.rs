@@ -116,6 +116,45 @@ where
         }
     }
 
+    pub fn new_one(
+        input: Point,
+        output: Point,
+        ev_number: &EvNumber,
+        connection_type: ConnectionType,
+    ) -> Gene<T> {
+        let coordinate = Coordinate::new(input.clone(), output.clone());
+        Gene {
+            input,
+            output,
+            input_weight: T::one(),
+            memory_weight: T::one(),
+            reset_input_weight: T::one(),
+            update_input_weight: T::one(),
+            reset_memory_weight: T::one(),
+            update_memory_weight: T::one(),
+            evolution_number: ev_number.number(coordinate),
+            connection_type,
+            disabled: false,
+        }
+    }
+
+    pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
+        let first_gene = Gene::new_one(
+            self.input.clone(),
+            middle_point.clone(),
+            &ev_number,
+            self.connection_type.clone(),
+        );
+
+        let coordinate = Coordinate::new(middle_point.clone(), self.output.clone());
+        let mut second_gene = self.clone();
+        second_gene.input = middle_point;
+        second_gene.evolution_number = ev_number.number(coordinate);
+        second_gene.disabled = false;
+
+        (first_gene, second_gene)
+    }
+
     pub fn new_random(
         rng: &mut ThreadRng,
         input: Point,

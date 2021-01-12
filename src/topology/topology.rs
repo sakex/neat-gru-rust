@@ -167,7 +167,7 @@ where
             }
         }
         let mut new_topology = Topology::new(max_layers, max_per_layers);
-        new_topology.set_layers(2);
+        new_topology.layers_sizes = vec![input_count as u8, output_count as u8];
         let mut not_added_it = 0;
         for i in 0..input_count {
             let input = Point::new(0, i as u8);
@@ -183,7 +183,7 @@ where
                     1.,
                     &ev_number,
                 )));
-                new_topology.add_relationship(gene, true);
+                new_topology.insert_gene(gene);
             }
         }
         new_topology.generate_output_bias(rng);
@@ -198,23 +198,17 @@ where
         ev_number: &EvNumber,
     ) -> Topology<T> {
         let mut new_topology = Topology::new(max_layers, max_per_layers);
-        new_topology.set_layers(2);
+        new_topology.layers_sizes = vec![input_count as u8, output_count as u8];
         for i in 0..input_count {
             for j in 0..output_count {
                 let input = Point::new(0u8, i as u8);
                 let output = Point::new(1u8, j as u8);
                 let gene = Rc::new(RefCell::new(Gene::new_uniform(input, output, &ev_number)));
-                new_topology.add_relationship(gene, true);
+                new_topology.insert_gene(gene);
             }
         }
         new_topology.uniform_output_bias();
         new_topology
-    }
-
-    pub fn set_layers(&mut self, layers: usize) {
-        self.layers_sizes.resize(layers, 1);
-        self.layers_sizes[layers - 1] = self.layers_sizes[layers - 2];
-        self.layers_sizes[layers - 2] = 1;
     }
 
     fn generate_output_bias(&mut self, rng: &mut ThreadRng) {
@@ -231,54 +225,6 @@ where
             .into_iter()
             .map(|_| Bias::new_zero())
             .collect();
-    }
-
-    pub fn add_relationship(&mut self, gene_rc: GeneSmrtPtr<T>, init: bool) {
-        let gene_cp = gene_rc.clone();
-        // Drop refcell
-        let (input, ev_number) = {
-            let gene = &mut *gene_cp.borrow_mut();
-            let input = gene.input.clone();
-            let output = gene.output.clone();
-            let ev_number = gene.evolution_number;
-            if !gene.disabled && input.index + 1 > self.layers_sizes[input.layer as usize] {
-                self.layers_sizes[input.layer as usize] = input.index + 1;
-            }
-            if !gene.disabled && !init && output.layer as usize == self.layers_sizes.len() {
-                self.resize(output.layer as usize);
-                gene.decrement_output();
-            } else if !gene.disabled && output.index + 1 > self.layers_sizes[output.layer as usize]
-            {
-                self.layers_sizes[output.layer as usize] = output.index + 1;
-            }
-            (input, ev_number)
-        };
-        let mut rng = thread_rng();
-        match self.genes_point.get_mut(&input) {
-            Some(found) => {
-                found.genes.push(gene_cp.clone());
-                found.genes.sort();
-            }
-            None => {
-                let bias = Bias::new_random(&mut rng);
-                let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
-                bias_and_genes.genes = vec![gene_cp.clone()];
-                self.genes_point.insert(input.clone(), bias_and_genes);
-            }
-        }
-        self.genes_ev_number.insert(ev_number, gene_rc);
-    }
-
-    fn resize(&mut self, layers: usize) {
-        for (_point, bias_and_gene) in self.genes_point.iter() {
-            for gene_rc in &bias_and_gene.genes {
-                let mut gene = (&**gene_rc).borrow_mut();
-                if gene.output.layer == (layers - 1) as u8 {
-                    gene.output.layer = layers as u8
-                }
-            }
-        }
-        self.set_layers(layers + 1);
     }
 
     pub fn set_last_result(&mut self, result: T) {
@@ -341,13 +287,100 @@ where
     }
 
     #[inline]
-    fn change_topology(
-        &mut self,
-        ev_number: &EvNumber,
-        mut rng: &mut ThreadRng,
-        guaranteed_new_neuron: bool,
-    ) {
-        let mut new_output = false;
+    pub fn insert_gene(&mut self, gene: GeneSmrtPtr<T>) {
+        let (input, ev_number) = {
+            let gene = &*gene.borrow();
+            (gene.input.clone(), gene.evolution_number)
+        };
+        match self.genes_point.get_mut(&input) {
+            Some(found) => {
+                found.genes.push(gene.clone());
+                found.genes.sort();
+            }
+            None => {
+                let bias = Bias::new_zero();
+                let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
+                bias_and_genes.genes = vec![gene.clone()];
+                self.genes_point.insert(input.clone(), bias_and_genes);
+            }
+        }
+        self.genes_ev_number.insert(ev_number, gene);
+    }
+
+    #[inline]
+    fn shift_right_one_layer(&mut self, layer: u8) {
+        self.layers_sizes.insert(layer as usize, 1);
+
+        for (_ev, gene_rc) in &mut self.genes_ev_number {
+            let mut gene = &mut *gene_rc.borrow_mut();
+            if gene.input.layer >= layer {
+                gene.input.layer += 1;
+            }
+            if gene.output.layer >= layer {
+                gene.output.layer += 1;
+            }
+        }
+
+        self.genes_point = self
+            .genes_point
+            .iter_mut()
+            .map(|(point, b_and_g)| {
+                if point.layer >= layer {
+                    let point_cp = Point::new(point.layer + 1, point.index);
+                    (point_cp, b_and_g.clone())
+                } else {
+                    (point.clone(), b_and_g.clone())
+                }
+            })
+            .collect();
+    }
+
+    /// Find random input and random output and adds a connection in the middle
+    #[inline]
+    fn add_node(&mut self, ev_number: &EvNumber, rng: &mut ThreadRng) {
+        let non_disabled_connections = self
+            .genes_ev_number
+            .iter()
+            .filter_map(|(_ev, gene_rc)| {
+                if !gene_rc.borrow().disabled {
+                    Some(gene_rc.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<GeneSmrtPtr<T>>>();
+
+        let gene_to_split_index = rng.gen_range(0..non_disabled_connections.len());
+        let gene_to_split = &non_disabled_connections[gene_to_split_index];
+        let mut original_gene = {
+            let mut gene = &mut *gene_to_split.borrow_mut();
+            gene.disabled = true;
+            gene.clone()
+        };
+
+        // If there is a layer between input and output, just add new node to the last index of the
+        // layer just after input
+        // Otherwise, we create a gene in the middle
+        let output_of_input = if original_gene.output.layer - original_gene.input.layer >= 2 {
+            let output_of_input = Point::new(
+                original_gene.input.layer + 1,
+                self.layers_sizes[original_gene.input.layer as usize + 1],
+            );
+            self.layers_sizes[original_gene.input.layer as usize + 1] += 1;
+            output_of_input
+        } else {
+            let output_of_input = Point::new(original_gene.input.layer + 1, 0);
+            self.shift_right_one_layer(original_gene.input.layer + 1);
+            original_gene.output.layer += 1;
+            output_of_input
+        };
+        let (middle_gene, end_gene) = original_gene.split(output_of_input, &ev_number);
+        self.insert_gene(Rc::new(RefCell::new(middle_gene)));
+        self.insert_gene(Rc::new(RefCell::new(end_gene)));
+    }
+
+    #[inline]
+    fn add_connection(&mut self, ev_number: &EvNumber, mut rng: &mut ThreadRng) {
         let max_layer = self.layers_sizes.len().min(self.max_layers);
         let input_layer = if self.layers_sizes.len() > 2 {
             rng.gen_range(0..(max_layer - 2)) as u8
@@ -355,55 +388,20 @@ where
             0
         };
         let input_index: u8 = rng.gen_range(0..self.layers_sizes[input_layer as usize]);
-        let output_layer: u8 = rng.gen_range((input_layer + 1)..(max_layer + 1) as u8);
-        let mut output_index: u8 = 0;
+        let output_layer: u8 = rng.gen_range((input_layer + 1)..max_layer as u8);
 
-        if (output_layer as usize) < self.layers_sizes.len() - 1 {
-            output_index = if guaranteed_new_neuron {
-                (self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)
-            } else {
-                rng.gen_range(
-                    0..((self.layers_sizes[output_layer as usize] + 1)
-                        .min(self.max_per_layers as u8 + 1)),
-                )
-            };
-            if output_index >= self.layers_sizes[output_layer as usize] {
-                new_output = true
-            }
-        } else if (output_layer as usize) == self.layers_sizes.len() - 1 {
-            output_index = rng.gen_range(0..self.layers_sizes[output_layer as usize]);
+        let output_index = if (output_layer as usize) < self.layers_sizes.len() - 1 {
+            rng.gen_range(
+                0..((self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)),
+            )
         } else {
-            // Case where we create a new layer, output_index is 0
-            new_output = true;
-        }
+            // If on output layer
+            rng.gen_range(0..self.layers_sizes[output_layer as usize])
+        };
         let input = Point::new(input_layer, input_index);
         let output = Point::new(output_layer, output_index);
-        if !new_output {
-            let just_created = self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
-            self.disable_genes(input.clone(), output.clone(), just_created);
-        } else {
-            let mut output_cp = output.clone();
-            output_cp.layer -= 1;
-            let just_created = self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
-            self.disable_genes(input.clone(), output_cp.clone(), just_created.clone());
-            let last_layer_size = self.layers_sizes.last().unwrap();
-            let index = rng.gen_range(0..*last_layer_size);
-            let output_of_output = Point::new((self.layers_sizes.len() - 1) as u8, index);
-            if just_created.borrow().disabled {
-                return;
-            }
-            let extra_gene = self.new_gene(
-                &mut rng,
-                just_created.borrow().output.clone(),
-                output_of_output.clone(),
-                &ev_number,
-            );
-            self.disable_genes(
-                just_created.borrow().output.clone(),
-                output_of_output,
-                extra_gene,
-            );
-        }
+        let just_created = self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
+        self.disable_genes(input.clone(), output.clone(), just_created);
     }
 
     /*#[allow(dead_code)]
@@ -420,12 +418,12 @@ where
         if change_weights < proba.change_weights {
             self.change_weights(&mut rng);
         } else if change_weights < 1. - proba.guaranteed_new_neuron - proba.delete_neuron {
-            self.change_topology(&ev_number, &mut rng, false);
+            self.add_connection(&ev_number, &mut rng);
         } else if change_weights < 1. - proba.guaranteed_new_neuron || self.layers_sizes.len() <= 3
         {
-            self.change_topology(&ev_number, &mut rng, true);
+            self.add_node(&ev_number, &mut rng);
         } else {
-            self.change_topology(&ev_number, &mut rng, false);
+            self.add_connection(&ev_number, &mut rng);
             // self.delete_neuron(&mut rng);
         }
         loop {
@@ -493,7 +491,7 @@ where
         let new_gene = Rc::new(RefCell::new(Gene::new_random(
             rng, input, output, -1., 1., &ev_number,
         )));
-        self.add_relationship(new_gene.clone(), false);
+        self.insert_gene(new_gene.clone());
         new_gene
     }
 
