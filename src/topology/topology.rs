@@ -31,8 +31,8 @@ where
     genes_ev_number: HashMap<usize, GeneSmrtPtr<T>>,
 }
 
-unsafe impl<T> Send for Topology<T> {}
-unsafe impl<T> Sync for Topology<T> {}
+unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign {}
+unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign {}
 
 impl<'a, T> Clone for Topology<T>
 where

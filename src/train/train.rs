@@ -289,7 +289,7 @@ where
     fn get_topologies(&mut self) {
         self.topologies_ = self
             .species_
-            .iter()
+            .par_iter()
             .map(|species| {
                 species
                     .topologies
