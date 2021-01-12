@@ -321,6 +321,9 @@ where
 
     fn set_last_results(&mut self, results: &Vec<F>) {
         for (topology, result) in self.topologies_.iter_mut().zip(results.iter()) {
+            if result.is_nan() {
+                panic!("NaN result");
+            }
             topology.borrow_mut().set_last_result(*result);
         }
     }
@@ -353,12 +356,17 @@ where
             .sum::<F>()
             / F::from(self.species_.len() - 1).unwrap();
         let volatility = variance.sqrt();
-        self.species_.iter_mut().for_each(|spec| {
-            spec.adjusted_fitness = F::from(1.1)
-                .unwrap()
-                .powf((spec.adjusted_fitness - mean) / volatility);
-        });
-
+        if volatility != F::zero() {
+            self.species_.iter_mut().for_each(|spec| {
+                spec.adjusted_fitness = F::from(1.1)
+                    .unwrap()
+                    .powf((spec.adjusted_fitness - mean) / volatility);
+            });
+        } else {
+            self.species_.iter_mut().for_each(|spec| {
+                spec.adjusted_fitness = F::one();
+            });
+        }
         self.species_.sort_by(|spec1, spec2| {
             spec1
                 .adjusted_fitness

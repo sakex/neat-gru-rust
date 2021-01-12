@@ -177,7 +177,9 @@ where
     }
 
     pub fn compute_adjusted_fitness(&mut self) {
-        let top_len = T::from(self.topologies.len()).unwrap();
+        self.adjusted_fitness = self.best_topology.borrow().get_last_result();
+    }
+    /*let top_len = T::from(self.topologies.len()).unwrap();
         if top_len == T::zero() {
             self.adjusted_fitness = T::zero();
             return;
@@ -191,5 +193,5 @@ where
             })
             .sum::<T>()
             / top_len;
-    }
+    }*/
 }
