@@ -340,6 +340,7 @@ where
         }
     }
 
+    #[inline]
     fn change_topology(
         &mut self,
         ev_number: &EvNumber,

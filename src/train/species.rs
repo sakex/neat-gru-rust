@@ -137,9 +137,9 @@ where
             self.topologies.iter().skip(size / 2).cloned().collect();
 
         self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
-        if self.topologies.len() >= 5 {
-            self.topologies.push(self.best_topology.clone());
-        }
+        let best_rc_refcell = self.best_topology.borrow();
+        let best_top = (*best_rc_refcell).clone();
+        self.topologies.push(Rc::new(RefCell::new(best_top)));
     }
 
     fn evolve(
@@ -154,7 +154,7 @@ where
             for topology in surviving_topologies.iter().rev() {
                 let top = topology.borrow_mut();
                 top.new_generation(&mut new_topologies, &ev_number, 1, &proba);
-                let full = new_topologies.len() == self.max_topologies;
+                let full = new_topologies.len() + 1 >= self.max_topologies;
                 if full {
                     return new_topologies;
                 }
