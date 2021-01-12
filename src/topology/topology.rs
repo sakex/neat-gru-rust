@@ -149,7 +149,7 @@ where
         // Excess = present in gene2 but not gene1
         let excess = size_2 - common;
         let v = disjoints + excess;
-        let ret = 8 * v / n + w;
+        let ret = 12 * v / n + w;
         ret
     }
 
