@@ -32,6 +32,8 @@ where
     genes_ev_number: HashMap<usize, GeneSmrtPtr<T>>,
 }
 
+pub type TopologySmrtPtr<T> = Arc<Mutex<Topology<T>>>;
+
 unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign {}
 unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign {}
 
@@ -828,5 +830,3 @@ where
         serde_json::to_string(&self).unwrap()
     }
 }
-
-pub type TopologySmrtPtr<T> = Arc<Mutex<Topology<T>>>;

@@ -467,9 +467,9 @@ where
 
     fn reset_species(&mut self) {
         self.get_topologies();
-        for spec in &mut self.species_ {
+        self.species_.par_iter_mut().for_each(|spec| {
             spec.topologies.clear();
-        }
+        });
         for topology_rc in self.topologies_.iter() {
             let top_cp = topology_rc.clone();
             // We could have the same topology in a species twice if it was one of the best
