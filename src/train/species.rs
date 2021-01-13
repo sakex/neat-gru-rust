@@ -134,7 +134,7 @@ where
         }
 
         let surviving_topologies: Vec<TopologySmrtPtr<T>> =
-            self.topologies.iter().skip(size / 2).cloned().collect();
+            self.topologies.iter().skip(size / 5).cloned().collect();
 
         self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
         let best_rc_refcell = self.best_topology.lock().unwrap();
