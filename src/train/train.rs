@@ -367,9 +367,10 @@ where
         if variance >= F::from(0.00001).unwrap() {
             let volatility = variance.sqrt();
             self.species_.iter_mut().for_each(|spec| {
-                spec.lock().unwrap().adjusted_fitness = F::from(1.3)
+                let spec = &mut *spec.lock().unwrap();
+                spec.adjusted_fitness = F::from(1.3)
                     .unwrap()
-                    .powf((spec.lock().unwrap().adjusted_fitness - mean) / volatility);
+                    .powf((spec.adjusted_fitness - mean) / volatility);
             });
         } else {
             self.species_.iter_mut().for_each(|spec| {
@@ -429,8 +430,8 @@ where
 
         let mut species_sizes_vec: Vec<(usize, usize)> = Vec::new();
         let mut current_count: (usize, usize) = (0, 0);
-        for lock in &self.species_ {
-            let Species { topologies, .. } = &*lock.lock().unwrap();
+        for mutex in &self.species_ {
+            let Species { topologies, .. } = &*mutex.lock().unwrap();
             if topologies.len() == current_count.0 {
                 current_count.1 += 1;
             } else {
@@ -460,14 +461,15 @@ where
                 .unwrap()
         });
 
-        let best = self.species_.last().unwrap().lock().unwrap().score();
+        let best = { self.species_.last().unwrap().lock().unwrap().score() };
 
-        println!(
-            "BEST OF WORST: {} BEST: {}",
-            self.species_[0].lock().unwrap().score(),
-            best
-        );
-
+        {
+            println!(
+                "BEST OF WORST: {} BEST: {}",
+                self.species_[0].lock().unwrap().score(),
+                best
+            );
+        }
         if best > self.best_historical_score {
             self.best_historical_score = best;
             self.no_progress_counter = 0;
