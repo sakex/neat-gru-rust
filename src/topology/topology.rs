@@ -287,7 +287,7 @@ where
         for bias in &mut self.output_bias {
             let change_bias = rng.gen_range(0.0..1.);
             let normal = Normal::new(0.0, 0.1).unwrap();
-            if change_bias < 0.8 {
+            if change_bias < 0.9 {
                 bias.bias_input += T::from(normal.sample(rng)).unwrap();
                 bias.bias_update += T::from(normal.sample(rng)).unwrap();
                 bias.bias_reset += T::from(normal.sample(rng)).unwrap();

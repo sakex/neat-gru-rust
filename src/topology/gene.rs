@@ -116,12 +116,7 @@ where
         }
     }
 
-    pub fn new_one(
-        input: Point,
-        output: Point,
-        ev_number: &EvNumber,
-        connection_type: ConnectionType,
-    ) -> Gene<T> {
+    pub fn new_one(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
         let coordinate = Coordinate::new(input.clone(), output.clone());
         Gene {
             input,
@@ -133,18 +128,13 @@ where
             reset_memory_weight: T::one(),
             update_memory_weight: T::one(),
             evolution_number: ev_number.number(coordinate),
-            connection_type,
+            connection_type: ConnectionType::Sigmoid,
             disabled: false,
         }
     }
 
     pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
-        let first_gene = Gene::new_one(
-            self.input.clone(),
-            middle_point.clone(),
-            &ev_number,
-            self.connection_type.clone(),
-        );
+        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), &ev_number);
 
         let coordinate = Coordinate::new(middle_point.clone(), self.output.clone());
         let mut second_gene = self.clone();
