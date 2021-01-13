@@ -148,7 +148,11 @@ where
         let initial_size =
             T::from(top1.layers_sizes.first().unwrap() * top1.layers_sizes.last().unwrap())
                 .unwrap();
-        let n = larger / initial_size;
+        let n = if larger > initial_size {
+            larger / initial_size
+        } else {
+            T::one()
+        };
         // Excess = present in gene2 but not gene1
         let size_2_full = T::from(top2.genes_ev_number.len()).unwrap();
         let excess = size_2_full - common;
