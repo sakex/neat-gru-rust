@@ -486,7 +486,8 @@ where
         }
 
         for species in self.species_.iter() {
-            self.history_.push(species.lock().unwrap().get_best())
+            self.history_
+                .push(species.lock().unwrap().best_topology.clone())
         }
     }
 
@@ -503,16 +504,21 @@ where
             .filter_map(|topology_rc| {
                 let top_cp = topology_rc.clone();
                 // We could have the same topology in a species twice if it was one of the best
-                let top1 = top_cp.lock().unwrap();
                 let mut assigned = false;
-                for spec in &species {
-                    let spec = &mut *spec.lock().unwrap();
-                    let top2 = spec.get_best();
-                    let delta = Topology::delta_compatibility(&*top1, &top2);
-                    if delta <= delta_t {
-                        spec.push(topology_rc.clone());
-                        assigned = true;
-                        break;
+                {
+                    let top1 = top_cp.lock().unwrap();
+                    for spec in &species {
+                        let top2 = {
+                            let spec = &*spec.lock().unwrap();
+                            spec.best_topology.clone()
+                        };
+                        let delta = Topology::delta_compatibility(&*top1, &top2);
+                        if delta <= delta_t {
+                            let spec = &mut *spec.lock().unwrap();
+                            spec.push(topology_rc.clone());
+                            assigned = true;
+                            break;
+                        }
                     }
                 }
                 if !assigned {

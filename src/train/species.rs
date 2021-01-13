@@ -12,7 +12,7 @@ where
     T: Float + Sum + std::ops::AddAssign + Display,
 {
     pub topologies: Vec<TopologySmrtPtr<T>>,
-    pub best_topology: TopologySmrtPtr<T>,
+    pub best_topology: Topology<T>,
     best_historical_score: T,
     pub stagnation_counter: u8,
     pub adjusted_fitness: T,
@@ -26,7 +26,7 @@ where
     pub fn new(first_topology: TopologySmrtPtr<T>) -> Species<T> {
         Species {
             topologies: vec![first_topology.clone()],
-            best_topology: first_topology,
+            best_topology: first_topology.lock().unwrap().clone(),
             best_historical_score: T::zero(),
             stagnation_counter: 0,
             adjusted_fitness: T::zero(),
@@ -56,7 +56,7 @@ where
                 )))
             })
             .collect();
-        let best_topology = topologies.last().unwrap().clone();
+        let best_topology = topologies.last().unwrap().lock().unwrap().clone();
         Species {
             topologies,
             best_topology,
@@ -85,7 +85,7 @@ where
                 )))
             })
             .collect();
-        let best_topology = topologies.last().unwrap().clone();
+        let best_topology = topologies.last().unwrap().lock().unwrap().clone();
         Species {
             topologies,
             best_topology,
@@ -110,6 +110,7 @@ where
         let last_result = {
             let top_borrow = &**best_topology;
             let best_top = &*top_borrow.lock().unwrap();
+            self.best_topology = best_top.clone();
             best_top.get_last_result()
         };
         if last_result > self.best_historical_score {
@@ -118,7 +119,6 @@ where
         } else {
             self.stagnation_counter += 1;
         }
-        self.best_topology = best_topology.clone();
         self.do_selection(ev_number, proba);
     }
 
@@ -134,10 +134,9 @@ where
             self.topologies.iter().skip(size / 5).cloned().collect();
 
         self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
-        let best_rc_refcell = self.best_topology.lock().unwrap();
-        let best_top = (*best_rc_refcell).clone();
         if will_copy_best {
-            self.topologies.push(Arc::new(Mutex::new(best_top)));
+            self.topologies
+                .push(Arc::new(Mutex::new(self.best_topology.clone())));
         }
     }
 
@@ -166,13 +165,7 @@ where
     }
 
     pub fn score(&self) -> T {
-        self.best_topology.lock().unwrap().get_last_result()
-    }
-
-    pub fn get_best(&self) -> Topology<T> {
-        let best_top_cell = &*self.best_topology;
-        let best_topology = best_top_cell.lock().unwrap();
-        (*best_topology).clone()
+        self.best_topology.get_last_result()
     }
 
     pub fn compute_adjusted_fitness(&mut self) {
