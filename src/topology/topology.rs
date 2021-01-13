@@ -150,7 +150,7 @@ where
         let size_2_full = T::from(top2.genes_ev_number.len()).unwrap();
         let excess = size_2_full - common;
         let v = disjoints + excess;
-        let ret = 2 * v / n + w * 0.4;
+        let ret = 12 * v / n + w;
         ret
     }
 
