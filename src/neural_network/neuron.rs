@@ -16,7 +16,6 @@ where
     update: T,
     reset: T,
     pub(crate) prev_reset: T,
-    pub(crate) bias: Bias<T>,
     pub(crate) connections_gru: Vec<ConnectionGru<T>>,
     pub(crate) connections_sigmoid: Vec<ConnectionSigmoid<T>>,
 }
@@ -32,7 +31,6 @@ where
             update: T::zero(),
             reset: T::zero(),
             prev_reset: T::zero(),
-            bias: Bias::new_zero(),
             connections_gru: vec![],
             connections_sigmoid: vec![],
         }
@@ -42,8 +40,10 @@ where
     #[inline]
     pub fn set_input_value(&mut self, input: T) {
         self.input = input;
-        self.update = -100;
-        self.reset = -100;
+        self.update = -1000;
+        self.reset = -1000;
+        self.memory = 0;
+        self.prev_reset = 0;
     }
 
     #[replace_numeric_literals(T::from(literal).unwrap())]
@@ -55,7 +55,6 @@ where
         let value = update_gate * self.memory + (1 - update_gate) * current_memory;
 
         self.prev_reset = reset_gate;
-        self.reset_value();
         fast_tanh(value)
     }
 
@@ -75,20 +74,18 @@ where
         }
 
         self.prev_reset = reset_gate;
-        self.reset_value();
     }
 
     #[inline]
-    pub fn reset_value(&mut self) {
-        self.input = self.bias.bias_input;
-        self.update = self.bias.bias_update;
-        self.reset = self.bias.bias_reset;
+    pub fn reset_value(&mut self, bias: &Bias<T>) {
+        self.input = bias.bias_input;
+        self.update = bias.bias_update;
+        self.reset = bias.bias_reset;
         self.memory = T::zero();
     }
 
     #[inline]
     pub fn reset_state(&mut self) {
-        self.reset_value();
         self.prev_reset = T::zero();
         for connection in self.connections_gru.iter_mut() {
             connection.reset_state();
@@ -107,13 +104,6 @@ where
     pub fn increment_value(&mut self, value: T) {
         self.input = self.input + value;
     }
-
-    #[inline]
-    pub fn set_initial_bias(&mut self, bias: Bias<T>) {
-        self.bias = bias;
-        self.prev_reset = T::zero();
-        self.reset_value();
-    }
 }
 
 impl<T> PartialEq for Neuron<T>
@@ -131,8 +121,7 @@ where
             && floats_almost_equal(self.memory, other.memory)
             && floats_almost_equal(self.update, other.update)
             && floats_almost_equal(self.reset, other.reset)
-            && floats_almost_equal(self.prev_reset, other.prev_reset)
-            && self.bias == other.bias)
+            && floats_almost_equal(self.prev_reset, other.prev_reset))
         {
             return false;
         }

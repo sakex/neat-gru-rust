@@ -1,6 +1,7 @@
 use crate::neural_network::connection_gru::ConnectionGru;
 use crate::neural_network::connection_sigmoid::ConnectionSigmoid;
 use crate::neural_network::neuron::Neuron;
+use crate::topology::bias::Bias;
 use crate::topology::connection_type::ConnectionType;
 use crate::topology::topology::Topology;
 use num::Float;
@@ -12,6 +13,7 @@ where
 {
     output_size: usize,
     neurons: Vec<Neuron<T>>,
+    biases: Vec<Bias<T>>,
 }
 
 unsafe impl<T> Send for NeuralNetwork<T> where T: Float + std::ops::AddAssign + Display {}
@@ -32,8 +34,12 @@ where
         }
         let output_size = *sizes.last().unwrap() as usize;
         let mut neurons: Vec<Neuron<T>> = Vec::with_capacity(neurons_count);
+        let mut biases: Vec<Bias<T>> = Vec::with_capacity(neurons_count);
         for _ in 0..neurons_count {
             neurons.push(Neuron::new());
+        }
+        for _ in 0..neurons_count {
+            biases.push(Bias::new_zero());
         }
 
         let neurons_ptr = neurons.as_mut_ptr();
@@ -49,8 +55,7 @@ where
             }
             let neuron_index = layer_addresses[point.layer as usize] + point.index as usize;
             let input_neuron: *mut Neuron<T> = neurons_ptr.offset(neuron_index as isize);
-            let bias = &gene_and_bias.bias;
-            (*input_neuron).set_initial_bias(bias.clone());
+            biases[neuron_index] = gene_and_bias.bias.clone();
             for gene_rc in &gene_and_bias.genes {
                 let gene = gene_rc.borrow();
                 if gene.disabled {
@@ -83,13 +88,23 @@ where
         let base = output_size as isize - neurons_count as isize;
 
         for it in (neurons_count - output_size) as isize..neurons_count as isize {
-            neurons[it as usize]
-                .set_initial_bias(topology.output_bias[(it + base) as usize].clone());
+            biases[it as usize] = topology.output_bias[(it + base) as usize].clone();
         }
 
-        NeuralNetwork {
+        let mut net = NeuralNetwork {
             output_size,
             neurons,
+            biases,
+        };
+
+        net.reset_neurons_value();
+        net
+    }
+
+    #[inline]
+    fn reset_neurons_value(&mut self) {
+        for (neuron, bias) in self.neurons.iter_mut().zip(self.biases.iter()) {
+            neuron.reset_value(&bias);
         }
     }
 
@@ -107,11 +122,14 @@ where
         for neuron in self.neurons.iter_mut().take(take_amount) {
             neuron.feed_forward();
         }
-        self.neurons
+        let ret = self
+            .neurons
             .iter_mut()
             .skip(take_amount)
             .map(|neuron| neuron.get_value())
-            .collect()
+            .collect();
+        self.reset_neurons_value();
+        ret
     }
 
     #[inline]
