@@ -19,9 +19,6 @@ where
     pub max_topologies: usize,
 }
 
-unsafe impl<T> Sync for Species<T> where T: Float + Sum + std::ops::AddAssign + Display {}
-unsafe impl<T> Send for Species<T> where T: Float + Sum + std::ops::AddAssign + Display {}
-
 impl<T> Species<T>
 where
     T: Float + Sum + std::ops::AddAssign + Display,

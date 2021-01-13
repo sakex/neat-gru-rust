@@ -9,7 +9,7 @@ use num::Float;
 use rayon::prelude::*;
 use std::fmt::Display;
 use std::iter::Sum;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
@@ -29,7 +29,7 @@ where
     inputs_: Option<usize>,
     outputs_: Option<usize>,
     topologies_: Vec<TopologySmrtPtr<F>>,
-    species_: Vec<Species<F>>,
+    species_: Vec<Mutex<Species<F>>>,
     history_: Vec<Topology<F>>,
     ev_number_: Arc<EvNumber>,
     best_historical_score: F,
@@ -253,13 +253,13 @@ where
             None => panic!("Didn't provide a number of inputs"),
         };
 
-        self.species_.push(Species::new_uniform(
+        self.species_.push(Mutex::new(Species::new_uniform(
             inputs,
             outputs,
             self.max_layers_,
             self.max_per_layers_,
             &self.ev_number_,
-        ));
+        )));
 
         self.reset_players();
         for i in 0..self.iterations_ {
@@ -290,7 +290,9 @@ where
         self.topologies_ = self
             .species_
             .par_iter()
-            .map(|species| {
+            .map(|mutex| {
+                let lock = mutex.lock().unwrap();
+                let species = &*lock;
                 species
                     .topologies
                     .iter()
@@ -334,45 +336,49 @@ where
     }
 
     fn natural_selection(&mut self) {
-        self.species_.retain(|spec| spec.stagnation_counter < 20);
+        self.species_
+            .retain(|spec| spec.lock().unwrap().stagnation_counter < 20);
         if self.species_.len() == 1 {
-            self.species_[0].max_topologies = self.max_individuals_;
+            let first_spec = &mut *self.species_[0].lock().unwrap();
+            first_spec.max_topologies = self.max_individuals_;
             self.ev_number_.reset();
             let ev_number = self.ev_number_.clone();
-            self.species_[0].natural_selection(ev_number.clone(), self.proba.clone());
+            first_spec.natural_selection(ev_number.clone(), self.proba.clone());
             return;
         }
         if self.species_.is_empty() {
             return;
         }
         self.species_.iter_mut().for_each(|spec| {
-            spec.compute_adjusted_fitness();
+            spec.lock().unwrap().compute_adjusted_fitness();
         });
         let mean = self
             .species_
             .par_iter()
-            .map(|spec| spec.adjusted_fitness)
+            .map(|spec| spec.lock().unwrap().adjusted_fitness)
             .sum::<F>()
             / F::from(self.species_.len()).unwrap();
         let variance = self
             .species_
             .par_iter()
-            .map(|spec| (spec.adjusted_fitness - mean).powf(F::from(2.).unwrap()))
+            .map(|spec| (spec.lock().unwrap().adjusted_fitness - mean).powf(F::from(2.).unwrap()))
             .sum::<F>()
             / F::from(self.species_.len() - 1).unwrap();
         if variance >= F::from(0.00001).unwrap() {
             let volatility = variance.sqrt();
             self.species_.iter_mut().for_each(|spec| {
-                spec.adjusted_fitness = F::from(1.3)
+                spec.lock().unwrap().adjusted_fitness = F::from(1.3)
                     .unwrap()
-                    .powf((spec.adjusted_fitness - mean) / volatility);
+                    .powf((spec.lock().unwrap().adjusted_fitness - mean) / volatility);
             });
         } else {
             self.species_.iter_mut().for_each(|spec| {
-                spec.adjusted_fitness = F::one();
+                spec.lock().unwrap().adjusted_fitness = F::one();
             });
         }
         self.species_.sort_by(|spec1, spec2| {
+            let spec1 = &*spec1.lock().unwrap();
+            let spec2 = &*spec2.lock().unwrap();
             spec1
                 .adjusted_fitness
                 .partial_cmp(&spec2.adjusted_fitness)
@@ -384,11 +390,12 @@ where
         let sum: F = self
             .species_
             .par_iter()
-            .map(|spec| spec.adjusted_fitness.clone())
+            .map(|spec| spec.lock().unwrap().adjusted_fitness.clone())
             .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
         let mut assigned_count: usize = 0;
         for spec in self.species_.iter_mut().rev() {
+            let spec = &mut *spec.lock().unwrap();
             let to_assign = (spec.adjusted_fitness * multiplier)
                 .max(F::zero())
                 .round()
@@ -404,7 +411,10 @@ where
         #[cfg(debug_assertions)]
         {
             self.species_.iter_mut().for_each(|species| {
-                species.natural_selection(ev_number.clone(), proba.clone());
+                species
+                    .lock()
+                    .unwrap()
+                    .natural_selection(ev_number.clone(), proba.clone());
             });
         }
         #[cfg(not(debug_assertions))]
@@ -416,7 +426,8 @@ where
 
         let mut species_sizes_vec: Vec<(usize, usize)> = Vec::new();
         let mut current_count: (usize, usize) = (0, 0);
-        for Species { topologies, .. } in &self.species_ {
+        for lock in &self.species_ {
+            let Species { topologies, .. } = &*lock.lock().unwrap();
             if topologies.len() == current_count.0 {
                 current_count.1 += 1;
             } else {
@@ -438,12 +449,21 @@ where
         if self.species_.is_empty() {
             return;
         }
-        self.species_
-            .sort_by(|s1, s2| s1.score().partial_cmp(&s2.score()).unwrap());
+        self.species_.sort_by(|s1, s2| {
+            s1.lock()
+                .unwrap()
+                .score()
+                .partial_cmp(&s2.lock().unwrap().score())
+                .unwrap()
+        });
 
-        let best = self.species_.last().unwrap().score();
+        let best = self.species_.last().unwrap().lock().unwrap().score();
 
-        println!("BEST OF WORST: {} BEST: {}", self.species_[0].score(), best);
+        println!(
+            "BEST OF WORST: {} BEST: {}",
+            self.species_[0].lock().unwrap().score(),
+            best
+        );
 
         if best > self.best_historical_score {
             self.best_historical_score = best;
@@ -461,50 +481,51 @@ where
         }
 
         for species in self.species_.iter() {
-            self.history_.push(species.get_best())
+            self.history_.push(species.lock().unwrap().get_best())
         }
     }
 
     fn reset_species(&mut self) {
         self.get_topologies();
         self.species_.par_iter_mut().for_each(|spec| {
-            spec.topologies.clear();
+            spec.lock().unwrap().topologies.clear();
         });
-        for topology_rc in self.topologies_.iter() {
-            let top_cp = topology_rc.clone();
-            // We could have the same topology in a species twice if it was one of the best
-            let mut is_one_of_best = false;
-            for spec in &self.species_ {
-                let best_top_rc = &spec.best_topology;
-                if Arc::ptr_eq(best_top_rc, &top_cp) {
-                    is_one_of_best = true;
-                    break;
+        let mut species = self.species_.split_off(0);
+        let topologies = self.topologies_.clone();
+        let delta_t = self.delta_threshold_;
+        let mut new_species = topologies
+            .par_iter()
+            .filter_map(|topology_rc| {
+                let top_cp = topology_rc.clone();
+                // We could have the same topology in a species twice if it was one of the best
+                let top1 = top_cp.lock().unwrap();
+                let mut assigned = false;
+                for spec in &species {
+                    let spec = &mut *spec.lock().unwrap();
+                    let top2 = spec.get_best();
+                    let delta = Topology::delta_compatibility(&*top1, &top2);
+                    if delta <= delta_t {
+                        spec.push(topology_rc.clone());
+                        assigned = true;
+                        break;
+                    }
                 }
-            }
-            if is_one_of_best {
-                continue;
-            }
-            let lock = top_cp.lock().unwrap();
-            let mut assigned = false;
-            for spec in self.species_.iter_mut() {
-                let top2 = spec.get_best();
-                let delta = Topology::delta_compatibility(&*lock, &top2);
-                if delta <= self.delta_threshold_ {
-                    spec.push(topology_rc.clone());
-                    assigned = true;
-                    break;
+                if !assigned {
+                    let new_species = Species::new(topology_rc.clone());
+                    Some(Mutex::new(new_species))
+                } else {
+                    None
                 }
-            }
-            if !assigned {
-                let new_species = Species::new(topology_rc.clone());
-                self.species_.push(new_species);
-            }
-        }
-        self.species_.retain(|spec| spec.topologies.len() > 0);
+            })
+            .collect::<Vec<Mutex<Species<F>>>>();
+        species.append(&mut new_species);
+        self.species_ = species;
+        self.species_
+            .retain(|spec| spec.lock().unwrap().topologies.len() > 0);
         let biggest_species = self
             .species_
             .par_iter()
-            .map(|spec| spec.topologies.len())
+            .map(|spec| spec.lock().unwrap().topologies.len())
             .max()
             .unwrap_or(0);
         println!("BIGGEST SPECIES: {}", biggest_species);
