@@ -146,7 +146,7 @@ where
         let size_1 = T::from(top1.genes_ev_number.len() - initial_genes as usize).unwrap();
         let size_2 = T::from(top2.genes_ev_number.len() - initial_genes as usize).unwrap();
         let larger = size_1.max(size_2);
-        let n = if larger > 20 { larger - 20 } else { one };
+        let n = larger - 20;
         // Excess = present in gene2 but not gene1
         let size_2_full = T::from(top2.genes_ev_number.len()).unwrap();
         let excess = size_2_full - common;
