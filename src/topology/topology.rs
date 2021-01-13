@@ -142,14 +142,16 @@ where
             }
         }
         w = w / common;
-        let size_1 = T::from(top1.genes_ev_number.len()).unwrap();
-        let size_2 = T::from(top2.genes_ev_number.len()).unwrap();
+        let initial_genes = top1.layers_sizes.first().unwrap() * top1.layers_sizes.last().unwrap();
+        let size_1 = T::from(top1.genes_ev_number.len() - initial_genes as usize).unwrap();
+        let size_2 = T::from(top2.genes_ev_number.len() - initial_genes as usize).unwrap();
         let larger = size_1.max(size_2);
         let n = if larger > 20 { larger - 20 } else { one };
         // Excess = present in gene2 but not gene1
-        let excess = size_2 - common;
+        let size_2_full = T::from(top2.genes_ev_number.len()).unwrap();
+        let excess = size_2_full - common;
         let v = disjoints + excess;
-        let ret = 12 * v / n + 3 * w;
+        let ret = 2 * v / n + w * 0.4;
         ret
     }
 
