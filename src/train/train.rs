@@ -110,7 +110,7 @@ where
             max_species_,
             max_layers_: 4,
             max_per_layers_: 20,
-            delta_threshold_: F::from(2.5).unwrap(),
+            delta_threshold_: F::from(3.5).unwrap(),
             inputs_,
             outputs_,
             topologies_: Vec::new(),
