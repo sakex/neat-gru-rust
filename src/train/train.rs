@@ -420,7 +420,10 @@ where
         #[cfg(not(debug_assertions))]
         {
             self.species_.par_iter_mut().for_each(|species| {
-                species.natural_selection(ev_number.clone(), proba.clone());
+                species
+                    .lock()
+                    .unwrap()
+                    .natural_selection(ev_number.clone(), proba.clone());
             });
         }
 
