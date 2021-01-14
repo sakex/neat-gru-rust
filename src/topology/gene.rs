@@ -5,6 +5,7 @@ use num::traits::Float;
 use numeric_literals::replace_numeric_literals;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -116,35 +117,6 @@ where
         }
     }
 
-    pub fn new_one(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
-        let coordinate = Coordinate::new(input.clone(), output.clone());
-        Gene {
-            input,
-            output,
-            input_weight: T::one(),
-            memory_weight: T::one(),
-            reset_input_weight: T::one(),
-            update_input_weight: T::one(),
-            reset_memory_weight: T::one(),
-            update_memory_weight: T::one(),
-            evolution_number: ev_number.number(coordinate),
-            connection_type: ConnectionType::Sigmoid,
-            disabled: false,
-        }
-    }
-
-    pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
-        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), &ev_number);
-
-        let coordinate = Coordinate::new(middle_point.clone(), self.output.clone());
-        let mut second_gene = self.clone();
-        second_gene.input = middle_point;
-        second_gene.evolution_number = ev_number.number(coordinate);
-        second_gene.disabled = false;
-
-        (first_gene, second_gene)
-    }
-
     pub fn new_random(
         rng: &mut ThreadRng,
         input: Point,
@@ -172,19 +144,25 @@ where
         }
     }
 
-    #[inline]
-    pub fn random_reassign(&mut self, rng: &mut ThreadRng) {
-        let unif = Uniform::from(-1.0..1.);
-        self.input_weight = T::from(unif.sample(rng)).unwrap();
-        self.memory_weight = T::from(unif.sample(rng)).unwrap();
-        self.reset_input_weight = T::from(unif.sample(rng)).unwrap();
-        self.update_input_weight = T::from(unif.sample(rng)).unwrap();
-        self.reset_memory_weight = T::from(unif.sample(rng)).unwrap();
-        self.update_memory_weight = T::from(unif.sample(rng)).unwrap();
+    pub fn new_one(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
+        let coordinate = Coordinate::new(input.clone(), output.clone());
+        Gene {
+            input,
+            output,
+            input_weight: T::one(),
+            memory_weight: T::one(),
+            reset_input_weight: T::one(),
+            update_input_weight: T::one(),
+            reset_memory_weight: T::one(),
+            update_memory_weight: T::one(),
+            evolution_number: ev_number.number(coordinate),
+            connection_type: ConnectionType::Sigmoid,
+            disabled: false,
+        }
     }
 
     #[replace_numeric_literals(T::from(literal).unwrap())]
-    pub fn new_uniform(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
+    pub fn new_zero(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
         let coordinate = Coordinate::new(input.clone(), output.clone());
         Gene {
             input,
@@ -196,9 +174,44 @@ where
             reset_memory_weight: 0,
             update_memory_weight: 0,
             evolution_number: ev_number.number(coordinate),
-            connection_type: ConnectionType::GRU,
+            connection_type: ConnectionType::Sigmoid,
             disabled: false,
         }
+    }
+
+    pub fn new_zero_random_type(
+        input: Point,
+        output: Point,
+        ev_number: &EvNumber,
+        rng: &mut ThreadRng,
+    ) -> Gene<T> {
+        let mut new_gene = Gene::new_zero(input, output, ev_number);
+        let connection_type: i32 = rng.gen_range(0..2);
+        new_gene.connection_type = ConnectionType::from_int(connection_type);
+        new_gene
+    }
+
+    pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
+        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), &ev_number);
+
+        let coordinate = Coordinate::new(middle_point.clone(), self.output.clone());
+        let mut second_gene = self.clone();
+        second_gene.input = middle_point;
+        second_gene.evolution_number = ev_number.number(coordinate);
+        second_gene.disabled = false;
+
+        (first_gene, second_gene)
+    }
+
+    #[inline]
+    pub fn random_reassign(&mut self, rng: &mut ThreadRng) {
+        let unif = Uniform::from(-1.0..1.);
+        self.input_weight = T::from(unif.sample(rng)).unwrap();
+        self.memory_weight = T::from(unif.sample(rng)).unwrap();
+        self.reset_input_weight = T::from(unif.sample(rng)).unwrap();
+        self.update_input_weight = T::from(unif.sample(rng)).unwrap();
+        self.reset_memory_weight = T::from(unif.sample(rng)).unwrap();
+        self.update_memory_weight = T::from(unif.sample(rng)).unwrap();
     }
 
     pub fn decrement_output(&mut self) {

@@ -113,7 +113,7 @@ where
     }
 
     #[replace_numeric_literals(T::from(literal).unwrap())]
-    pub fn delta_compatibility(top1: &Topology<T>, top2: &Topology<T>) -> T {
+    pub fn delta_compatibility(top1: &Topology<T>, top2: &Topology<T>, c1: T, c2: T, c3: T) -> T {
         // Disjoints = present in Gene1 but not Gene2
         let mut disjoints = T::zero();
         let mut common = T::zero();
@@ -145,16 +145,12 @@ where
         let size_1 = T::from(top1.genes_ev_number.len()).unwrap();
         let size_2 = T::from(top2.genes_ev_number.len()).unwrap();
         let larger = size_1.max(size_2);
-        /*let initial_size =
-        T::from(top1.layers_sizes.first().unwrap() * top1.layers_sizes.last().unwrap())
-            .unwrap(); */
-        let n = if larger > 20 { larger / 20 } else { 1 };
+        let initial_size = top1.layers_sizes.first().unwrap() * top1.layers_sizes.last().unwrap();
+        let n = larger - T::from(initial_size).unwrap();
         // Excess = present in gene2 but not gene1
-        let size_2_full = T::from(top2.genes_ev_number.len()).unwrap();
-        let excess = size_2_full - common;
-        let v = disjoints + excess;
-        let ret = v / n + w * 0.4;
-        ret
+        let excess = size_2 - common;
+        let v = c1 * disjoints + c2 * excess;
+        v / n + w * c3
     }
 
     pub fn new_random(
@@ -215,7 +211,7 @@ where
             for j in 0..output_count {
                 let input = Point::new(0u8, i as u8);
                 let output = Point::new(1u8, j as u8);
-                let gene = Rc::new(RefCell::new(Gene::new_uniform(input, output, &ev_number)));
+                let gene = Rc::new(RefCell::new(Gene::new_one(input, output, &ev_number)));
                 new_topology.insert_gene(gene);
             }
         }
@@ -307,7 +303,6 @@ where
         match self.genes_point.get_mut(&input) {
             Some(found) => {
                 found.genes.push(gene.clone());
-                found.genes.sort();
             }
             None => {
                 let bias = Bias::new_zero();
@@ -364,16 +359,20 @@ where
 
         let gene_to_split_index = rng.gen_range(0..non_disabled_connections.len());
         let gene_to_split = &non_disabled_connections[gene_to_split_index];
-        let mut original_gene = {
+        let (mut original_gene, should_create_new_layer) = {
             let mut gene = &mut *gene_to_split.borrow_mut();
+            let should_create_new_layer = gene.output.layer - gene.input.layer >= 2;
+            if should_create_new_layer && self.layers_sizes.len() >= self.max_layers {
+                return;
+            }
             gene.disabled = true;
-            gene.clone()
+            (gene.clone(), should_create_new_layer)
         };
 
         // If there is a layer between input and output, just add new node to the last index of the
         // layer just after input
         // Otherwise, we create a gene in the middle
-        let output_of_input = if original_gene.output.layer - original_gene.input.layer >= 2 {
+        let output_of_input = if should_create_new_layer {
             let output_of_input = Point::new(
                 original_gene.input.layer + 1,
                 self.layers_sizes[original_gene.input.layer as usize + 1],
@@ -392,8 +391,8 @@ where
     }
 
     #[inline]
-    fn add_connection(&mut self, ev_number: &EvNumber, mut rng: &mut ThreadRng) {
-        let max_layer = self.layers_sizes.len().min(self.max_layers);
+    fn add_connection(&mut self, ev_number: &EvNumber, rng: &mut ThreadRng) {
+        let max_layer = self.layers_sizes.len();
         let input_layer = if self.layers_sizes.len() > 2 {
             rng.gen_range(0..(max_layer - 2)) as u8
         } else {
@@ -401,18 +400,11 @@ where
         };
         let input_index: u8 = rng.gen_range(0..self.layers_sizes[input_layer as usize]);
         let output_layer: u8 = rng.gen_range((input_layer + 1)..max_layer as u8);
+        let output_index = rng.gen_range(0..(self.layers_sizes[output_layer as usize]));
 
-        let output_index = if (output_layer as usize) < self.layers_sizes.len() - 1 {
-            rng.gen_range(
-                0..((self.layers_sizes[output_layer as usize]).min(self.max_per_layers as u8)),
-            )
-        } else {
-            // If on output layer
-            rng.gen_range(0..self.layers_sizes[output_layer as usize])
-        };
         let input = Point::new(input_layer, input_index);
         let output = Point::new(output_layer, output_index);
-        let just_created = self.new_gene(&mut rng, input.clone(), output.clone(), &ev_number);
+        let just_created = self.new_gene(input.clone(), output.clone(), &ev_number, rng);
         self.disable_genes(input.clone(), output.clone(), just_created);
     }
 
@@ -450,7 +442,7 @@ where
                                 .iter()
                                 .all(|gene_rc| gene_rc.borrow().disabled))
                     {
-                        Some(gene_and_bias.genes.first().unwrap().clone())
+                        Some(gene_and_bias.genes[0].clone())
                     } else {
                         None
                     }
@@ -459,49 +451,39 @@ where
             let dont_have_inputs: Vec<GeneSmrtPtr<T>> = self
                 .genes_point
                 .iter()
-                .map(|(input, gene_and_bias)| {
+                .filter_map(|(input, gene_and_bias)| {
                     if input.layer != 0 {
-                        gene_and_bias
-                            .genes
-                            .iter()
-                            .filter(|gene| {
-                                let borrow = gene.borrow();
-                                let input = borrow.input.clone();
-                                !borrow.disabled && !self.check_has_inputs(&input)
-                            })
-                            .collect()
+                        if !self.check_has_inputs(&input) {
+                            Some(gene_and_bias.genes[0].clone())
+                        } else {
+                            None
+                        }
                     } else {
-                        Vec::new()
+                        None
                     }
                 })
-                .flatten()
-                .cloned()
                 .collect();
             if dont_have_outputs.is_empty() && dont_have_inputs.is_empty() {
                 break;
             }
             for gene in &dont_have_outputs {
-                if !gene.borrow().disabled {
-                    self.remove_neuron(&gene);
-                }
+                self.remove_neuron(&gene);
             }
             for gene in &dont_have_inputs {
-                if !gene.borrow().disabled {
-                    self.remove_neuron(&gene);
-                }
+                self.remove_neuron(&gene);
             }
         }
     }
 
     fn new_gene(
         &mut self,
-        rng: &mut ThreadRng,
         input: Point,
         output: Point,
         ev_number: &EvNumber,
+        rng: &mut ThreadRng,
     ) -> GeneSmrtPtr<T> {
-        let new_gene = Rc::new(RefCell::new(Gene::new_random(
-            rng, input, output, -1., 1., &ev_number,
+        let new_gene = Rc::new(RefCell::new(Gene::new_zero_random_type(
+            input, output, &ev_number, rng,
         )));
         self.insert_gene(new_gene.clone());
         new_gene
@@ -597,8 +579,12 @@ where
                         gene.output.clone()
                     };
                     if output == compared_output
-                        || self.path_overrides(&input, &compared_output, &last, 1)
-                        || self.path_overrides(&output, &compared_output, &last, 1)
+                        || self.path_overrides(
+                            &output,
+                            &compared_output,
+                            &last,
+                            self.layers_sizes.len() as i8,
+                        )
                     {
                         let mut gene = cell.borrow_mut();
                         gene.disabled = true;

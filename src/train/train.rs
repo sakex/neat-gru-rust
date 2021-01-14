@@ -6,11 +6,38 @@ use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
 use itertools::Itertools;
 use num::Float;
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 use std::fmt::Display;
 use std::iter::Sum;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+macro_rules! cond_iter {
+    ($collection: expr) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            $collection.par_iter()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            $collection.iter()
+        }
+    }};
+}
+
+macro_rules! cond_iter_mut {
+    ($collection: expr) => {{
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            $collection.par_iter_mut()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            $collection.iter_mut()
+        }
+    }};
+}
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
@@ -22,10 +49,12 @@ where
     simulation: &'a mut T,
     iterations_: usize,
     max_individuals_: usize,
-    max_species_: usize,
     max_layers_: usize,
     max_per_layers_: usize,
     delta_threshold_: F,
+    c1_: F,
+    c2_: F,
+    c3_: F,
     inputs_: Option<usize>,
     outputs_: Option<usize>,
     topologies_: Vec<TopologySmrtPtr<F>>,
@@ -99,7 +128,6 @@ where
     pub fn new(simulation: &'a mut T) -> Train<'a, T, F> {
         let iterations_: usize = 1000;
         let max_individuals_: usize = 100;
-        let max_species_: usize = 100;
         let inputs_ = None;
         let outputs_ = None;
 
@@ -107,10 +135,12 @@ where
             simulation,
             iterations_,
             max_individuals_,
-            max_species_,
             max_layers_: 4,
             max_per_layers_: 20,
-            delta_threshold_: F::from(4).unwrap(),
+            delta_threshold_: F::from(3).unwrap(),
+            c1_: F::one(),
+            c2_: F::one(),
+            c3_: F::one(),
             inputs_,
             outputs_,
             topologies_: Vec::new(),
@@ -120,7 +150,7 @@ where
             best_historical_score: F::zero(),
             no_progress_counter: 0,
             proba: MutationProbabilities {
-                change_weights: 0.3,
+                change_weights: 0.8,
                 guaranteed_new_neuron: 0.2,
                 delete_neuron: 0.0,
             },
@@ -152,19 +182,6 @@ where
         self
     }
 
-    /// Sets the number of maximum species per generation
-    ///
-    /// This function is optional as the number of max species defaults to 100
-    ///
-    /// # Arguments
-    ///
-    /// `v` - The number of maximum species per generation
-    #[inline]
-    pub fn max_species(&mut self, v: usize) -> &mut Self {
-        self.max_species_ = v;
-        self
-    }
-
     /// Sets the delta threshold at which two topologies don't belong to the same species
     ///
     /// This function is optional as the number of max individuals defaults to 100
@@ -175,6 +192,25 @@ where
     #[inline]
     pub fn delta_threshold(&mut self, v: F) -> &mut Self {
         self.delta_threshold_ = v;
+        self
+    }
+
+    /// Sets the delta threshold formula parameter  
+    ///
+    /// The formula is:  
+    ///
+    /// `delta = (c1 * disjoints + c2 * excess) / (larger_topology_length - initial_size) + (mean(weight_distances) * c3)`
+    ///
+    /// # Arguments
+    ///
+    /// `c1` - Defaults to 1
+    /// `c2` - Defaults to 1
+    /// `c3` - Defaults to 1
+    #[inline]
+    pub fn formula(&mut self, c1: F, c2: F, c3: F) -> &mut Self {
+        self.c1_ = c1;
+        self.c2_ = c2;
+        self.c3_ = c3;
         self
     }
 
@@ -287,9 +323,7 @@ where
     }
 
     fn get_topologies(&mut self) {
-        self.topologies_ = self
-            .species_
-            .par_iter()
+        self.topologies_ = cond_iter!(self.species_)
             .map(|mutex| {
                 let lock = mutex.lock().unwrap();
                 let species = &*lock;
@@ -306,9 +340,7 @@ where
     fn reset_players(&mut self) {
         self.get_topologies();
 
-        let networks: Vec<NeuralNetwork<F>> = self
-            .topologies_
-            .par_iter()
+        let networks: Vec<NeuralNetwork<F>> = cond_iter!(self.topologies_)
             .map(|top_rc| {
                 let lock = top_rc.lock().unwrap();
                 let top = &*lock;
@@ -324,9 +356,8 @@ where
     }
 
     fn set_last_results(&mut self, results: &Vec<F>) {
-        self.topologies_
-            .par_iter_mut()
-            .zip(results.into_par_iter())
+        cond_iter_mut!(self.topologies_)
+            .zip(cond_iter!(results))
             .for_each(|(topology, result)| {
                 if result.is_nan() {
                     panic!("NaN result");
@@ -352,15 +383,13 @@ where
         self.species_.iter_mut().for_each(|spec| {
             spec.lock().unwrap().compute_adjusted_fitness();
         });
-        let mean = self
-            .species_
-            .par_iter()
+        let mean = cond_iter!(self.species_)
+            .clone()
             .map(|spec| spec.lock().unwrap().adjusted_fitness)
             .sum::<F>()
             / F::from(self.species_.len()).unwrap();
-        let variance = self
-            .species_
-            .par_iter()
+        let variance = cond_iter!(self.species_)
+            .clone()
             .map(|spec| (spec.lock().unwrap().adjusted_fitness - mean).powf(F::from(2.).unwrap()))
             .sum::<F>()
             / F::from(self.species_.len() - 1).unwrap();
@@ -388,9 +417,7 @@ where
                     spec1.adjusted_fitness, spec2.adjusted_fitness, variance
                 ))
         });
-        let sum: F = self
-            .species_
-            .par_iter()
+        let sum: F = cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().adjusted_fitness.clone())
             .sum();
         let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
@@ -409,7 +436,7 @@ where
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
         let proba = self.proba.clone();
-        #[cfg(debug_assertions)]
+        #[cfg(any(debug_assertions, target_arch = "wasm32"))]
         {
             self.species_.iter_mut().for_each(|species| {
                 species
@@ -418,7 +445,7 @@ where
                     .natural_selection(ev_number.clone(), proba.clone());
             });
         }
-        #[cfg(not(debug_assertions))]
+        #[cfg(all(not(debug_assertions), not(target_arch = "wasm32")))]
         {
             self.species_.par_iter_mut().for_each(|species| {
                 species
@@ -493,14 +520,14 @@ where
 
     fn reset_species(&mut self) {
         self.get_topologies();
-        self.species_.par_iter_mut().for_each(|spec| {
+        cond_iter_mut!(self.species_).for_each(|spec| {
             spec.lock().unwrap().topologies.clear();
         });
         let mut species = self.species_.split_off(0);
         let topologies = self.topologies_.clone();
         let delta_t = self.delta_threshold_;
-        let mut new_species = topologies
-            .par_iter()
+        let (c1, c2, c3) = (self.c1_, self.c2_, self.c3_);
+        let mut new_species = cond_iter!(topologies)
             .filter_map(|topology_rc| {
                 let top_cp = topology_rc.clone();
                 // We could have the same topology in a species twice if it was one of the best
@@ -512,7 +539,7 @@ where
                             let spec = &*spec.lock().unwrap();
                             spec.best_topology.clone()
                         };
-                        let delta = Topology::delta_compatibility(&*top1, &top2);
+                        let delta = Topology::delta_compatibility(&*top1, &top2, c1, c2, c3);
                         if delta <= delta_t {
                             let spec = &mut *spec.lock().unwrap();
                             spec.push(topology_rc.clone());
@@ -533,9 +560,7 @@ where
         self.species_ = species;
         self.species_
             .retain(|spec| spec.lock().unwrap().topologies.len() > 0);
-        let biggest_species = self
-            .species_
-            .par_iter()
+        let biggest_species = cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().topologies.len())
             .max()
             .unwrap_or(0);
