@@ -130,8 +130,12 @@ where
             return;
         }
 
-        let surviving_topologies: Vec<TopologySmrtPtr<T>> =
-            self.topologies.iter().cloned().collect();
+        let surviving_topologies: Vec<TopologySmrtPtr<T>> = self
+            .topologies
+            .iter()
+            .skip(self.topologies.len() / 2)
+            .cloned()
+            .collect();
 
         self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
         if will_copy_best {
