@@ -145,8 +145,7 @@ where
         let size_1 = T::from(top1.genes_ev_number.len()).unwrap();
         let size_2 = T::from(top2.genes_ev_number.len()).unwrap();
         let larger = size_1.max(size_2);
-        let initial_size = top1.layers_sizes.first().unwrap() * top1.layers_sizes.last().unwrap();
-        let n = larger - T::from(initial_size).unwrap();
+        let n = if larger > 20 { larger } else { 1 };
         // Excess = present in gene2 but not gene1
         let excess = size_2 - common;
         let v = c1 * disjoints + c2 * excess;
