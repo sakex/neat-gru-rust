@@ -481,8 +481,8 @@ where
         ev_number: &EvNumber,
         rng: &mut ThreadRng,
     ) -> GeneSmrtPtr<T> {
-        let new_gene = Rc::new(RefCell::new(Gene::new_zero_random_type(
-            input, output, &ev_number, rng,
+        let new_gene = Rc::new(RefCell::new(Gene::new_random(
+            rng, input, output, -1.0, 1.0, &ev_number,
         )));
         self.insert_gene(new_gene.clone());
         new_gene
