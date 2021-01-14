@@ -152,7 +152,6 @@ where
             proba: MutationProbabilities {
                 change_weights: 0.4,
                 guaranteed_new_neuron: 0.2,
-                delete_neuron: 0.0,
             },
         }
     }

@@ -104,7 +104,6 @@ pub fn test_train() {
         .max_per_layers(10)
         .iterations(300)
         .max_individuals(50)
-        .max_species(5)
         .inputs(5)
         .outputs(5);
     runner.start();
@@ -191,7 +190,7 @@ impl Game<f64> for MemoryCount {
 #[test]
 pub fn test_train_memory() {
     let mut game = MemoryCount::new();
-    let proba = MutationProbabilities::new(0.2, 0., 0.).unwrap();
+    let proba = MutationProbabilities::new(0.8, 0.2).unwrap();
     let mut runner = Train::new(&mut game);
     runner
         .max_layers(5)
@@ -199,7 +198,6 @@ pub fn test_train_memory() {
         .mutation_probabilities(proba)
         .iterations(50)
         .max_individuals(50)
-        .max_species(5)
         .inputs(5)
         .outputs(5);
     runner.start();

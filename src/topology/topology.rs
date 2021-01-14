@@ -415,19 +415,17 @@ where
         self.remove_neuron(&input);
     }*/
 
-    pub fn mutate(&mut self, ev_number: &EvNumber, proba: &MutationProbabilities) {
+    pub fn mutate(&mut self, ev_number: &EvNumber, _proba: &MutationProbabilities) {
         let mut rng = thread_rng();
         let change_weights = rng.gen_range(0.0..1.);
-        if change_weights < proba.change_weights {
+        if change_weights < 0.8 {
             self.change_weights(&mut rng);
-        } else if change_weights < 1. - proba.guaranteed_new_neuron - proba.delete_neuron {
+        }
+        let change_topology = rng.gen_range(0.0..1.);
+        if change_topology < 0.8 {
             self.add_connection(&ev_number, &mut rng);
-        } else if change_weights < 1. - proba.guaranteed_new_neuron || self.layers_sizes.len() <= 3
-        {
-            self.add_node(&ev_number, &mut rng);
         } else {
-            self.add_connection(&ev_number, &mut rng);
-            // self.delete_neuron(&mut rng);
+            self.add_node(&ev_number, &mut rng);
         }
         loop {
             let dont_have_outputs: Vec<GeneSmrtPtr<T>> = self

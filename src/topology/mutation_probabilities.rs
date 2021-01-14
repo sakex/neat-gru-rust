@@ -26,7 +26,6 @@ impl fmt::Display for ProbabilitiesError {
 pub struct MutationProbabilities {
     pub(crate) change_weights: f64,
     pub(crate) guaranteed_new_neuron: f64,
-    pub(crate) delete_neuron: f64,
 }
 
 impl MutationProbabilities {
@@ -38,10 +37,11 @@ impl MutationProbabilities {
     pub fn new(
         change_weights: f64,
         guaranteed_new_neuron: f64,
-        delete_neuron: f64,
     ) -> Result<MutationProbabilities, ProbabilitiesError> {
-        if change_weights + guaranteed_new_neuron + delete_neuron > 1.0
-            || change_weights + guaranteed_new_neuron + delete_neuron < 0.0
+        if change_weights > 1.0
+            || change_weights < 0.0
+            || guaranteed_new_neuron > 1.0
+            || guaranteed_new_neuron < 0.0
         {
             return Err(ProbabilitiesError {
                 sum: change_weights + guaranteed_new_neuron,
@@ -50,7 +50,6 @@ impl MutationProbabilities {
         Ok(MutationProbabilities {
             change_weights,
             guaranteed_new_neuron,
-            delete_neuron,
         })
     }
 }
