@@ -8,6 +8,7 @@ use itertools::Itertools;
 use num::Float;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
+use std::cmp::Ordering;
 use std::fmt::Display;
 use std::iter::Sum;
 use std::sync::{Arc, Mutex};
@@ -150,8 +151,8 @@ where
             best_historical_score: F::zero(),
             no_progress_counter: 0,
             proba: MutationProbabilities {
-                change_weights: 0.4,
-                guaranteed_new_neuron: 0.2,
+                change_weights: 0.8,
+                guaranteed_new_neuron: 0.8,
             },
         }
     }
@@ -408,13 +409,21 @@ where
         self.species_.sort_by(|spec1, spec2| {
             let spec1 = &*spec1.lock().unwrap();
             let spec2 = &*spec2.lock().unwrap();
-            spec1
-                .adjusted_fitness
-                .partial_cmp(&spec2.adjusted_fitness)
-                .expect(&*format!(
-                    "First: {}, second: {}, variance {}",
-                    spec1.adjusted_fitness, spec2.adjusted_fitness, variance
-                ))
+            if spec1.adjusted_fitness == spec2.adjusted_fitness {
+                spec1
+                    .topologies
+                    .len()
+                    .partial_cmp(&spec2.topologies.len())
+                    .unwrap()
+            } else {
+                spec1
+                    .adjusted_fitness
+                    .partial_cmp(&spec2.adjusted_fitness)
+                    .expect(&*format!(
+                        "First: {}, second: {}, variance {}",
+                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance
+                    ))
+            }
         });
         let sum: F = cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().adjusted_fitness.clone())
@@ -423,12 +432,16 @@ where
         let mut assigned_count: usize = 0;
         for spec in self.species_.iter_mut().rev() {
             let spec = &mut *spec.lock().unwrap();
-            let to_assign = (spec.adjusted_fitness * multiplier)
-                .max(F::zero())
-                .round()
-                .to_usize()
-                .unwrap()
-                .min(self.max_individuals_ - assigned_count);
+            let to_assign = if assigned_count < self.max_individuals_ {
+                (spec.adjusted_fitness * multiplier)
+                    .max(F::zero())
+                    .round()
+                    .to_usize()
+                    .unwrap()
+                    .min(self.max_individuals_ - assigned_count)
+            } else {
+                0
+            };
             assigned_count += to_assign;
             spec.max_topologies = to_assign;
         }

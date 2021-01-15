@@ -415,14 +415,14 @@ where
         self.remove_neuron(&input);
     }*/
 
-    pub fn mutate(&mut self, ev_number: &EvNumber, _proba: &MutationProbabilities) {
+    pub fn mutate(&mut self, ev_number: &EvNumber, proba: &MutationProbabilities) {
         let mut rng = thread_rng();
         let change_weights = rng.gen_range(0.0..1.);
-        if change_weights < 0.8 {
+        if change_weights < proba.change_weights {
             self.change_weights(&mut rng);
         }
         let change_topology = rng.gen_range(0.0..1.);
-        if change_topology < 0.8 {
+        if change_topology < proba.guaranteed_new_neuron {
             self.add_connection(&ev_number, &mut rng);
         } else {
             self.add_node(&ev_number, &mut rng);

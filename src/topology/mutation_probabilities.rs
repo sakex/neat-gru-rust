@@ -1,16 +1,13 @@
 use std::fmt;
 
 #[derive(Debug, Clone)]
-pub struct ProbabilitiesError {
-    sum: f64,
-}
+pub struct ProbabilitiesError {}
 
 impl fmt::Display for ProbabilitiesError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "change_weights + guaranteed_new_neuron = {}. Out of bounds, should be between 0 and 1",
-            self.sum
+            "change_weights or guaranteed_new_neuron not in interval [0.0, 1.0]",
         )
     }
 }
@@ -43,9 +40,7 @@ impl MutationProbabilities {
             || guaranteed_new_neuron > 1.0
             || guaranteed_new_neuron < 0.0
         {
-            return Err(ProbabilitiesError {
-                sum: change_weights + guaranteed_new_neuron,
-            });
+            return Err(ProbabilitiesError {});
         }
         Ok(MutationProbabilities {
             change_weights,
