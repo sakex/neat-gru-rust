@@ -151,8 +151,8 @@ where
             best_historical_score: F::zero(),
             no_progress_counter: 0,
             proba: MutationProbabilities {
-                change_weights: 0.8,
-                guaranteed_new_neuron: 0.8,
+                change_weights: 0.95,
+                guaranteed_new_neuron: 0.2,
             },
         }
     }

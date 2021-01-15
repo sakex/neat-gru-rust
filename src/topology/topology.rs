@@ -420,12 +420,13 @@ where
         let change_weights = rng.gen_range(0.0..1.);
         if change_weights < proba.change_weights {
             self.change_weights(&mut rng);
-        }
-        let change_topology = rng.gen_range(0.0..1.);
-        if change_topology < proba.guaranteed_new_neuron {
-            self.add_connection(&ev_number, &mut rng);
         } else {
-            self.add_node(&ev_number, &mut rng);
+            let change_topology = rng.gen_range(0.0..1.);
+            if change_topology > proba.guaranteed_new_neuron {
+                self.add_node(&ev_number, &mut rng);
+            } else {
+                self.add_connection(&ev_number, &mut rng);
+            }
         }
         loop {
             let dont_have_outputs: Vec<GeneSmrtPtr<T>> = self
@@ -580,7 +581,7 @@ where
                             &output,
                             &compared_output,
                             &last,
-                            self.layers_sizes.len() as i8 - 2,
+                            self.layers_sizes.len() as i8,
                         )
                     {
                         let mut gene = cell.borrow_mut();
