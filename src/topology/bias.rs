@@ -3,6 +3,7 @@ use num::traits::Float;
 use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
+use rand::{thread_rng};
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Bias<T>
@@ -56,6 +57,55 @@ where
             bias_update,
             bias_reset,
         }
+    }
+
+    pub fn random_biases(&mut self) {
+        let mut rng = thread_rng();
+        let percent_change = 0.01;
+        /*
+        let min: f64 = -1.;
+        let max: f64 = 1.;
+        println!("{} <= {} for bias_input", min, max);
+        let uniform = Uniform::from(min..max);
+        self.bias_input = T::from(uniform.sample(&mut rng)).unwrap();
+
+        println!("{} <= {} for bias_update", min, max);
+        let uniform = Uniform::from(min..max);
+        self.bias_update = T::from(uniform.sample(&mut rng)).unwrap();
+
+        println!("{} <= {} for bias_reset", min, max);
+        let uniform = Uniform::from(min..max);
+        self.bias_reset = T::from(uniform.sample(&mut rng)).unwrap();
+         */
+
+
+        //println!("{}", self.bias_input.to_f64().unwrap());
+        if self.bias_input.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.bias_input.to_f64().unwrap().signum()) * self.bias_input.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.bias_input.to_f64().unwrap().signum()) * self.bias_input.to_f64().unwrap();
+            //println!("{} <= {} for bias_input", min, max);
+            let uniform = Uniform::from(min..max);
+            self.bias_input = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+        //println!("{}", self.bias_update.to_f64().unwrap());
+        if self.bias_update.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.bias_update.to_f64().unwrap().signum()) * self.bias_update.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.bias_update.to_f64().unwrap().signum()) * self.bias_update.to_f64().unwrap();
+            //println!("{} <= {} for bias_update", min, max);
+            let uniform = Uniform::from(min..max);
+            self.bias_update = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+        //println!("{}", self.bias_reset.to_f64().unwrap());
+        if self.bias_reset.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.bias_reset.to_f64().unwrap().signum()) * self.bias_reset.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.bias_reset.to_f64().unwrap().signum()) * self.bias_reset.to_f64().unwrap();
+            //println!("{} <= {} for bias_reset", min, max);
+            let uniform = Uniform::from(min..max);
+            self.bias_reset = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
     }
 }
 

@@ -2,6 +2,8 @@ use crate::neural_network::functions::fast_tanh;
 use crate::neural_network::neuron::Neuron;
 use crate::utils::floats_almost_equal;
 use num::Float;
+use rand_distr::{Distribution, Uniform};
+use rand::{thread_rng};
 
 pub struct ConnectionGru<T>
 where
@@ -67,6 +69,96 @@ where
     pub fn reset_state(&mut self) {
         self.memory = T::zero();
         self.prev_input = T::zero();
+    }
+
+    #[inline]
+    pub fn random_weights(&mut self) {
+        println!("gru");
+        let mut rng = thread_rng();
+        let percent_change = 0.01;
+        /*
+        let min: f64 = -1.;
+        let max: f64 = 1.;
+        println!("{} <= {} for input_weight", min, max);
+        let uniform = Uniform::from(min..max);
+        self.input_weight = T::from(uniform.sample(&mut rng)).unwrap();
+
+        println!("{} <= {} for memory_weight", min, max);
+        let uniform = Uniform::from(min..max);
+        self.memory_weight = T::from(uniform.sample(&mut rng)).unwrap();
+
+        println!("{} <= {} for reset_input_weight", min, max);
+        let uniform = Uniform::from(min..max);
+        self.reset_input_weight = T::from(uniform.sample(&mut rng)).unwrap();
+
+        println!("{} <= {} for update_input_weight", min, max);
+        let uniform = Uniform::from(min..max);
+        self.update_input_weight = T::from(uniform.sample(&mut rng)).unwrap();
+
+        println!("{} <= {} for reset_memory_weight", min, max);
+        let uniform = Uniform::from(min..max);
+        self.reset_memory_weight = T::from(uniform.sample(&mut rng)).unwrap();
+
+        println!("{} <= {} for update_memory_weight", min, max);
+        let uniform = Uniform::from(min..max);
+        self.update_memory_weight = T::from(uniform.sample(&mut rng)).unwrap();
+         */
+
+        println!("{}", self.input_weight.to_f64().unwrap());
+        if self.input_weight.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.input_weight.to_f64().unwrap().signum()) * self.input_weight.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.input_weight.to_f64().unwrap().signum()) * self.input_weight.to_f64().unwrap();
+            println!("{} <= {} for input_weight", min, max);
+            let uniform = Uniform::from(min..max);
+            self.input_weight = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+        println!("{}", self.memory_weight.to_f64().unwrap());
+        if self.memory_weight.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.memory_weight.to_f64().unwrap().signum()) * self.memory_weight.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.memory_weight.to_f64().unwrap().signum()) * self.memory_weight.to_f64().unwrap();
+            println!("{} <= {} for memory_weight", min, max);
+            let uniform = Uniform::from(min..max);
+            self.memory_weight = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+        println!("{}", self.reset_input_weight.to_f64().unwrap());
+        if self.reset_input_weight.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.reset_input_weight.to_f64().unwrap().signum()) * self.reset_input_weight.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.reset_input_weight.to_f64().unwrap().signum()) * self.reset_input_weight.to_f64().unwrap();
+            println!("{} <= {} for reset_input_weight", min, max);
+            let uniform = Uniform::from(min..max);
+            self.reset_input_weight = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+        println!("{}", self.update_input_weight.to_f64().unwrap());
+        if self.update_input_weight.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.update_input_weight.to_f64().unwrap().signum()) * self.update_input_weight.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.update_input_weight.to_f64().unwrap().signum()) * self.update_input_weight.to_f64().unwrap();
+            println!("{} <= {} for update_input_weight", min, max);
+            let uniform = Uniform::from(min..max);
+            self.update_input_weight = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+        println!("{}", self.reset_memory_weight.to_f64().unwrap());
+        if self.reset_memory_weight.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.reset_memory_weight.to_f64().unwrap().signum()) * self.reset_memory_weight.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.reset_memory_weight.to_f64().unwrap().signum()) * self.reset_memory_weight.to_f64().unwrap();
+            println!("{} <= {} for reset_memory_weight", min, max);
+            let uniform = Uniform::from(min..max);
+            self.reset_memory_weight = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+        println!("{}", self.update_memory_weight.to_f64().unwrap());
+        if self.update_memory_weight.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change*self.update_memory_weight.to_f64().unwrap().signum()) * self.update_memory_weight.to_f64().unwrap();
+            let max: f64 = (1. + percent_change*self.update_memory_weight.to_f64().unwrap().signum()) * self.update_memory_weight.to_f64().unwrap();
+            println!("{} <= {} for update_memory_weight", min, max);
+            let uniform = Uniform::from(min..max);
+            self.update_memory_weight = T::from(uniform.sample(&mut rng)).unwrap();
+        }
+
+
     }
 }
 

@@ -47,9 +47,9 @@ where
         for (point, gene_and_bias) in topology.genes_point.iter() {
             if gene_and_bias.genes.is_empty()
                 || gene_and_bias
-                    .genes
-                    .iter()
-                    .all(|gene| gene.borrow().disabled)
+                .genes
+                .iter()
+                .all(|gene| gene.borrow().disabled)
             {
                 continue;
             }
@@ -143,6 +143,17 @@ where
         let top = Topology::from_string(serialized);
         let net = unsafe { NeuralNetwork::new(&top) };
         net
+    }
+
+    #[inline]
+    pub fn random_nn(&mut self) {
+        for neuron in self.neurons.iter_mut() {
+            println!("inside nn gru");
+            neuron.random_connections_gru();
+        }
+        for bias in self.biases.iter_mut() {
+            bias.random_biases();
+        }
     }
 }
 

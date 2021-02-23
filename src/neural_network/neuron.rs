@@ -104,6 +104,14 @@ where
     pub fn increment_value(&mut self, value: T) {
         self.input = self.input + value;
     }
+
+    #[inline]
+    pub fn random_connections_gru(&mut self) {
+        println!("inside neuron gru");
+        for co in self.connections_gru.iter_mut() {
+            co.random_weights();
+        }
+    }
 }
 
 impl<T> PartialEq for Neuron<T>
