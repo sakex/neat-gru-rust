@@ -2,6 +2,8 @@ use crate::neural_network::neuron::Neuron;
 use crate::utils::floats_almost_equal;
 use num::Float;
 use std::ops::AddAssign;
+use rand_distr::{Distribution, Uniform};
+use rand::{thread_rng};
 
 pub struct ConnectionSigmoid<T>
 where
@@ -24,6 +26,20 @@ where
         unsafe {
             (*self.output).increment_value(value * self.weight);
         };
+    }
+
+    #[inline]
+    pub fn random_weights_sigmoid(&mut self) {
+        println!("sigmoid");
+        let mut rng = thread_rng();
+        let percent_change = 0.01;
+
+        if self.weight.to_f64().unwrap() != 0. {
+            let min: f64 = (1. - percent_change * self.weight.to_f64().unwrap().signum()) * self.weight.to_f64().unwrap();
+            let max: f64 = (1. + percent_change * self.weight.to_f64().unwrap().signum()) * self.weight.to_f64().unwrap();
+            let uniform = Uniform::from(min..max);
+            self.weight = T::from(uniform.sample(&mut rng)).unwrap();
+        }
     }
 }
 

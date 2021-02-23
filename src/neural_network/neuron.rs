@@ -106,10 +106,14 @@ where
     }
 
     #[inline]
-    pub fn random_connections_gru(&mut self) {
-        println!("inside neuron gru");
+    pub fn random_connections(&mut self) {
+        println!("inside neuron of len: {:?}", self.connections_gru.len());
         for co in self.connections_gru.iter_mut() {
-            co.random_weights();
+            co.random_weights_gru();
+        }
+
+        for co in self.connections_sigmoid.iter_mut() {
+            co.random_weights_sigmoid();
         }
     }
 }

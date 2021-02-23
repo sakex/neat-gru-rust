@@ -148,8 +148,7 @@ where
     #[inline]
     pub fn random_nn(&mut self) {
         for neuron in self.neurons.iter_mut() {
-            println!("inside nn gru");
-            neuron.random_connections_gru();
+            neuron.random_connections();
         }
         for bias in self.biases.iter_mut() {
             bias.random_biases();
