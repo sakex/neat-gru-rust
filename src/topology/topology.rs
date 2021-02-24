@@ -293,6 +293,42 @@ where
         }
     }
 
+    pub fn change_weights_robustness(&mut self) {
+        let mut rng = thread_rng();
+        let percent_change = 1.0;
+        for (_ev_number, gene) in &self.genes_ev_number {
+            let mut gene_cp = gene.borrow_mut();git
+            let normal = Normal::new(gene_cp.input_weight.to_f64().unwrap(),  percent_change * gene_cp.input_weight.to_f64().unwrap()).unwrap();
+            gene_cp.input_weight += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(gene_cp.memory_weight.to_f64().unwrap(), percent_change * gene_cp.memory_weight.to_f64().unwrap()).unwrap();
+            gene_cp.memory_weight += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(gene_cp.reset_input_weight.to_f64().unwrap(), percent_change * gene_cp.reset_input_weight.to_f64().unwrap()).unwrap();
+            gene_cp.reset_input_weight += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(gene_cp.update_input_weight.to_f64().unwrap(), percent_change * gene_cp.update_input_weight.to_f64().unwrap()).unwrap();
+            gene_cp.update_input_weight += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(gene_cp.reset_memory_weight.to_f64().unwrap(), percent_change * gene_cp.reset_memory_weight.to_f64().unwrap()).unwrap();
+            gene_cp.reset_memory_weight += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(gene_cp.update_memory_weight.to_f64().unwrap(), percent_change * gene_cp.update_memory_weight.to_f64().unwrap()).unwrap();
+            gene_cp.update_memory_weight += T::from(normal.sample(&mut rng)).unwrap();
+        }
+        for (_point, gene_and_bias) in &mut self.genes_point {
+            let normal = Normal::new(gene_and_bias.bias.bias_input.to_f64().unwrap(), percent_change * gene_and_bias.bias.bias_input.to_f64().unwrap()).unwrap();
+            gene_and_bias.bias.bias_input += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(gene_and_bias.bias.bias_update.to_f64().unwrap(), percent_change * gene_and_bias.bias.bias_update.to_f64().unwrap()).unwrap();
+            gene_and_bias.bias.bias_update += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(gene_and_bias.bias.bias_reset.to_f64().unwrap(), percent_change * gene_and_bias.bias.bias_reset.to_f64().unwrap()).unwrap();
+            gene_and_bias.bias.bias_reset += T::from(normal.sample(&mut rng)).unwrap();
+        }
+        for bias in &mut self.output_bias {
+            let normal = Normal::new(bias.bias_input.to_f64().unwrap(), percent_change * bias.bias_input.to_f64().unwrap()).unwrap();
+            bias.bias_input += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(bias.bias_update.to_f64().unwrap(), percent_change * bias.bias_update.to_f64().unwrap()).unwrap();
+            bias.bias_update += T::from(normal.sample(&mut rng)).unwrap();
+            let normal = Normal::new(bias.bias_reset.to_f64().unwrap(), percent_change * bias.bias_reset.to_f64().unwrap()).unwrap();
+            bias.bias_reset += T::from(normal.sample(&mut rng)).unwrap();
+        }
+    }
+
     #[inline]
     pub fn insert_gene(&mut self, gene: GeneSmrtPtr<T>) {
         let (input, ev_number) = {
