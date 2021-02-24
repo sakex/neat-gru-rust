@@ -256,7 +256,7 @@ where
         }
     }
 
-    fn change_weights(&mut self, rng: &mut ThreadRng) {
+    pub fn change_weights(&mut self, rng: &mut ThreadRng) {
         let normal = Normal::new(0.0, 0.1).unwrap();
         for (_ev_number, gene) in &self.genes_ev_number {
             let mut gene_cp = gene.borrow_mut();
