@@ -156,7 +156,7 @@ where
             reset_memory_weight: T::one(),
             update_memory_weight: T::one(),
             evolution_number: ev_number.number(coordinate),
-            connection_type: ConnectionType::Sigmoid,
+            connection_type: ConnectionType::GRU,
             disabled: false,
         }
     }
@@ -174,7 +174,7 @@ where
             reset_memory_weight: 0,
             update_memory_weight: 0,
             evolution_number: ev_number.number(coordinate),
-            connection_type: ConnectionType::Sigmoid,
+            connection_type: ConnectionType::GRU,
             disabled: false,
         }
     }
