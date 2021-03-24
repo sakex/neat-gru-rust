@@ -581,7 +581,7 @@ where
                             &output,
                             &compared_output,
                             &last,
-                            self.layers_sizes.len() as i8,
+                            self.layers_sizes.len() as i8 >> 1,
                         )
                     {
                         let mut gene = cell.borrow_mut();
