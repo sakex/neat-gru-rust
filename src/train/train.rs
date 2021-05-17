@@ -1,4 +1,6 @@
 use crate::game::{Game, GameAsync};
+#[cfg(target_arch = "wasm32")]
+use crate::instant_wasm_replacement::Instant;
 use crate::neural_network::nn::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::{Topology, TopologySmrtPtr};
@@ -13,8 +15,6 @@ use std::iter::Sum;
 use std::sync::{Arc, Mutex};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
-#[cfg(target_arch = "wasm32")]
-use crate::instant_wasm_replacement::Instant;
 
 macro_rules! cond_iter {
     ($collection: expr) => {{

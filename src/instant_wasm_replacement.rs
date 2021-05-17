@@ -1,17 +1,12 @@
-pub struct Instant {
-
-}
+pub struct Instant {}
 
 impl Instant {
     pub fn now() -> Instant {
-        Instant {
-
-        }
+        Instant {}
     }
 
     pub fn elapsed(&self) -> Instant {
-        Instant {
-        }
+        Instant {}
     }
 
     pub fn as_millis(&self) -> i64 {
