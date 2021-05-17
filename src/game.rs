@@ -1,5 +1,6 @@
 use crate::neural_network::nn::NeuralNetwork;
 use crate::topology::topology::Topology;
+use async_trait::async_trait;
 use num::Float;
 use std::fmt::Display;
 
@@ -24,4 +25,12 @@ where
     ///
     /// `net` - The best historical network
     fn post_training(&mut self, history: &[Topology<T>]);
+}
+
+#[async_trait]
+pub trait GameAsync<T>: Game<T>
+where
+    T: Float + std::ops::AddAssign + Display,
+{
+    async fn run_generation_async(&mut self) -> Vec<T>;
 }

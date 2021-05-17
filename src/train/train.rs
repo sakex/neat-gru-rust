@@ -1,4 +1,4 @@
-use crate::game::Game;
+use crate::game::{Game, GameAsync};
 use crate::neural_network::nn::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::{Topology, TopologySmrtPtr};
@@ -8,11 +8,13 @@ use itertools::Itertools;
 use num::Float;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
-use std::cmp::Ordering;
 use std::fmt::Display;
 use std::iter::Sum;
 use std::sync::{Arc, Mutex};
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use crate::instant_wasm_replacement::Instant;
 
 macro_rules! cond_iter {
     ($collection: expr) => {{
@@ -577,5 +579,56 @@ where
             .max()
             .unwrap_or(0);
         println!("BIGGEST SPECIES: {}", biggest_species);
+    }
+}
+
+impl<'a, T, F> Train<'a, T, F>
+where
+    T: GameAsync<F>,
+    F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
+    &'a [F]: rayon::iter::IntoParallelIterator,
+{
+    pub async fn start_async(&mut self) {
+        let inputs = match self.inputs_ {
+            Some(v) => v,
+            None => panic!("Didn't provide a number of inputs"),
+        };
+
+        let outputs = match self.outputs_ {
+            Some(v) => v,
+            None => panic!("Didn't provide a number of inputs"),
+        };
+
+        self.species_.push(Mutex::new(Species::new_uniform(
+            inputs,
+            outputs,
+            self.max_layers_,
+            self.max_per_layers_,
+            &self.ev_number_,
+        )));
+
+        self.reset_players();
+        for i in 0..self.iterations_ {
+            println!("\n=========================\n");
+            println!("Generation {}", i);
+            let now = Instant::now();
+            let results = self.simulation.run_generation_async().await;
+            println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
+            self.set_last_results(&results);
+            let now = Instant::now();
+            self.natural_selection();
+            self.push_to_history();
+            self.reset_species();
+            if self.species_.is_empty() {
+                break;
+            }
+            println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
+            let now = Instant::now();
+            self.reset_players();
+            println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
+        }
+        println!("\n=========================\n");
+        println!("POST TRAINING");
+        self.simulation.post_training(&*self.history_);
     }
 }
