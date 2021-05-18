@@ -1,4 +1,5 @@
 pub mod game;
+#[cfg(target_arch = "wasm32")]
 mod instant_wasm_replacement;
 pub mod neural_network;
 #[cfg(test)]

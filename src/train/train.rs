@@ -67,6 +67,7 @@ where
     best_historical_score: F,
     no_progress_counter: usize,
     proba: MutationProbabilities,
+    access_train_object_fn: Option<Box<dyn FnMut(&mut Train<'a, T, F>)>>,
 }
 
 impl<'a, T, F> Train<'a, T, F>
@@ -152,6 +153,7 @@ where
             ev_number_: Arc::new(EvNumber::new()),
             best_historical_score: F::zero(),
             no_progress_counter: 0,
+            access_train_object_fn: None,
             proba: MutationProbabilities {
                 change_weights: 0.95,
                 guaranteed_new_neuron: 0.2,
@@ -279,6 +281,22 @@ where
         self
     }
 
+    /// Returns the number of species
+    #[inline]
+    pub fn species_count(&self) -> usize {
+        self.species_.len()
+    }
+
+    /// Access train object after `reset_players`
+    ///
+    /// # Arguments
+    ///
+    /// `cb` - Callback called after `reset_players`
+    #[inline]
+    pub fn access_train_object(&mut self, callback: Box<dyn FnMut(&mut Train<'a, T, F>)>) {
+        self.access_train_object_fn = Some(callback);
+    }
+
     #[inline]
     pub fn start(&mut self) {
         let inputs = match self.inputs_ {
@@ -318,6 +336,12 @@ where
             let now = Instant::now();
             self.reset_players();
             println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
+            let mut cb_option = self.access_train_object_fn.take();
+            let cb_option_borrow = &mut cb_option;
+            if let Some(cb) = cb_option_borrow {
+                (*cb)(self);
+                self.access_train_object_fn = cb_option;
+            }
         }
         println!("\n=========================\n");
         println!("POST TRAINING");
@@ -626,6 +650,12 @@ where
             let now = Instant::now();
             self.reset_players();
             println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
+            let mut cb_option = self.access_train_object_fn.take();
+            let cb_option_borrow = &mut cb_option;
+            if let Some(cb) = cb_option_borrow {
+                (*cb)(self);
+                self.access_train_object_fn = cb_option;
+            }
         }
         println!("\n=========================\n");
         println!("POST TRAINING");
