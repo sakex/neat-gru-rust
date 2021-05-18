@@ -49,7 +49,7 @@ where
     T: Game<F>,
     &'a [F]: rayon::iter::IntoParallelIterator,
 {
-    simulation: &'a mut T,
+    pub simulation: &'a mut T,
     iterations_: usize,
     max_individuals_: usize,
     max_layers_: usize,
