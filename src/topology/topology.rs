@@ -16,6 +16,8 @@ use std::fmt::Display;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+const NORMAL_STDDEV: f64 = 0.04;
+
 pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
 
 #[derive(Deserialize, Serialize)]
@@ -257,7 +259,7 @@ where
     }
 
     pub fn change_weights(&mut self, rng: &mut ThreadRng) {
-        let normal = Normal::new(0.0, 0.1).unwrap();
+        let normal = Normal::new(0.0, NORMAL_STDDEV).unwrap();
         for (_ev_number, gene) in &self.genes_ev_number {
             let mut gene_cp = gene.borrow_mut();
             let change_weights = rng.gen_range(0.0..1.);
@@ -284,7 +286,7 @@ where
         }
         for bias in &mut self.output_bias {
             let change_bias = rng.gen_range(0.0..1.);
-            let normal = Normal::new(0.0, 0.1).unwrap();
+            let normal = Normal::new(0.0, NORMAL_STDDEV).unwrap();
             if change_bias < 0.9 {
                 bias.bias_input += T::from(normal.sample(rng)).unwrap();
                 bias.bias_update += T::from(normal.sample(rng)).unwrap();
