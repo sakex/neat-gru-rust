@@ -1,10 +1,14 @@
 [package]
 name = "neat-gru"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["sakex <alexandre@senges.ch>"]
 edition = "2018"
 description = "NEAT algorithm with GRU gates"
 license = "GPL-3.0"
+repository = "https://github.com/sakex/neat-gru-rust"
+categories = ["science", "wasm"]
+keywords = ["neat", "ai", "machine-learning", "genetic", "algorithm"]
+
 
 [lib]
 crate-type = ["cdylib", "rlib"]
