@@ -1,7 +1,7 @@
 # neat-gru-rust
 
 ## Documentation
-[Crates.io doc](https://docs.rs/neat-gru/0.1.10/neat_gru/train/struct.Train.html)
+[Crates.io doc](https://docs.rs/neat-gru/)
 
 ## How to use
 In `Cargo.toml`:
