@@ -7,7 +7,7 @@
 In `Cargo.toml`:
 
      [dependencies]
-     neat-gru = "0.2.1"
+     neat-gru = "0.6.1"
 
 Create a struct that implements the `Game` trait
 
