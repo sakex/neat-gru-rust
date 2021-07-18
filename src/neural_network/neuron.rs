@@ -36,6 +36,35 @@ where
         }
     }
 
+    pub fn clone_with_old_pointer(&self) -> Neuron<T> {
+        Neuron {
+            input: self.input,
+            memory: self.memory,
+            update: self.update,
+            reset: self.reset,
+            prev_reset: self.prev_reset,
+            connections_gru: self
+                .connections_gru
+                .iter()
+                .map(ConnectionGru::clone_with_old_pointer)
+                .collect(),
+            connections_sigmoid: self
+                .connections_sigmoid
+                .iter()
+                .map(ConnectionSigmoid::<T>::clone_with_old_pointer)
+                .collect(),
+        }
+    }
+
+    pub fn increment_connections_pointers(&mut self, diff: isize) {
+        for connection in &mut self.connections_gru {
+            connection.increment_pointer(diff);
+        }
+        for connection in &mut self.connections_sigmoid {
+            connection.increment_pointer(diff);
+        }
+    }
+
     #[replace_numeric_literals(T::from(literal).unwrap())]
     #[inline]
     pub fn set_input_value(&mut self, input: T) {

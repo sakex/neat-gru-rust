@@ -15,12 +15,23 @@ impl<T> ConnectionSigmoid<T>
 where
     T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
 {
-    pub fn new(weight: T, output: *mut Neuron<T>) -> ConnectionSigmoid<T> {
+    pub(crate) fn new(weight: T, output: *mut Neuron<T>) -> ConnectionSigmoid<T> {
         ConnectionSigmoid { weight, output }
     }
 
+    pub(crate) fn clone_with_old_pointer(&self) -> ConnectionSigmoid<T> {
+        ConnectionSigmoid {
+            weight: self.weight,
+            output: self.output,
+        }
+    }
+
+    pub(crate) fn increment_pointer(&mut self, diff: isize) {
+        self.output = (self.output as isize + diff) as *mut Neuron<T>;
+    }
+
     #[inline]
-    pub fn activate(&mut self, value: T) {
+    pub(crate) fn activate(&mut self, value: T) {
         unsafe {
             (*self.output).increment_value(value * self.weight);
         };

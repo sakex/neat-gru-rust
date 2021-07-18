@@ -293,7 +293,10 @@ where
     ///
     /// `cb` - Callback called after `reset_players`
     #[inline]
-    pub fn access_train_object(&mut self, callback: Box<dyn FnMut(&mut Train<'a, T, F>)>) -> &mut Self {
+    pub fn access_train_object(
+        &mut self,
+        callback: Box<dyn FnMut(&mut Train<'a, T, F>)>,
+    ) -> &mut Self {
         self.access_train_object_fn = Some(callback);
         self
     }

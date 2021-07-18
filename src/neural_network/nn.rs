@@ -160,3 +160,29 @@ where
             .all(|(first, second)| *first == *second)
     }
 }
+
+impl<T> Clone for NeuralNetwork<T>
+where
+    T: Float + std::ops::AddAssign + Display,
+{
+    fn clone(&self) -> NeuralNetwork<T> {
+        let mut ret = NeuralNetwork {
+            output_size: self.output_size,
+            neurons: self
+                .neurons
+                .iter()
+                .map(Neuron::clone_with_old_pointer)
+                .collect(),
+            biases: self.biases.clone(),
+        };
+        if !self.neurons.is_empty() {
+            let original_address = &self.neurons[0] as *const Neuron<T>;
+            let new_address = &ret.neurons[0] as *const Neuron<T>;
+            let diff = new_address as isize - original_address as isize;
+            for neuron in &mut ret.neurons {
+                neuron.increment_connections_pointers(diff);
+            }
+        }
+        ret
+    }
+}

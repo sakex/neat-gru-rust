@@ -22,7 +22,7 @@ impl<T> ConnectionGru<T>
 where
     T: Float + std::ops::AddAssign + std::cmp::PartialEq,
 {
-    pub fn new(
+    pub(crate) fn new(
         input_weight: T,
         memory_weight: T,
         reset_input_weight: T,
@@ -44,8 +44,26 @@ where
         }
     }
 
+    pub(crate) fn clone_with_old_pointer(&self) -> ConnectionGru<T> {
+        ConnectionGru {
+            memory: self.memory,
+            prev_input: self.prev_input,
+            input_weight: self.input_weight,
+            memory_weight: self.memory_weight,
+            reset_input_weight: self.reset_input_weight,
+            update_input_weight: self.update_input_weight,
+            reset_memory_weight: self.reset_memory_weight,
+            update_memory_weight: self.update_memory_weight,
+            output: self.output,
+        }
+    }
+
+    pub(crate) fn increment_pointer(&mut self, diff: isize) {
+        self.output = (self.output as isize + diff) as *mut Neuron<T>;
+    }
+
     #[inline]
-    pub fn activate(&mut self, value: T) {
+    pub(crate) fn activate(&mut self, value: T) {
         let prev_reset = unsafe { (*self.output).prev_reset };
         self.memory = fast_tanh(
             self.prev_input * self.input_weight + self.memory_weight * prev_reset * self.memory,
@@ -64,7 +82,7 @@ where
     }
 
     #[inline]
-    pub fn reset_state(&mut self) {
+    pub(crate) fn reset_state(&mut self) {
         self.memory = T::zero();
         self.prev_input = T::zero();
     }

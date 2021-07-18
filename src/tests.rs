@@ -38,6 +38,33 @@ pub fn test_import_network() {
     assert_eq!(output_1, output_4);
 }
 
+#[test]
+pub fn test_clone_network() {
+    let serialized: String =
+        fs::read_to_string("topology_test.json").expect("Something went wrong reading the file");
+
+    let mut net = NeuralNetwork::<f64>::from_string(&serialized);
+    let mut cloned = net.clone();
+    if cloned != net {
+        panic!("Cloned != net");
+    }
+
+    let input: Vec<f64> = vec![0.5, 0.5, 0.1, -0.2];
+    let input_2: Vec<f64> = vec![-0.5, -0.5, -0.1, 0.2];
+
+    let output = net.compute(&input);
+    let output_cloned = cloned.compute(&input);
+    assert_eq!(output, output_cloned);
+
+    let mut cloned_2 = cloned.clone();
+
+    let output = net.compute(&input_2);
+    let output_cloned = cloned.compute(&input_2);
+    let output_cloned_2 = cloned_2.compute(&input_2);
+    assert_eq!(output, output_cloned);
+    assert_eq!(output, output_cloned_2);
+}
+
 struct TestGame {
     nets: Vec<NeuralNetwork<f64>>,
 }
