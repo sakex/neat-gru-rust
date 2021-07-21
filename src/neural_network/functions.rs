@@ -17,5 +17,5 @@ pub fn fast_tanh<T: Float>(x: T) -> T {
     let x2 = x * x;
     let a = x * (135135 + x2 * (17325 + x2 * (378 + x2)));
     let b = 135135 + x2 * (62370 + x2 * (3150 + x2 * 28));
-    return a / b;
+    a / b
 }

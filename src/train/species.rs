@@ -52,7 +52,7 @@ where
                     output_count,
                     max_layers,
                     max_per_layers,
-                    &ev_number,
+                    ev_number,
                 )))
             })
             .collect();
@@ -81,7 +81,7 @@ where
                     output_count,
                     max_layers,
                     max_per_layers,
-                    &ev_number,
+                    ev_number,
                 )))
             })
             .collect();
@@ -146,7 +146,7 @@ where
 
     fn evolve(
         &mut self,
-        surviving_topologies: &Vec<TopologySmrtPtr<T>>,
+        surviving_topologies: &[TopologySmrtPtr<T>],
         ev_number: Arc<EvNumber>,
         proba: MutationProbabilities,
     ) -> Vec<TopologySmrtPtr<T>> {

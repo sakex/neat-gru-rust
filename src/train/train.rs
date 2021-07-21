@@ -374,7 +374,7 @@ where
             .map(|top_rc| {
                 let lock = top_rc.lock().unwrap();
                 let top = &*lock;
-                unsafe { NeuralNetwork::new(&top) }
+                unsafe { NeuralNetwork::new(top) }
             })
             .collect();
         println!(
@@ -404,14 +404,14 @@ where
             first_spec.max_topologies = self.max_individuals_;
             self.ev_number_.reset();
             let ev_number = self.ev_number_.clone();
-            first_spec.natural_selection(ev_number.clone(), self.proba.clone());
+            first_spec.natural_selection(ev_number, self.proba.clone());
             return;
         }
         if self.species_.is_empty() {
             return;
         }
         self.species_.iter_mut().for_each(|spec| {
-            spec.lock().unwrap().compute_adjusted_fitness();
+            spec.get_mut().unwrap().compute_adjusted_fitness();
         });
         let mean = cond_iter!(self.species_)
             .clone()
@@ -426,14 +426,14 @@ where
         if variance >= F::from(0.00001).unwrap() {
             let volatility = variance.sqrt();
             self.species_.iter_mut().for_each(|spec| {
-                let spec = &mut *spec.lock().unwrap();
+                let spec = &mut *spec.get_mut().unwrap();
                 spec.adjusted_fitness = F::from(1.3)
                     .unwrap()
                     .powf((spec.adjusted_fitness - mean) / volatility);
             });
         } else {
             self.species_.iter_mut().for_each(|spec| {
-                spec.lock().unwrap().adjusted_fitness = F::one();
+                spec.get_mut().unwrap().adjusted_fitness = F::one();
             });
         }
         self.species_.sort_by(|spec1, spec2| {
@@ -456,12 +456,12 @@ where
             }
         });
         let sum: F = cond_iter!(self.species_)
-            .map(|spec| spec.lock().unwrap().adjusted_fitness.clone())
+            .map(|spec| spec.lock().unwrap().adjusted_fitness)
             .sum();
-        let multiplier: F = F::from(self.max_individuals_).unwrap() / sum.clone();
+        let multiplier: F = F::from(self.max_individuals_).unwrap() / sum;
         let mut assigned_count: usize = 0;
         for spec in self.species_.iter_mut().rev() {
-            let spec = &mut *spec.lock().unwrap();
+            let spec = &mut *spec.get_mut().unwrap();
             let to_assign = if assigned_count < self.max_individuals_ {
                 (spec.adjusted_fitness * multiplier)
                     .max(F::zero())
@@ -482,7 +482,7 @@ where
         {
             self.species_.iter_mut().for_each(|species| {
                 species
-                    .lock()
+                    .get_mut()
                     .unwrap()
                     .natural_selection(ev_number.clone(), proba.clone());
             });
@@ -505,7 +505,7 @@ where
                 current_count.1 += 1;
             } else {
                 if current_count.1 != 0 {
-                    species_sizes_vec.push(current_count.clone());
+                    species_sizes_vec.push(current_count);
                 }
                 current_count = (topologies.len(), 1);
             }
@@ -563,7 +563,7 @@ where
     fn reset_species(&mut self) {
         self.get_topologies();
         cond_iter_mut!(self.species_).for_each(|spec| {
-            spec.lock().unwrap().topologies.clear();
+            spec.get_mut().unwrap().topologies.clear();
         });
         let mut species = self.species_.split_off(0);
         let topologies = self.topologies_.clone();
@@ -601,7 +601,7 @@ where
         species.append(&mut new_species);
         self.species_ = species;
         self.species_
-            .retain(|spec| spec.lock().unwrap().topologies.len() > 0);
+            .retain(|spec| !spec.lock().unwrap().topologies.is_empty());
         let biggest_species = cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().topologies.len())
             .max()
