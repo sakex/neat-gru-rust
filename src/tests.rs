@@ -9,7 +9,7 @@ use std::fs;
 #[test]
 pub fn test_import_network() {
     let serialized: String =
-        fs::read_to_string("topology_test.json").expect("Something went wrong reading the file");
+        fs::read_to_string("topology_test.json").expect("Something went wrong reading the topology_test.json");
 
     let top = Topology::from_string(&serialized);
     let cloned: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top) };
