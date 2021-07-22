@@ -82,7 +82,7 @@ impl GameAsync<f64> for Simulation {
 }
 ```
 
-```
+
 Launch a training
 ```rust
 fn run_sim() {
