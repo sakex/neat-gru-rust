@@ -139,7 +139,7 @@ where
                         / 6;
                 }
                 None => {
-                    disjoints = disjoints + one;
+                    disjoints += one;
                 }
             }
         }
@@ -190,7 +190,7 @@ where
                     output,
                     -1.,
                     1.,
-                    &ev_number,
+                    ev_number,
                 )));
                 new_topology.insert_gene(gene);
             }
@@ -212,7 +212,7 @@ where
             for j in 0..output_count {
                 let input = Point::new(0u8, i as u8);
                 let output = Point::new(1u8, j as u8);
-                let gene = Rc::new(RefCell::new(Gene::new_one(input, output, &ev_number)));
+                let gene = Rc::new(RefCell::new(Gene::new_one(input, output, ev_number)));
                 new_topology.insert_gene(gene);
             }
         }
@@ -253,7 +253,7 @@ where
     ) {
         for _ in 0..reproduction_count {
             let mut cp = self.clone();
-            cp.mutate(&ev_number, &proba);
+            cp.mutate(ev_number, proba);
             new_topologies.push(Arc::new(Mutex::new(cp)));
         }
     }
@@ -319,7 +319,7 @@ where
     fn shift_right_one_layer(&mut self, layer: u8) {
         self.layers_sizes.insert(layer as usize, 1);
 
-        for (_ev, gene_rc) in &mut self.genes_ev_number {
+        for gene_rc in self.genes_ev_number.values_mut() {
             let mut gene = &mut *gene_rc.borrow_mut();
             if gene.input.layer >= layer {
                 gene.input.layer += 1;
@@ -386,7 +386,7 @@ where
             original_gene.output.layer += 1;
             output_of_input
         };
-        let (middle_gene, end_gene) = original_gene.split(output_of_input, &ev_number);
+        let (middle_gene, end_gene) = original_gene.split(output_of_input, ev_number);
         self.insert_gene(Rc::new(RefCell::new(middle_gene)));
         self.insert_gene(Rc::new(RefCell::new(end_gene)));
     }
@@ -405,8 +405,8 @@ where
 
         let input = Point::new(input_layer, input_index);
         let output = Point::new(output_layer, output_index);
-        let just_created = self.new_gene(input.clone(), output.clone(), &ev_number, rng);
-        self.disable_genes(input.clone(), output.clone(), just_created);
+        let just_created = self.new_gene(input.clone(), output.clone(), ev_number, rng);
+        self.disable_genes(input, output, just_created);
     }
 
     /*#[allow(dead_code)]
@@ -425,9 +425,9 @@ where
         } else {
             let change_topology = rng.gen_range(0.0..1.);
             if change_topology > proba.guaranteed_new_neuron {
-                self.add_node(&ev_number, &mut rng);
+                self.add_node(ev_number, &mut rng);
             } else {
-                self.add_connection(&ev_number, &mut rng);
+                self.add_connection(ev_number, &mut rng);
             }
         }
         loop {
@@ -453,7 +453,7 @@ where
                 .iter()
                 .filter_map(|(input, gene_and_bias)| {
                     if input.layer != 0 {
-                        if !self.check_has_inputs(&input) {
+                        if !self.check_has_inputs(input) {
                             Some(gene_and_bias.genes[0].clone())
                         } else {
                             None
@@ -467,10 +467,10 @@ where
                 break;
             }
             for gene in &dont_have_outputs {
-                self.remove_neuron(&gene);
+                self.remove_neuron(gene);
             }
             for gene in &dont_have_inputs {
-                self.remove_neuron(&gene);
+                self.remove_neuron(gene);
             }
         }
     }
@@ -483,7 +483,7 @@ where
         rng: &mut ThreadRng,
     ) -> GeneSmrtPtr<T> {
         let new_gene = Rc::new(RefCell::new(Gene::new_random(
-            rng, input, output, -1.0, 1.0, &ev_number,
+            rng, input, output, -1.0, 1.0, ev_number,
         )));
         self.insert_gene(new_gene.clone());
         new_gene
@@ -563,35 +563,32 @@ where
     }
 
     fn disable_genes(&mut self, input: Point, output: Point, last: GeneSmrtPtr<T>) {
-        match self.genes_point.get(&input) {
-            Some(found) => {
-                let genes = &found.genes;
-                for gene_rc in genes {
-                    if Rc::ptr_eq(gene_rc, &last) {
+        if let Some(found) = self.genes_point.get(&input) {
+            let genes = &found.genes;
+            for gene_rc in genes {
+                if Rc::ptr_eq(gene_rc, &last) {
+                    continue;
+                }
+                let cell = &**gene_rc;
+                let compared_output = {
+                    let gene = cell.borrow();
+                    if gene.disabled {
                         continue;
                     }
-                    let cell = &**gene_rc;
-                    let compared_output = {
-                        let gene = cell.borrow();
-                        if gene.disabled {
-                            continue;
-                        }
-                        gene.output.clone()
-                    };
-                    if output == compared_output
-                        || self.path_overrides(
-                            &output,
-                            &compared_output,
-                            &last,
-                            self.layers_sizes.len() as i8 >> 1,
-                        )
-                    {
-                        let mut gene = cell.borrow_mut();
-                        gene.disabled = true;
-                    }
+                    gene.output.clone()
+                };
+                if output == compared_output
+                    || self.path_overrides(
+                        &output,
+                        &compared_output,
+                        &last,
+                        self.layers_sizes.len() as i8 >> 1,
+                    )
+                {
+                    let mut gene = cell.borrow_mut();
+                    gene.disabled = true;
                 }
             }
-            None => {}
         }
     }
 
@@ -605,7 +602,7 @@ where
         if recursion <= 0 {
             return false;
         }
-        match self.genes_point.get(&input) {
+        match self.genes_point.get(input) {
             Some(found) => {
                 let genes = &found.genes;
                 for gene_rc in genes {
@@ -618,15 +615,14 @@ where
                         continue;
                     }
                     let compared_output = &gene.output;
-                    if *compared_output == *output {
+                    if *compared_output == *output
+                        || compared_output.layer < output.layer
+                            && self.path_overrides(compared_output, output, last, recursion - 1)
+                    {
                         return true;
-                    } else if compared_output.layer < output.layer {
-                        if self.path_overrides(&compared_output, &output, &last, recursion - 1) {
-                            return true;
-                        }
                     }
                 }
-                return false;
+                false
             }
             None => false,
         }

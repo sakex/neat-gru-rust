@@ -13,12 +13,7 @@ pub struct EvNumber {
 
 impl EvNumber {
     pub fn new() -> EvNumber {
-        EvNumber {
-            mutex: Mutex::new(EvNumberData {
-                counter: 0,
-                current_pairs: HashMap::new(),
-            }),
-        }
+        Self::default()
     }
 
     pub fn reset(&self) {
@@ -36,6 +31,16 @@ impl EvNumber {
                 lock.current_pairs.insert(coordinate, counter);
                 counter
             }
+        }
+    }
+}
+impl Default for EvNumber {
+    fn default() -> Self {
+        EvNumber {
+            mutex: Mutex::new(EvNumberData {
+                counter: 0,
+                current_pairs: HashMap::new(),
+            }),
         }
     }
 }

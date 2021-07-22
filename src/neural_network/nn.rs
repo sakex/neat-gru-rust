@@ -54,7 +54,7 @@ where
                 continue;
             }
             let neuron_index = layer_addresses[point.layer as usize] + point.index as usize;
-            let input_neuron: *mut Neuron<T> = neurons_ptr.offset(neuron_index as isize);
+            let input_neuron: *mut Neuron<T> = neurons_ptr.add(neuron_index);
             biases[neuron_index] = gene_and_bias.bias.clone();
             for gene_rc in &gene_and_bias.genes {
                 let gene = gene_rc.borrow();
@@ -63,7 +63,7 @@ where
                 }
                 let output = &gene.output;
                 let index = layer_addresses[output.layer as usize] + output.index as usize;
-                let output_neuron: *mut Neuron<T> = neurons_ptr.offset(index as isize);
+                let output_neuron: *mut Neuron<T> = neurons_ptr.add(index);
                 match gene.connection_type {
                     ConnectionType::Sigmoid => {
                         let connection = ConnectionSigmoid::new(gene.input_weight, output_neuron);
@@ -104,7 +104,7 @@ where
     #[inline]
     fn reset_neurons_value(&mut self) {
         for (neuron, bias) in self.neurons.iter_mut().zip(self.biases.iter()) {
-            neuron.reset_value(&bias);
+            neuron.reset_value(bias);
         }
     }
 
@@ -141,8 +141,7 @@ where
 
     pub fn from_string(serialized: &str) -> NeuralNetwork<T> {
         let top = Topology::from_string(serialized);
-        let net = unsafe { NeuralNetwork::new(&top) };
-        net
+        unsafe { NeuralNetwork::new(&top) }
     }
 }
 

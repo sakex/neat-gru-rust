@@ -123,15 +123,15 @@ where
 
     #[inline]
     pub fn increment_state(&mut self, mem: T, inp: T, res: T, upd: T) {
-        self.memory = self.memory + mem;
-        self.input = self.input + inp;
-        self.reset = self.reset + res;
-        self.update = self.update + upd;
+        self.memory += mem;
+        self.input += inp;
+        self.reset += res;
+        self.update += upd;
     }
 
     #[inline]
     pub fn increment_value(&mut self, value: T) {
-        self.input = self.input + value;
+        self.input += value;
     }
 }
 
