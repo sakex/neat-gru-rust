@@ -7,6 +7,7 @@ use crate::topology::topology::Topology;
 use num::Float;
 use std::fmt::Display;
 
+#[derive(Debug)]
 pub struct NeuralNetwork<T>
 where
     T: Float + std::ops::AddAssign + Display,

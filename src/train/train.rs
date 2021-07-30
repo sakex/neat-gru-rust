@@ -360,7 +360,7 @@ where
                 species
                     .topologies
                     .iter()
-                    .map(|top| top.clone())
+                    .cloned()
                     .collect::<Vec<TopologySmrtPtr<F>>>()
             })
             .flatten()

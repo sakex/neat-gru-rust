@@ -3,6 +3,7 @@ use crate::utils::floats_almost_equal;
 use num::Float;
 use std::ops::AddAssign;
 
+#[derive(Debug)]
 pub struct ConnectionSigmoid<T>
 where
     T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,

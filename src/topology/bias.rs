@@ -4,7 +4,7 @@ use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Bias<T>
 where
     T: Float,

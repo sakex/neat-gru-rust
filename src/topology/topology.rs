@@ -274,7 +274,7 @@ where
                 gene_cp.random_reassign(rng);
             }
         }
-        for (_point, gene_and_bias) in &mut self.genes_point {
+        for gene_and_bias in self.genes_point.values_mut() {
             let change_bias = rng.gen_range(0.0..1.);
             if change_bias < 0.995 {
                 gene_and_bias.bias.bias_input += T::from(normal.sample(rng)).unwrap();
