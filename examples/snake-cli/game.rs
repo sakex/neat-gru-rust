@@ -1,8 +1,6 @@
 use neat_gru::neural_network::nn::NeuralNetwork;
-use crossterm::{ExecutableCommand, cursor::Hide, terminal::{Clear, ClearType, SetSize, enable_raw_mode, size}};
-use std::io::Stdout;
 
-use crate::{apple::Apple, defs::RESOLUTION, snake::Snake, utils::{distance_to_apple_x, distance_to_apple_y}};
+use crate::{apple::Apple, snake::Snake, utils::{distance_to_apple_x, distance_to_apple_y, distance_to_wall_x, distance_to_wall_y}};
 
 #[derive(Debug)]
 pub struct Game {
@@ -30,12 +28,9 @@ impl Game {
         }
     }
 
-    pub fn prepare_ui(&mut self){
-    }
 
     /// Runs the game and if it finishes returns the game at the end
     pub fn run_game(&mut self) {
-        self.prepare_ui();
         while !self.game_over() {
             self.update();
         }
@@ -50,6 +45,8 @@ impl Game {
             // First inputs are the distance to the apple from -1 to 1
             inputs[0] = distance_to_apple_x(s, cloned_apple);
             inputs[1] = distance_to_apple_y(s, cloned_apple);
+            inputs[2] = distance_to_wall_x(s);
+            inputs[3] = distance_to_wall_y(s);
             s.make_decision(&inputs)
         });
     }
@@ -71,8 +68,6 @@ impl Game {
         // Let each snake make a decision
         self.make_decision();
     }
-
-    fn render(&self) {}
 
     fn game_over(&self) -> bool {
         self.snakes.is_empty()

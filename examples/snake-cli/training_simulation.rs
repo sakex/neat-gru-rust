@@ -3,7 +3,7 @@ use std::io::Write;
 
 
 
-use crate::defs::GUI;
+use crate::defs::{GUI, RESOLUTION};
 use crate::game::Game;
 use neat_gru::neural_network::nn::NeuralNetwork;
 
@@ -31,7 +31,6 @@ impl neat_gru::game::Game<f64> for TrainingSimulation {
         let species_count = self.species_count;
         let networks = self.networks.take().unwrap();
         let mut game = Game::new(networks);
-
         game.run_game();
         game.get_scores()
     }
