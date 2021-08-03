@@ -1,4 +1,4 @@
-use crate::game::Game;
+use crate::{game::Game, section};
 use crate::neural_network::nn::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::Topology;
@@ -106,7 +106,7 @@ impl Game<f64> for TestGame {
             if network != network_from_string {
                 println!("{:?}, {:?}", top.layers_sizes, top2.layers_sizes);
                 println!("{}", as_str);
-                println!("========================================");
+                section!();
                 println!("{}", top2.to_string());
                 panic!("Network != Network from string");
             }
@@ -196,7 +196,7 @@ impl Game<f64> for MemoryCount {
             let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
             if network != network_from_string {
                 println!("{}", as_str);
-                println!("=========================================");
+                section!();
                 println!("{}", top2.to_string());
                 panic!("Network != Network from string");
             }

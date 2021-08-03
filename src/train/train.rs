@@ -2,6 +2,7 @@ use crate::game::{Game, GameAsync};
 #[cfg(target_arch = "wasm32")]
 use crate::instant_wasm_replacement::Instant;
 use crate::neural_network::nn::NeuralNetwork;
+use crate::section;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::{Topology, TopologySmrtPtr};
 use crate::train::error::InputError;
@@ -318,7 +319,7 @@ where
 
         self.reset_players();
         for i in 0..self.iterations_ {
-            println!("\n=========================\n");
+            section!();
             println!("Generation {}", i);
             let now = Instant::now();
             let results = self.simulation.run_generation();
@@ -342,7 +343,7 @@ where
                 self.access_train_object_fn = cb_option;
             }
         }
-        println!("\n=========================\n");
+        section!();
         println!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
         Ok(())
@@ -624,7 +625,7 @@ where
 
         self.reset_players();
         for i in 0..self.iterations_ {
-            println!("\n=========================\n");
+            section!();
             println!("Generation {}", i);
             let now = Instant::now();
             let results = self.simulation.run_generation_async().await;
@@ -648,7 +649,6 @@ where
                 self.access_train_object_fn = cb_option;
             }
         }
-        println!("\n=========================\n");
         println!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
         Ok(())
