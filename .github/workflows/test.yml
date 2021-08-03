@@ -22,5 +22,5 @@ jobs:
       run: cargo test --verbose
     - name: Snake example
       run: cargo run --example snake-cli
-    -name: Example
+    - name: Example
       run: cargo run --example example
