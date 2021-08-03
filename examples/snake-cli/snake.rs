@@ -4,7 +4,6 @@ use crate::coordinate::Coordinate;
 use crate::defs::RESOLUTION;
 use crate::direction::Direction;
 use neat_gru::neural_network::nn::NeuralNetwork;
-use neat_gru::topology::topology::Topology;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Block {
     cord: Coordinate,

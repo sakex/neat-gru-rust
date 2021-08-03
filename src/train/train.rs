@@ -4,6 +4,7 @@ use crate::instant_wasm_replacement::Instant;
 use crate::neural_network::nn::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::{Topology, TopologySmrtPtr};
+use crate::train::error::InputError;
 use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
 use itertools::Itertools;
@@ -302,16 +303,10 @@ where
     }
 
     #[inline]
-    pub fn start(&mut self) {
-        let inputs = match self.inputs_ {
-            Some(v) => v,
-            None => panic!("Didn't provide a number of inputs"),
-        };
+    pub fn start(&mut self) -> Result<(), InputError> {
+        let inputs = self.inputs_.ok_or(InputError::NoInput)?;
 
-        let outputs = match self.outputs_ {
-            Some(v) => v,
-            None => panic!("Didn't provide a number of inputs"),
-        };
+        let outputs = self.outputs_.ok_or(InputError::NoInput)?;
 
         self.species_.push(Mutex::new(Species::new_uniform(
             inputs,
@@ -350,6 +345,7 @@ where
         println!("\n=========================\n");
         println!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
+        Ok(())
     }
 
     fn get_topologies(&mut self) {
@@ -357,11 +353,7 @@ where
             .map(|mutex| {
                 let lock = mutex.lock().unwrap();
                 let species = &*lock;
-                species
-                    .topologies
-                    .iter()
-                    .cloned()
-                    .collect::<Vec<TopologySmrtPtr<F>>>()
+                species.topologies.to_vec()
             })
             .flatten()
             .collect();
@@ -616,16 +608,11 @@ where
     F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     &'a [F]: rayon::iter::IntoParallelIterator,
 {
-    pub async fn start_async(&mut self) {
-        let inputs = match self.inputs_ {
-            Some(v) => v,
-            None => panic!("Didn't provide a number of inputs"),
-        };
+    pub async fn start_async(&mut self) -> Result<(), InputError> {
+        let inputs = self.inputs_.ok_or(InputError::NoInput)?;
 
-        let outputs = match self.outputs_ {
-            Some(v) => v,
-            None => panic!("Didn't provide a number of inputs"),
-        };
+        
+        let outputs = self.inputs_.ok_or(InputError::NoInput)?;
 
         self.species_.push(Mutex::new(Species::new_uniform(
             inputs,
@@ -664,5 +651,6 @@ where
         println!("\n=========================\n");
         println!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
+        Ok(())
     }
 }

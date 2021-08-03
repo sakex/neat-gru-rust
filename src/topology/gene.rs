@@ -67,7 +67,7 @@ impl Hash for Coordinate {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Gene<T>
 where
     T: Float,

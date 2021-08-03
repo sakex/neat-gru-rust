@@ -20,7 +20,7 @@ const NORMAL_STDDEV: f64 = 0.04;
 
 pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Topology<T>
 where
     T: Float + std::ops::AddAssign + Display,
@@ -260,7 +260,7 @@ where
 
     pub fn change_weights(&mut self, rng: &mut ThreadRng) {
         let normal = Normal::new(0.0, NORMAL_STDDEV).unwrap();
-        for (_ev_number, gene) in &self.genes_ev_number {
+        for gene in self.genes_ev_number.values() {
             let mut gene_cp = gene.borrow_mut();
             let change_weights = rng.gen_range(0.0..1.);
             if change_weights < 0.995 {

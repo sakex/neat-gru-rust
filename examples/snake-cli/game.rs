@@ -1,6 +1,10 @@
 use neat_gru::neural_network::nn::NeuralNetwork;
 
-use crate::{apple::Apple, snake::Snake, utils::{distance_to_apple_x, distance_to_apple_y, distance_to_wall_x, distance_to_wall_y}};
+use crate::{
+    apple::Apple,
+    snake::Snake,
+    utils::{distance_to_apple_x, distance_to_apple_y, distance_to_wall_x, distance_to_wall_y},
+};
 
 #[derive(Debug)]
 pub struct Game {
@@ -28,7 +32,6 @@ impl Game {
         }
     }
 
-
     /// Runs the game and if it finishes returns the game at the end
     pub fn run_game(&mut self) {
         while !self.game_over() {
@@ -50,7 +53,6 @@ impl Game {
             s.make_decision(&inputs)
         });
     }
-
 
     /// Updates the game. Should be called every tick
     pub fn update(&mut self) {
@@ -74,6 +76,11 @@ impl Game {
     }
 
     fn remove_if_dead(&mut self) {
+        for idx in 0..self.snakes.len() {
+            if self.snakes[idx].is_colliding() {
+                self.scores[idx] = self.snakes[idx].size() as f64;
+            }
+        }
         self.snakes.retain(|s| !s.is_colliding());
     }
 

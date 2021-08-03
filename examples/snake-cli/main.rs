@@ -30,5 +30,5 @@ fn run_training() {
             let species_count = train.species_count();
             train.simulation.species_count = species_count;
         }))
-        .start();
+        .start().unwrap();
 }

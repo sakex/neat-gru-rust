@@ -1,12 +1,8 @@
 use std::fs::File;
 use std::io::Write;
 
-
-
-use crate::defs::{GUI, RESOLUTION};
 use crate::game::Game;
 use neat_gru::neural_network::nn::NeuralNetwork;
-
 
 pub struct TrainingSimulation {
     networks: Option<Vec<NeuralNetwork<f64>>>,

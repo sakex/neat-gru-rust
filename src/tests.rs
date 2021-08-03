@@ -14,9 +14,8 @@ pub fn test_import_network() {
     let top = Topology::from_string(&serialized);
     let cloned: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top) };
     let mut net = NeuralNetwork::from_string(&serialized);
-    if cloned != net {
-        panic!("Cloned != net");
-    }
+    assert_eq!(net, cloned);
+
     let input_1: Vec<f64> = vec![0.5, 0.5, 0.1, -0.2];
     let input_2: Vec<f64> = vec![-0.5, -0.5, -0.1, 0.2];
 
@@ -45,15 +44,15 @@ pub fn test_clone_network() {
 
     let mut net = NeuralNetwork::<f64>::from_string(&serialized);
     let mut cloned = net.clone();
-    if cloned != net {
-        panic!("Cloned != net");
-    }
+
+    assert_eq!(net, cloned);
 
     let input: Vec<f64> = vec![0.5, 0.5, 0.1, -0.2];
     let input_2: Vec<f64> = vec![-0.5, -0.5, -0.1, 0.2];
 
     let output = net.compute(&input);
     let output_cloned = cloned.compute(&input);
+
     assert_eq!(output, output_cloned);
 
     let mut cloned_2 = cloned.clone();
@@ -98,9 +97,8 @@ impl Game<f64> for TestGame {
     fn post_training(&mut self, history: &[Topology<f64>]) {
         for (index, top) in history.iter().enumerate() {
             let top_cp = top.clone();
-            if top_cp != *top {
-                panic!("Topologies not equal")
-            }
+            assert_eq!(*top, top_cp);
+
             let as_str = top.to_string();
             let network = unsafe { NeuralNetwork::new(&top) };
             let top2 = Topology::from_string(&*as_str);
@@ -114,7 +112,7 @@ impl Game<f64> for TestGame {
             }
             self.nets = vec![network, network_from_string];
             let output = self.run_generation();
-            if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
+            if !(output[0] - output[1] < 1e-8) {
                 println!("{}", as_str);
                 panic!("{}: {} != {}", index, output[0], output[1])
             }
@@ -191,9 +189,7 @@ impl Game<f64> for MemoryCount {
     fn post_training(&mut self, history: &[Topology<f64>]) {
         for (index, top) in history.iter().enumerate() {
             let top_cp = top.clone();
-            if top_cp != *top {
-                panic!("Topologies not equal")
-            }
+            assert_eq!(*top, top_cp);
             let as_str = top.to_string();
             let network = unsafe { NeuralNetwork::new(&top) };
             let top2 = Topology::from_string(&*as_str);
@@ -227,5 +223,5 @@ pub fn test_train_memory() {
         .max_individuals(50)
         .inputs(5)
         .outputs(5);
-    runner.start();
+    runner.start().unwrap();
 }

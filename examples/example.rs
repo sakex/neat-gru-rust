@@ -14,13 +14,13 @@ impl Player {
         Player { net }
     }
     /// Runs all the inputs and calculates the outputs
-    fn run(&mut self) -> f64{
-        // Get the inputs 
+    fn run(&mut self) -> f64 {
+        // Get the inputs
         let inputs = XOR::get_inputs();
         // Calculate a score for every input
         let outputs: Vec<f64> = inputs.iter().map(|i| self.net.compute(i)[0]).collect();
         let mut scores: Vec<f64> = vec![];
-        for idx in 0..(inputs.len()-1){
+        for idx in 0..(inputs.len() - 1) {
             scores.push(compute_score(&inputs[idx], outputs[idx]));
         }
         // And return the sum of the scores
@@ -29,7 +29,6 @@ impl Player {
 }
 
 struct Simulation {
-    
     players: Vec<Player>,
 }
 
@@ -41,12 +40,12 @@ impl Simulation {
     }
 }
 
-struct XOR{
+struct XOR {
     inputs: Vec<Vec<f64>>,
-    answers: Vec<Vec<f64>>
+    answers: Vec<Vec<f64>>,
 }
 
-impl XOR{
+impl XOR {
     pub fn new() -> Self {
         XOR {
             inputs: vec![
@@ -58,29 +57,23 @@ impl XOR{
             answers: vec![vec![0.0], vec![0.0], vec![1.0], vec![1.0]],
         }
     }
-    fn get_inputs<'a>() -> &'a [[f64; 2]; 4]{
-        &[
-            [0.0, 0.0],
-            [1.0, 1.0],
-            [1.0, 0.0],
-            [0.0, 1.0],
-        ]
+    fn get_inputs<'a>() -> &'a [[f64; 2]; 4] {
+        &[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]]
     }
 }
 
 /// Computes the score with given inputs and one output
-fn compute_score(inputs: &[f64], output: f64) -> f64{
+fn compute_score(inputs: &[f64], output: f64) -> f64 {
     // https://en.wikipedia.org/wiki/XOR_gate
     // Returns 1.0 for a wrong output and 0.0 for a right output. Should be used as a score
     let inputs: Vec<&f64> = inputs.into_iter().collect_vec();
-    if (*inputs[0] == 0.0 && *inputs[1] == 1.0) || (*inputs[0] == 1.0 && *inputs[1] == 0.0){
+    if (*inputs[0] == 0.0 && *inputs[1] == 1.0) || (*inputs[0] == 1.0 && *inputs[1] == 0.0) {
         if output == 1.0 {
-            return 1.0
+            return 1.0;
         }
-    }
-    else{
-        if output == 0.0{
-            return 1.0
+    } else {
+        if output == 0.0 {
+            return 1.0;
         }
     }
     0.0
@@ -90,12 +83,7 @@ impl Game<f64> for Simulation {
     /// Loss function
     fn run_generation(&mut self) -> Vec<f64> {
         let inputs = XOR::get_inputs();
-        self.players
-            .iter_mut()
-            .map(|p| {
-                p.run()
-            })
-            .collect()
+        self.players.iter_mut().map(|p| p.run()).collect()
     }
 
     /// Reset networks
