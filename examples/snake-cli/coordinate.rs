@@ -1,57 +1,51 @@
-use crate::direction::Direction;
+use crate::{direction::Direction, error::CoordinateError};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Coordinate {
     pub x: usize,
     pub y: usize,
 }
 impl Coordinate {
-    /// This function returns true if it causes an over-/underflow upon which the snake should die
-    // TODO: Make this return Result<(), OutOfBoundsError>
-    pub fn transform(&mut self, direction: Direction, step: usize) -> bool {
+    /// Transforms a coordinate with a given direction and step value into that direction
+    pub fn transform(&mut self, direction: Direction, step: usize) -> Result<(), CoordinateError>{
         match direction {
-            // Since this could cause an over-/underflow it's safer to use checked_sub
             Direction::Up => {
                 if let Some(x) = usize::checked_sub(self.y, step) {
                     self.y = x;
-                    false
-                } else {
-                    true
+                    return Ok(());
                 }
             }
             Direction::Right => {
                 if let Some(x) = usize::checked_add(self.x, step) {
                     self.x = x;
-                    false
-                } else {
-                    true
+                    return Ok(());
                 }
             }
             Direction::Down => {
                 if let Some(x) = usize::checked_add(self.y, step) {
                     self.y = x;
-                    false
-                } else {
-                    true
+                    return Ok(());
                 }
             }
             Direction::Left => {
                 if let Some(x) = usize::checked_sub(self.x, step) {
                     self.x = x;
-                    false
-                } else {
-                    true
+                    return Ok(());
                 }
             }
         }
+        Err(CoordinateError::OutOfBoundsError)
     }
     pub fn new_transform(
         coordinate: Coordinate,
         direction: Direction,
         step: usize,
-    ) -> (Self, bool) {
+    ) -> Result<Self, CoordinateError> {
         let mut clone = coordinate;
         let overflow = clone.transform(direction, step);
-        (clone, overflow)
+        match overflow {
+            Ok(_) => return Ok(clone),
+            Err(e) => return Err(e),
+        }
     }
 }
 impl From<(usize, usize)> for Coordinate {

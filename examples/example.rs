@@ -69,18 +69,17 @@ fn compute_score(inputs: &[f64], output: f64) -> f64 {
     // We first need to round the numbers to booleans
     let inputs: Vec<bool> = inputs.into_iter().map(|f| round(*f)).collect();
     let output = round(output);
-    if inputs[0] ^ inputs[1] == output{
+    if inputs[0] ^ inputs[1] == output {
         return 1.0;
     }
     0.0
 }
 
 /// Rounds a float to a bool
-fn round(float: f64) -> bool{
-    if float<0.1{
+fn round(float: f64) -> bool {
+    if float < 0.1 {
         false
-    }
-    else{
+    } else {
         true
     }
 }

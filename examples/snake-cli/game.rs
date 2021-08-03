@@ -19,7 +19,10 @@ impl Game {
     }
 
     pub fn new(neural_networks: Vec<NeuralNetwork<f64>>) -> Game {
-        let snakes: Vec<Snake>= neural_networks.iter().map(|nn| Snake::new(nn.clone())).collect();
+        let snakes: Vec<Snake> = neural_networks
+            .iter()
+            .map(|nn| Snake::new(nn.clone()))
+            .collect();
         let mut scores = vec![];
         neural_networks.iter().for_each(|_| scores.push(0.0));
         Game {

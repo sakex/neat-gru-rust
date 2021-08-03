@@ -6,6 +6,7 @@ mod apple;
 mod coordinate;
 pub mod defs;
 mod direction;
+pub mod error;
 mod game;
 mod snake;
 mod training_simulation;

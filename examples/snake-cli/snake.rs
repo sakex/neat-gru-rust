@@ -55,11 +55,12 @@ impl Snake {
             self.moving_direction,
             1,
         );
-        self.blocks.push_front(Block {
-            cord: block_in_front.0,
-        });
+        match block_in_front {
+            Ok(cord) => self.blocks.push_front(Block{cord}),
+            Err(_) => return true,
+        }
         self.dir_changed = false;
-        block_in_front.1
+        false
     }
     /// Updates the snake. Eating determines whether the snake is eating and returns
     /// whether it crashed and whether it ate an apple
