@@ -6,6 +6,7 @@ pub struct Coordinate {
 }
 impl Coordinate {
     /// This function returns true if it causes an over-/underflow upon which the snake should die
+    // TODO: Make this return Result<(), OutOfBoundsError>
     pub fn transform(&mut self, direction: Direction, step: usize) -> bool {
         match direction {
             // Since this could cause an over-/underflow it's safer to use checked_sub

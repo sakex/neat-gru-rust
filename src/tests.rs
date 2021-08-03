@@ -1,8 +1,8 @@
-use crate::{game::Game, section};
 use crate::neural_network::nn::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::Topology;
 use crate::train::train::Train;
+use crate::{game::Game, section};
 use rand::{thread_rng, Rng};
 use std::fs;
 
@@ -112,7 +112,7 @@ impl Game<f64> for TestGame {
             }
             self.nets = vec![network, network_from_string];
             let output = self.run_generation();
-            if !(output[0] - output[1] < 1e-8) {
+            if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
                 println!("{}", as_str);
                 panic!("{}: {} != {}", index, output[0], output[1])
             }

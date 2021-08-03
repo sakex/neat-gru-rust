@@ -612,7 +612,6 @@ where
     pub async fn start_async(&mut self) -> Result<(), InputError> {
         let inputs = self.inputs_.ok_or(InputError::NoInput)?;
 
-        
         let outputs = self.inputs_.ok_or(InputError::NoInput)?;
 
         self.species_.push(Mutex::new(Species::new_uniform(

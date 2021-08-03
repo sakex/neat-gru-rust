@@ -20,8 +20,8 @@ impl Player {
         // Calculate a score for every input
         let outputs: Vec<f64> = inputs.iter().map(|i| self.net.compute(i)[0]).collect();
         let mut scores: Vec<f64> = vec![];
-        for idx in 0..(inputs.len() - 1) {
-            scores.push(compute_score(&inputs[idx], outputs[idx]));
+        for (input, output) in inputs.iter().zip(outputs.iter()) {
+            scores.push(compute_score(input, *output));
         }
         // And return the sum of the scores
         scores.iter().sum()
@@ -66,17 +66,23 @@ impl XOR {
 fn compute_score(inputs: &[f64], output: f64) -> f64 {
     // https://en.wikipedia.org/wiki/XOR_gate
     // Returns 1.0 for a wrong output and 0.0 for a right output. Should be used as a score
-    let inputs: Vec<&f64> = inputs.into_iter().collect_vec();
-    if (*inputs[0] == 0.0 && *inputs[1] == 1.0) || (*inputs[0] == 1.0 && *inputs[1] == 0.0) {
-        if output == 1.0 {
-            return 1.0;
-        }
-    } else {
-        if output == 0.0 {
-            return 1.0;
-        }
+    // We first need to round the numbers to booleans
+    let inputs: Vec<bool> = inputs.into_iter().map(|f| round(*f)).collect();
+    let output = round(output);
+    if inputs[0] ^ inputs[1] == output{
+        return 1.0;
     }
     0.0
+}
+
+/// Rounds a float to a bool
+fn round(float: f64) -> bool{
+    if float<0.1{
+        false
+    }
+    else{
+        true
+    }
 }
 
 impl Game<f64> for Simulation {
@@ -120,7 +126,8 @@ fn run_sim() {
             let species_count = train.species_count();
             println!("Species count: {}", species_count);
         })) // Callback called after `reset_players` that gives you access to the train object during training
-        .start(); // .start_async().await for async version
+        .start()
+        .unwrap(); // .start_async().await for async version
 }
 fn main() {
     run_sim();

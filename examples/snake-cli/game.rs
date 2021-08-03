@@ -19,10 +19,7 @@ impl Game {
     }
 
     pub fn new(neural_networks: Vec<NeuralNetwork<f64>>) -> Game {
-        let mut snakes = vec![];
-        for net in &neural_networks {
-            snakes.push(Snake::new(net.clone()));
-        }
+        let snakes: Vec<Snake>= neural_networks.iter().map(|nn| Snake::new(nn.clone())).collect();
         let mut scores = vec![];
         neural_networks.iter().for_each(|_| scores.push(0.0));
         Game {
@@ -81,10 +78,12 @@ impl Game {
                 self.scores[idx] = self.snakes[idx].size() as f64;
             }
         }
+        // TODO: Do this with .zip()
+        /*self.snakes.iter().zip(self.scores).for_each(|(snake, score)| {
+            if snake.is_colliding(){
+                score = snake.size() as f64;
+            }
+        });*/
         self.snakes.retain(|s| !s.is_colliding());
-    }
-
-    fn get_max_score(&self) -> usize {
-        self.snakes.iter().map(|s| s.size()).max().unwrap()
     }
 }
