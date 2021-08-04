@@ -1,5 +1,8 @@
 extern crate neat_gru;
 
+use std::fs::File;
+use std::io::Write;
+
 use itertools::Itertools;
 use neat_gru::game::Game;
 use neat_gru::neural_network::nn::NeuralNetwork;
@@ -89,12 +92,15 @@ impl Game<f64> for Simulation {
     /// Called at the end of training
     fn post_training(&mut self, history: &[Topology<f64>]) {
         // Iter on best topologies and upload the best one
+        let best = history.last().unwrap();
+        let mut output = File::create("XOR").expect("Could not create output file");
+        write!(output, "{:?}", best).unwrap();
     }
 }
 
 const INPUT_COUNT: usize = 2;
 const OUTPUT_COUNT: usize = 1;
-const NB_GENERATIONS: usize = 100;
+const NB_GENERATIONS: usize = 60;
 const HIDDEN_LAYERS: usize = 2;
 const MAX_INDIVIDUALS: usize = 200;
 fn run_sim() {

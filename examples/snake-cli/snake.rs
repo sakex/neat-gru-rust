@@ -56,7 +56,7 @@ impl Snake {
             1,
         );
         match block_in_front {
-            Ok(cord) => self.blocks.push_front(Block{cord}),
+            Ok(cord) => self.blocks.push_front(Block { cord }),
             Err(_) => return true,
         }
         self.dir_changed = false;

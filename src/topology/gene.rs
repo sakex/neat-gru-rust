@@ -192,7 +192,7 @@ where
     }
 
     pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
-        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), &ev_number);
+        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), ev_number);
 
         let coordinate = Coordinate::new(middle_point.clone(), self.output.clone());
         let mut second_gene = self.clone();
@@ -244,8 +244,8 @@ where
         } else if self.output.layer < other.output.layer
             //FIXME: This is impossible
             || (self.output.layer == other.output.layer && self.output.layer < other.output.layer)
-            // Shouldn't this be:
-            // self.output.layer < other.output.layer && self.output.index < other.output.index
+        // Shouldn't this be:
+        // self.output.layer < other.output.layer && self.output.index < other.output.index
         {
             Ordering::Less
         } else {

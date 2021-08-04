@@ -6,7 +6,7 @@ pub struct Coordinate {
 }
 impl Coordinate {
     /// Transforms a coordinate with a given direction and step value into that direction
-    pub fn transform(&mut self, direction: Direction, step: usize) -> Result<(), CoordinateError>{
+    pub fn transform(&mut self, direction: Direction, step: usize) -> Result<(), CoordinateError> {
         match direction {
             Direction::Up => {
                 if let Some(x) = usize::checked_sub(self.y, step) {
