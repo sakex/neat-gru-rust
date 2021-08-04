@@ -7,6 +7,7 @@ use num::Float;
 use numeric_literals::replace_numeric_literals;
 use std::ops::AddAssign;
 
+#[derive(Debug)]
 pub struct Neuron<T>
 where
     T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,

@@ -67,7 +67,7 @@ impl Hash for Coordinate {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Gene<T>
 where
     T: Float,
@@ -192,7 +192,7 @@ where
     }
 
     pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
-        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), &ev_number);
+        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), ev_number);
 
         let coordinate = Coordinate::new(middle_point.clone(), self.output.clone());
         let mut second_gene = self.clone();
@@ -239,9 +239,11 @@ where
     T: Float,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.output.layer == other.output.layer && self.output.index == other.output.index{
+        if self.output.layer == other.output.layer && self.output.index == other.output.index {
             Ordering::Equal
-        } else if self.output.layer < other.output.layer || (self.output.layer == other.output.layer && self.output.layer < other.output.layer) {
+        } else if self.output.layer < other.output.layer
+            || (self.output.layer == other.output.layer && self.output.index < other.output.index)
+        {
             Ordering::Less
         } else {
             Ordering::Greater

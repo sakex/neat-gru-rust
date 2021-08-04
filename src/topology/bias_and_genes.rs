@@ -3,7 +3,7 @@ use crate::topology::topology::GeneSmrtPtr;
 use num::Float;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct BiasAndGenes<T>
 where
     T: Float,
