@@ -1,7 +1,13 @@
 # neat-gru-rust
+[![CICD](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml/badge.svg)](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml)
+![Crates.io](https://img.shields.io/crates/v/neat-gru
+)
 
 ## Documentation
 [Crates.io doc](https://docs.rs/neat-gru/)
+
+## Examples
+[XOR](examples/example.rs)
 
 ## How to use
 In `Cargo.toml`:
