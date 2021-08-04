@@ -242,7 +242,10 @@ where
         if self.output.layer == other.output.layer && self.output.index == other.output.index {
             Ordering::Equal
         } else if self.output.layer < other.output.layer
+            //FIXME: This is impossible
             || (self.output.layer == other.output.layer && self.output.layer < other.output.layer)
+            // Shouldn't this be:
+            // self.output.layer < other.output.layer && self.output.index < other.output.index
         {
             Ordering::Less
         } else {

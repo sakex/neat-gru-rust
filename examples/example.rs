@@ -46,17 +46,6 @@ struct XOR {
 }
 
 impl XOR {
-    pub fn new() -> Self {
-        XOR {
-            inputs: vec![
-                vec![0.0, 0.0],
-                vec![1.0, 1.0],
-                vec![1.0, 0.0],
-                vec![0.0, 1.0],
-            ],
-            answers: vec![vec![0.0], vec![0.0], vec![1.0], vec![1.0]],
-        }
-    }
     fn get_inputs<'a>() -> &'a [[f64; 2]; 4] {
         &[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]]
     }
