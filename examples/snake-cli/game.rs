@@ -11,6 +11,7 @@ pub struct Game {
     snakes: Vec<Snake>,
     apple: Apple,
     scores: Vec<f64>,
+    tick: usize,
 }
 
 impl Game {
@@ -29,6 +30,7 @@ impl Game {
             snakes,
             apple: Apple::generate_apple(),
             scores,
+            tick: 0,
         }
     }
 
@@ -64,6 +66,7 @@ impl Game {
             .iter_mut()
             .map(|s| -> bool { s.update(apple_coordinate) })
             .any(|b| b);
+        self.tick += 1;
         if replace_apple {
             self.apple = Apple::generate_apple();
         }
@@ -78,7 +81,7 @@ impl Game {
     fn remove_if_dead(&mut self) {
         for idx in 0..self.snakes.len() {
             if self.snakes[idx].is_colliding() {
-                self.scores[idx] = self.snakes[idx].size() as f64;
+                self.scores[idx] = self.snakes[idx].size() as f64 + (self.tick as f64 * 0.01);
             }
         }
         self.snakes.retain(|s| !s.is_colliding());
