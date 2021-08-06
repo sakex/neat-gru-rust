@@ -3,7 +3,6 @@ extern crate neat_gru;
 use std::fs::File;
 use std::io::Write;
 
-use itertools::Itertools;
 use neat_gru::game::Game;
 use neat_gru::neural_network::nn::NeuralNetwork;
 use neat_gru::topology::topology::Topology;
@@ -43,10 +42,7 @@ impl Simulation {
     }
 }
 
-struct XOR {
-    inputs: Vec<Vec<f64>>,
-    answers: Vec<Vec<f64>>,
-}
+struct XOR {}
 
 impl XOR {
     fn get_inputs<'a>() -> &'a [[f64; 2]; 4] {
@@ -79,7 +75,6 @@ fn round(float: f64) -> bool {
 impl Game<f64> for Simulation {
     /// Loss function
     fn run_generation(&mut self) -> Vec<f64> {
-        let inputs = XOR::get_inputs();
         self.players.iter_mut().map(|p| p.run()).collect()
     }
 

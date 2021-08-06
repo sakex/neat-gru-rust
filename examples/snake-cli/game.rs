@@ -81,12 +81,6 @@ impl Game {
                 self.scores[idx] = self.snakes[idx].size() as f64;
             }
         }
-        // TODO: Do this with .zip()
-        /*self.snakes.iter().zip(self.scores).for_each(|(snake, score)| {
-            if snake.is_colliding(){
-                score = snake.size() as f64;
-            }
-        });*/
         self.snakes.retain(|s| !s.is_colliding());
     }
 }

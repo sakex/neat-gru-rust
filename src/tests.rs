@@ -6,6 +6,15 @@ use crate::{game::Game, section};
 use rand::{thread_rng, Rng};
 use std::fs;
 
+macro_rules! check_output {
+    ($output: expr, $as_str: expr, $index: expr) => {
+        if !($output[0] - 1e-8 < $output[1] && $output[0] + 1e-8 > $output[1]) {
+            println!("{}", $as_str);
+            panic!("{}: {} != {}", $index, $output[0], $output[1])
+        }
+    };
+}
+
 #[test]
 pub fn test_import_network() {
     let serialized: String = fs::read_to_string("topology_test.json")
@@ -112,10 +121,7 @@ impl Game<f64> for TestGame {
             }
             self.nets = vec![network, network_from_string];
             let output = self.run_generation();
-            if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
-                println!("{}", as_str);
-                panic!("{}: {} != {}", index, output[0], output[1])
-            }
+            check_output!(output, as_str, index);
         }
     }
 }
@@ -131,7 +137,7 @@ pub fn test_train() {
         .max_individuals(50)
         .inputs(5)
         .outputs(5);
-    runner.start();
+    runner.start().expect("Could not start the test");
 }
 
 struct MemoryCount {
@@ -202,10 +208,7 @@ impl Game<f64> for MemoryCount {
             }
             self.nets = vec![network, network_from_string];
             let output = self.run_generation();
-            if !(output[0] - 1e-8 < output[1] && output[0] + 1e-8 > output[1]) {
-                println!("{}", as_str);
-                panic!("{}: {} != {}", index, output[0], output[1])
-            }
+            check_output!(output, as_str, index);
         }
     }
 }
