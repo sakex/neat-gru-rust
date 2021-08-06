@@ -303,25 +303,7 @@ where
         self
     }
 
-    /// Starts the training.
-    ///
-    /// May return a NoInput Error if no input or output is given
-    #[inline]
-    pub fn start(&mut self) -> Result<(), TrainingError> {
-        let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;
-
-        let outputs = self.outputs_.ok_or(TrainingError::NoInput)?;
-
-        self.species_.push(Mutex::new(Species::new_uniform(
-            inputs,
-            outputs,
-            self.max_layers_,
-            self.max_per_layers_,
-            &self.ev_number_,
-        )));
-
-        self.reset_players();
-        // Run generations
+    fn run_iterations(&mut self) {
         for i in 0..self.iterations_ {
             section!();
             println!("Generation {}", i);
@@ -347,6 +329,28 @@ where
                 self.access_train_object_fn = cb_option;
             }
         }
+    }
+
+    /// Starts the training.
+    ///
+    /// May return a NoInput Error if no input or output is given
+    #[inline]
+    pub fn start(&mut self) -> Result<(), TrainingError> {
+        let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;
+
+        let outputs = self.outputs_.ok_or(TrainingError::NoInput)?;
+
+        self.species_.push(Mutex::new(Species::new_uniform(
+            inputs,
+            outputs,
+            self.max_layers_,
+            self.max_per_layers_,
+            &self.ev_number_,
+        )));
+
+        self.reset_players();
+        // Run generations
+        self.run_iterations();
         section!();
         println!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
