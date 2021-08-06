@@ -1,13 +1,20 @@
 # neat-gru-rust
 [![CICD](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml/badge.svg)](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml)
-![Crates.io](https://img.shields.io/crates/v/neat-gru
-)
+![Crates.io](https://img.shields.io/crates/v/neat-gru)
+![Downloads](https://img.shields.io/crates/d/neat-gru)
+![License](https://img.shields.io/github/license/sakex/neat-gru-rust)
 
 ## Documentation
 [Crates.io doc](https://docs.rs/neat-gru/)
 
 ## Examples
 [XOR](examples/example.rs)
+
+Right now this is the only working example. You can run it via:
+```
+cargo run --example example
+```
+
 
 ## How to use
 In `Cargo.toml`:
