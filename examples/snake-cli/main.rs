@@ -22,7 +22,7 @@ fn run_training() {
     runner
         .inputs(5)
         .outputs(OUTPUTS)
-        .iterations(500)
+        .iterations(60)
         .delta_threshold(2.)
         .formula(0.8, 0.8, 0.3)
         .max_layers(10)
