@@ -3,13 +3,20 @@ use std::collections::LinkedList;
 use crate::coordinate::Coordinate;
 use crate::defs::RESOLUTION;
 use crate::direction::Direction;
+use ggez::{graphics, GameResult};
+use ggez::{graphics::*, Context};
 use neat_gru::neural_network::nn::NeuralNetwork;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Block {
     cord: Coordinate,
 }
 
-impl Block {}
+impl Block {
+    fn get_coordinate(&self) -> Coordinate {
+        self.cord
+    }
+}
 #[derive(Clone, PartialEq, Debug)]
 pub struct Snake {
     blocks: LinkedList<Block>,
@@ -30,6 +37,25 @@ impl Snake {
             dir_changed: false,
             net: Some(net),
         }
+    }
+    pub fn render(&self, ctx: &mut Context) -> GameResult {
+        self.blocks.iter().for_each(|block| {
+            let mesh = ggez::graphics::Mesh::new_rounded_rectangle(
+                ctx,
+                DrawMode::Fill(Default::default()),
+                graphics::Rect::new_i32(
+                    (block.cord.x * 10) as i32,
+                    (block.cord.y * 10) as i32,
+                    10,
+                    10,
+                ),
+                3.,
+                Color::GREEN,
+            )
+            .unwrap();
+            graphics::draw(ctx, &mesh, graphics::DrawParam::default()).unwrap();
+        });
+        Ok(())
     }
 
     /// Returns the size of the snake
@@ -65,11 +91,10 @@ impl Snake {
     /// Updates the snake. Eating determines whether the snake is eating and returns
     /// whether it crashed and whether it ate an apple
     pub fn update(&mut self, apple: Coordinate) -> bool {
-        let mut eating = false;
+        let eating = self.is_eating(apple);
         // If the snake is eating it gets longer
-        if !self.is_eating(apple) {
+        if !eating {
             self.blocks.pop_back();
-            eating = true;
         }
         // Move the body
         if self.move_body() {

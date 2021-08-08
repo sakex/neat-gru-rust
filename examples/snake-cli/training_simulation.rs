@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 
+use crate::defs::RESOLUTION;
 use crate::game::Game;
 use neat_gru::neural_network::nn::NeuralNetwork;
 
@@ -22,10 +23,18 @@ impl TrainingSimulation {
 
 impl neat_gru::game::Game<f64> for TrainingSimulation {
     fn run_generation(&mut self) -> Vec<f64> {
+        let (ctx, events_loop) = ggez::ContextBuilder::new("Snake", "Nereuxofficial")
+            .window_setup(ggez::conf::WindowSetup::default().title("Snake"))
+            .window_mode(
+                ggez::conf::WindowMode::default()
+                    .dimensions((RESOLUTION * 10) as f32, (RESOLUTION * 10) as f32),
+            )
+            .build()
+            .unwrap();
         self.generation += 1;
         let networks = self.networks.take().unwrap();
         let mut game = Game::new(networks);
-        game.run_game();
+        ggez::event::run(ctx, events_loop, game);
         game.get_scores()
     }
 

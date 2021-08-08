@@ -5,6 +5,10 @@ use crate::{
     snake::Snake,
     utils::{distance_to_apple_x, distance_to_apple_y, distance_to_wall_x, distance_to_wall_y},
 };
+use ggez::event::EventHandler;
+use ggez::graphics::Color;
+use ggez::{graphics, graphics::DrawMode, GameResult};
+use ggez::{timer, Context};
 
 #[derive(Debug)]
 pub struct Game {
@@ -34,13 +38,6 @@ impl Game {
         }
     }
 
-    /// Runs the game and if it finishes returns the game at the end
-    pub fn run_game(&mut self) {
-        while !self.game_over() {
-            self.update();
-        }
-    }
-
     /// Make the snakes make their decision
     pub fn make_decision(&mut self) {
         let mut inputs: [f64; 5] = [0., 0., 0., 0., 0.];
@@ -57,7 +54,7 @@ impl Game {
     }
 
     /// Updates the game. Should be called every tick
-    pub fn update(&mut self) {
+    pub fn tick(&mut self) {
         let apple_coordinate = self.apple.get_coordinate();
         self.remove_if_dead();
         // And then update it
@@ -85,5 +82,50 @@ impl Game {
             }
         }
         self.snakes.retain(|s| !s.is_colliding());
+    }
+    /// Draws the apple
+    fn draw_apple(&self, ctx: &mut Context) -> GameResult {
+        let apple_cords = self.apple.get_coordinate();
+        let apple = graphics::Mesh::new_circle(
+            ctx,
+            DrawMode::Fill(Default::default()),
+            ggez::mint::Point2 {
+                x: (apple_cords.x * 10) as f32,
+                y: (apple_cords.y * 10) as f32,
+            },
+            5.0,
+            0.1,
+            Color::RED,
+        )?;
+        graphics::draw(ctx, &apple, graphics::DrawParam::default())?;
+        Ok(())
+    }
+
+    fn render(&self, ctx: &mut Context) -> GameResult {
+        self.snakes
+            .iter()
+            .for_each(|snake| snake.render(ctx).unwrap());
+        self.draw_apple(ctx)?;
+        Ok(())
+    }
+}
+
+const TARGET_FPS: u32 = 10;
+impl EventHandler<ggez::GameError> for Game {
+    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        while timer::check_update_time(ctx, TARGET_FPS) {
+            if !self.game_over() {
+                self.tick();
+            } else {
+                println!("Game Ended");
+            }
+        }
+        Ok(())
+    }
+
+    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+        graphics::clear(ctx, Color::BLACK);
+        self.render(ctx)?;
+        graphics::present(ctx)
     }
 }
