@@ -22,9 +22,7 @@ impl TrainingSimulation {
 
 impl neat_gru::game::Game<f64> for TrainingSimulation {
     fn run_generation(&mut self) -> Vec<f64> {
-        let generation = self.generation;
         self.generation += 1;
-        let species_count = self.species_count;
         let networks = self.networks.take().unwrap();
         let mut game = Game::new(networks);
         game.run_game();

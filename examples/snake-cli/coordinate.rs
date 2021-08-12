@@ -42,10 +42,10 @@ impl Coordinate {
     ) -> Result<Self, CoordinateError> {
         let mut clone = coordinate;
         let overflow = clone.transform(direction, step);
-        match overflow {
-            Ok(_) => return Ok(clone),
-            Err(e) => return Err(e),
-        }
+        return match overflow {
+            Ok(_) => Ok(clone),
+            Err(e) => Err(e),
+        };
     }
 }
 impl From<(usize, usize)> for Coordinate {

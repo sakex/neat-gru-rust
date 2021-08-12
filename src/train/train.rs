@@ -5,7 +5,7 @@ use crate::neural_network::nn::NeuralNetwork;
 use crate::section;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::topology::{Topology, TopologySmrtPtr};
-use crate::train::error::InputError;
+use crate::train::error::TrainingError;
 use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
 use itertools::Itertools;
@@ -181,10 +181,10 @@ where
     ///
     /// # Arguments
     ///
-    /// `v` - The number of networks per generation
+    /// `network_number` - The number of networks per generation
     #[inline]
-    pub fn max_individuals(&mut self, v: usize) -> &mut Self {
-        self.max_individuals_ = v;
+    pub fn max_individuals(&mut self, network_number: usize) -> &mut Self {
+        self.max_individuals_ = network_number;
         self
     }
 
@@ -194,10 +194,10 @@ where
     ///
     /// # Arguments
     ///
-    /// `v` - The new delta threshold
+    /// `threshold` - The new delta threshold
     #[inline]
-    pub fn delta_threshold(&mut self, v: F) -> &mut Self {
-        self.delta_threshold_ = v;
+    pub fn delta_threshold(&mut self, threshold: F) -> &mut Self {
+        self.delta_threshold_ = threshold;
         self
     }
 
@@ -224,10 +224,10 @@ where
     ///
     /// # Arguments
     ///
-    /// `v` - The new probabilities
+    /// `proba` - The new probabilities
     #[inline]
-    pub fn mutation_probabilities(&mut self, v: MutationProbabilities) -> &mut Self {
-        self.proba = v;
+    pub fn mutation_probabilities(&mut self, proba: MutationProbabilities) -> &mut Self {
+        self.proba = proba;
         self
     }
 
@@ -237,10 +237,10 @@ where
     ///
     /// # Arguments
     ///
-    /// `v` - The number of neurons on the first layer
+    /// `i` - The number of neurons on the first layer
     #[inline]
-    pub fn inputs(&mut self, v: usize) -> &mut Self {
-        self.inputs_ = Some(v);
+    pub fn inputs(&mut self, i: usize) -> &mut Self {
+        self.inputs_ = Some(i);
         self
     }
 
@@ -250,10 +250,10 @@ where
     ///
     /// # Arguments
     ///
-    /// `v` - The number of neurons on the last layer
+    /// `o` - The number of neurons on the last layer
     #[inline]
-    pub fn outputs(&mut self, v: usize) -> &mut Self {
-        self.outputs_ = Some(v);
+    pub fn outputs(&mut self, o: usize) -> &mut Self {
+        self.outputs_ = Some(o);
         self
     }
 
@@ -263,10 +263,10 @@ where
     ///
     /// # Arguments
     ///
-    /// `v` - The maximum number of layers
+    /// `layers` - The maximum number of layers
     #[inline]
-    pub fn max_layers(&mut self, v: usize) -> &mut Self {
-        self.max_layers_ = v;
+    pub fn max_layers(&mut self, layers: usize) -> &mut Self {
+        self.max_layers_ = layers;
         self
     }
 
@@ -276,10 +276,10 @@ where
     ///
     /// # Arguments
     ///
-    /// `v` - The maximum number of neurons per layers
+    /// `n` - The maximum number of neurons per layers
     #[inline]
-    pub fn max_per_layers(&mut self, v: usize) -> &mut Self {
-        self.max_per_layers_ = v;
+    pub fn max_per_layers(&mut self, n: usize) -> &mut Self {
+        self.max_per_layers_ = n;
         self
     }
 
@@ -293,7 +293,7 @@ where
     ///
     /// # Arguments
     ///
-    /// `cb` - Callback called after `reset_players`
+    /// `callback` - Callback called after `reset_players`
     #[inline]
     pub fn access_train_object(
         &mut self,
@@ -303,21 +303,7 @@ where
         self
     }
 
-    #[inline]
-    pub fn start(&mut self) -> Result<(), InputError> {
-        let inputs = self.inputs_.ok_or(InputError::NoInput)?;
-
-        let outputs = self.outputs_.ok_or(InputError::NoInput)?;
-
-        self.species_.push(Mutex::new(Species::new_uniform(
-            inputs,
-            outputs,
-            self.max_layers_,
-            self.max_per_layers_,
-            &self.ev_number_,
-        )));
-
-        self.reset_players();
+    fn run_iterations(&mut self) {
         for i in 0..self.iterations_ {
             section!();
             println!("Generation {}", i);
@@ -343,13 +329,35 @@ where
                 self.access_train_object_fn = cb_option;
             }
         }
+    }
+
+    /// Starts the training.
+    ///
+    /// May return a NoInput Error if no input or output is given
+    #[inline]
+    pub fn start(&mut self) -> Result<(), TrainingError> {
+        let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;
+
+        let outputs = self.outputs_.ok_or(TrainingError::NoInput)?;
+
+        self.species_.push(Mutex::new(Species::new_uniform(
+            inputs,
+            outputs,
+            self.max_layers_,
+            self.max_per_layers_,
+            &self.ev_number_,
+        )));
+
+        self.reset_players();
+        // Run generations
+        self.run_iterations();
         section!();
         println!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
         Ok(())
     }
 
-    fn get_topologies(&mut self) {
+    fn collect_topologies(&mut self) {
         self.topologies_ = cond_iter!(self.species_)
             .map(|mutex| {
                 let lock = mutex.lock().unwrap();
@@ -361,7 +369,7 @@ where
     }
 
     fn reset_players(&mut self) {
-        self.get_topologies();
+        self.collect_topologies();
 
         let networks: Vec<NeuralNetwork<F>> = cond_iter!(self.topologies_)
             .map(|top_rc| {
@@ -554,7 +562,7 @@ where
     }
 
     fn reset_species(&mut self) {
-        self.get_topologies();
+        self.collect_topologies();
         cond_iter_mut!(self.species_).for_each(|spec| {
             spec.get_mut().unwrap().topologies.clear();
         });
@@ -609,10 +617,10 @@ where
     F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     &'a [F]: rayon::iter::IntoParallelIterator,
 {
-    pub async fn start_async(&mut self) -> Result<(), InputError> {
-        let inputs = self.inputs_.ok_or(InputError::NoInput)?;
+    pub async fn start_async(&mut self) -> Result<(), TrainingError> {
+        let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;
 
-        let outputs = self.inputs_.ok_or(InputError::NoInput)?;
+        let outputs = self.inputs_.ok_or(TrainingError::NoInput)?;
 
         self.species_.push(Mutex::new(Species::new_uniform(
             inputs,
