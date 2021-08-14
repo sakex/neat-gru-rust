@@ -699,7 +699,6 @@ where
     }
 
     #[inline]
-    #[replace_numeric_literals(T::from(literal).unwrap())]
     pub fn crossover(best: &Topology<T>, worst: &Topology<T>) -> TopologySmrtPtr<T> {
         let mut new_topology = best.clone();
         for (ev_number, worst_gene) in worst.genes_ev_number.iter() {
@@ -709,17 +708,7 @@ where
             if let Some(final_gene) = new_topology.genes_ev_number.get(ev_number) {
                 let final_cell = &**final_gene;
                 let final_gene = &mut *final_cell.borrow_mut();
-                final_gene.input_weight = (worst_gene.input_weight + final_gene.input_weight) / 2.0;
-                final_gene.memory_weight =
-                    (worst_gene.memory_weight + final_gene.memory_weight) / 2.0;
-                final_gene.reset_input_weight =
-                    (worst_gene.reset_input_weight + final_gene.reset_input_weight) / 2.0;
-                final_gene.update_input_weight =
-                    (worst_gene.update_input_weight + final_gene.update_input_weight) / 2.0;
-                final_gene.reset_memory_weight =
-                    (worst_gene.reset_memory_weight + final_gene.reset_memory_weight) / 2.0;
-                final_gene.update_memory_weight =
-                    (worst_gene.update_memory_weight + final_gene.update_memory_weight) / 2.0;
+                final_gene.average_weights(&worst_gene);
             } else {
                 // If gene only exists in the worst topology, try to add it only if the neuron
                 // exists in the best topology

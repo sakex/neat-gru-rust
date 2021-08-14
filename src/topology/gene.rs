@@ -217,6 +217,17 @@ where
     pub fn decrement_output(&mut self) {
         self.output.layer -= 1;
     }
+
+    #[inline]
+    #[replace_numeric_literals(T::from(literal).unwrap())]
+    pub fn average_weights(&mut self, other: &Gene<T>) {
+        self.input_weight = (other.input_weight + self.input_weight) / 2.0;
+        self.memory_weight = (other.memory_weight + self.memory_weight) / 2.0;
+        self.reset_input_weight = (other.reset_input_weight + self.reset_input_weight) / 2.0;
+        self.update_input_weight = (other.update_input_weight + self.update_input_weight) / 2.0;
+        self.reset_memory_weight = (other.reset_memory_weight + self.reset_memory_weight) / 2.0;
+        self.update_memory_weight = (other.update_memory_weight + self.update_memory_weight) / 2.0;
+    }
 }
 
 impl<T> PartialEq for Gene<T>
