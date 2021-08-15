@@ -170,14 +170,15 @@ where
         }
         let mut rng = thread_rng();
         while new_topologies.len() < self.max_topologies {
-            for (index, worst) in surviving_topologies
+            for (index, best) in surviving_topologies
                 .iter()
                 .enumerate()
+                .rev()
                 .take(surviving_topologies.len() - 2)
             {
-                let mated_index = rng.gen_range((index + 1)..surviving_topologies.len());
-                let best = &*surviving_topologies[mated_index].lock().unwrap();
-                let worst = &*worst.lock().unwrap();
+                let mated_index = rng.gen_range(0..index);
+                let worst = &*surviving_topologies[mated_index].lock().unwrap();
+                let best = &*best.lock().unwrap();
                 new_topologies.push(Topology::crossover(best, worst));
                 if new_topologies.len() >= self.max_topologies {
                     return new_topologies;
