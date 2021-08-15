@@ -38,6 +38,7 @@ where
 pub type TopologySmrtPtr<T> = Arc<Mutex<Topology<T>>>;
 
 unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign + Display {}
+
 unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign + Display {}
 
 impl<'a, T> Clone for Topology<T>
@@ -453,7 +454,7 @@ where
                 .iter()
                 .filter_map(|(input, gene_and_bias)| {
                     if input.layer != 0 {
-                        if !self.check_has_inputs(input) {
+                        if !self.neuron_has_inputs(input) {
                             Some(gene_and_bias.genes[0].clone())
                         } else {
                             None
@@ -548,12 +549,12 @@ where
             .collect();
     }
 
-    /// Returns true if no Gene has the given output
+    /// Returns true if at least one Gene has a given output
     ///
     /// # Argument
     ///
     /// `output` - The point to check if any gene points to it
-    fn check_has_inputs(&self, input: &Point) -> bool {
+    fn neuron_has_inputs(&self, input: &Point) -> bool {
         self.genes_point.iter().any(|(_point, b_and_c)| {
             b_and_c.genes.iter().any(|gene_rc| {
                 let gene = gene_rc.borrow();
@@ -695,6 +696,40 @@ where
             genes_point,
             genes_ev_number,
         }
+    }
+
+    #[inline]
+    pub fn crossover(best: &Topology<T>, worst: &Topology<T>) -> TopologySmrtPtr<T> {
+        let mut new_topology = best.clone();
+        for (ev_number, worst_gene) in worst.genes_ev_number.iter() {
+            let cell = &**worst_gene;
+            let worst_gene = &mut *cell.borrow_mut();
+            // If gene exists in both topologies, adjust weight to the average between the 2
+            if let Some(final_gene) = new_topology.genes_ev_number.get(ev_number) {
+                let final_cell = &**final_gene;
+                let final_gene = &mut *final_cell.borrow_mut();
+                final_gene.average_weights(&worst_gene);
+            } else {
+                // If gene only exists in the worst topology, try to add it only if the neuron
+                // exists in the best topology
+                // Only crossover this gene if both inputs and outputs neuron already exist
+                if !worst_gene.disabled && new_topology.neuron_has_inputs(&worst_gene.output) {
+                    if let Some(found) = new_topology.genes_point.get_mut(&worst_gene.input) {
+                        let worst_gene_clone = Rc::new(RefCell::new(worst_gene.clone()));
+                        found.genes.push(worst_gene_clone.clone());
+                        new_topology
+                            .genes_ev_number
+                            .insert(worst_gene.evolution_number, worst_gene_clone.clone());
+                        new_topology.disable_genes(
+                            worst_gene.input.clone(),
+                            worst_gene.output.clone(),
+                            worst_gene_clone,
+                        );
+                    }
+                }
+            }
+        }
+        Arc::new(Mutex::new(new_topology))
     }
 
     pub fn to_string(&self) -> String {

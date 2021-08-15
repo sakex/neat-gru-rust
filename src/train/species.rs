@@ -3,6 +3,7 @@ use crate::topology::topology::{Topology, TopologySmrtPtr};
 use crate::train::evolution_number::EvNumber;
 use num::Float;
 use rand::prelude::ThreadRng;
+use rand::{thread_rng, Rng};
 use std::fmt::Display;
 use std::iter::Sum;
 use std::sync::{Arc, Mutex};
@@ -152,16 +153,39 @@ where
     ) -> Vec<TopologySmrtPtr<T>> {
         let mut new_topologies: Vec<TopologySmrtPtr<T>> = Vec::new();
         new_topologies.reserve_exact(self.max_topologies);
-        loop {
+        let mutations_count = if surviving_topologies.len() >= 3 {
+            // 90% mutation, 10% crossover
+            (surviving_topologies.len() * 9) / 10
+        } else {
+            self.max_topologies
+        };
+        while new_topologies.len() < mutations_count {
             for topology in surviving_topologies.iter().rev() {
                 let top = &mut *topology.lock().unwrap();
                 top.new_generation(&mut new_topologies, &ev_number, 1, &proba);
-                let full = new_topologies.len() >= self.max_topologies;
-                if full {
+                if new_topologies.len() >= mutations_count {
+                    break;
+                }
+            }
+        }
+        let mut rng = thread_rng();
+        while new_topologies.len() < self.max_topologies {
+            for (index, best) in surviving_topologies
+                .iter()
+                .enumerate()
+                .rev()
+                .take(surviving_topologies.len() - 2)
+            {
+                let mated_index = rng.gen_range(0..index);
+                let worst = &*surviving_topologies[mated_index].lock().unwrap();
+                let best = &*best.lock().unwrap();
+                new_topologies.push(Topology::crossover(best, worst));
+                if new_topologies.len() >= self.max_topologies {
                     return new_topologies;
                 }
             }
         }
+        new_topologies
     }
 
     pub fn push(&mut self, top: TopologySmrtPtr<T>) {
