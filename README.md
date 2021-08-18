@@ -10,6 +10,12 @@
 ## Examples
 [XOR](examples/example.rs)
 
+:warning: BETA 
+
+
+[Snake](examples/snake-cli)
+
+
 Right now this is the only working example. You can run it via:
 ```
 cargo run --example example

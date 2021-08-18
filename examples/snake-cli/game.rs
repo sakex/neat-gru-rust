@@ -16,6 +16,7 @@ pub struct Game {
     apple: Apple,
     scores: Vec<f64>,
     tick: usize,
+    ticks_since_eaten: usize,
 }
 
 impl Game {
@@ -35,6 +36,7 @@ impl Game {
             apple: Apple::generate_apple(),
             scores,
             tick: 0,
+            ticks_since_eaten: 0,
         }
     }
 
@@ -72,13 +74,16 @@ impl Game {
         self.tick += 1;
         if replace_apple {
             self.apple = Apple::generate_apple();
+            self.ticks_since_eaten = 0;
+        } else {
+            self.ticks_since_eaten += 1;
         }
         // Let each snake make a decision
         self.make_decision();
     }
 
     fn game_over(&self) -> bool {
-        self.snakes.is_empty()
+        self.snakes.is_empty() || self.ticks_since_eaten >= 100
     }
 
     fn remove_if_dead(&mut self) {
