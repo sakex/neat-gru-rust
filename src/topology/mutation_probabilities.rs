@@ -37,7 +37,7 @@ impl MutationProbabilities {
     ) -> Result<MutationProbabilities, ProbabilitiesError> {
         let range = 0.0..1.0;
         if !range.contains(&guaranteed_new_neuron) || !range.contains(&change_weights) {
-            return Err(ProbabilitiesError {});
+            Err(ProbabilitiesError {})
         } else {
             Ok(MutationProbabilities {
                 change_weights,

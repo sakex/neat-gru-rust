@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::Write;
 
-use crate::defs::RESOLUTION;
 use crate::game::Game;
 use itertools::Itertools;
 use neat_gru::neural_network::nn::NeuralNetwork;

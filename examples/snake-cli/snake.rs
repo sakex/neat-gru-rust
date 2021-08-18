@@ -3,8 +3,6 @@ use std::collections::LinkedList;
 use crate::coordinate::Coordinate;
 use crate::defs::RESOLUTION;
 use crate::direction::Direction;
-use ggez::{graphics, GameResult};
-use ggez::{graphics::*, Context};
 use neat_gru::neural_network::nn::NeuralNetwork;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -37,25 +35,6 @@ impl Snake {
             dir_changed: false,
             net: Some(net),
         }
-    }
-    pub fn render(&self, ctx: &mut Context) -> GameResult {
-        self.blocks.iter().for_each(|block| {
-            let mesh = ggez::graphics::Mesh::new_rounded_rectangle(
-                ctx,
-                DrawMode::Fill(Default::default()),
-                graphics::Rect::new_i32(
-                    (block.cord.x * 10) as i32,
-                    (block.cord.y * 10) as i32,
-                    10,
-                    10,
-                ),
-                3.,
-                Color::GREEN,
-            )
-            .unwrap();
-            graphics::draw(ctx, &mesh, graphics::DrawParam::default()).unwrap();
-        });
-        Ok(())
     }
 
     /// Returns the size of the snake
