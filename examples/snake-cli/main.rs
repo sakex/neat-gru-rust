@@ -20,12 +20,12 @@ fn run_training() {
     let mut sim = TrainingSimulation::new();
     let mut runner: Train<TrainingSimulation, f64> = Train::new(&mut sim);
     runner
-        .inputs(5)
+        .inputs(4)
         .outputs(OUTPUTS)
-        .iterations(60)
+        .iterations(200)
         .delta_threshold(2.)
         .formula(0.8, 0.8, 0.3)
-        .max_layers(10)
+        .max_layers(5)
         .max_individuals(SNAKE_COUNT)
         .access_train_object(Box::new(|train| {
             let species_count = train.species_count();

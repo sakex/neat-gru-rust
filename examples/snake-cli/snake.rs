@@ -65,9 +65,13 @@ impl Snake {
     /// Changes the direction of the snake if it hasn't already been changed this tick
     pub fn change_direction(&mut self, dir: Direction) {
         // We don't want to change the direction multiple times per tick and also don't want to move into the snakes body
-        if !self.dir_changed && dir.opposite() != self.moving_direction {
+        if !self.dir_changed
+            && dir.opposite() != self.moving_direction
+            && self.moving_direction != dir
+        {
             self.moving_direction = dir;
             self.dir_changed = true;
+            //println!("Dir changed to {:?}", dir);
         }
     }
     fn is_eating(&self, apple: Coordinate) -> bool {

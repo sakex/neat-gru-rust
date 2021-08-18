@@ -38,9 +38,15 @@ impl Game {
         }
     }
 
+    pub fn run_game(&mut self) {
+        while !self.game_over() {
+            self.tick();
+        }
+    }
+
     /// Make the snakes make their decision
     pub fn make_decision(&mut self) {
-        let mut inputs: [f64; 5] = [0., 0., 0., 0., 0.];
+        let mut inputs: [f64; 4] = [0., 0., 0., 0.];
         let cloned_apple = self.apple.clone();
         // Let each snake make a decision
         self.snakes.iter_mut().for_each(|s| {
@@ -78,7 +84,7 @@ impl Game {
     fn remove_if_dead(&mut self) {
         for idx in 0..self.snakes.len() {
             if self.snakes[idx].is_colliding() {
-                self.scores[idx] = self.snakes[idx].size() as f64 + (self.tick as f64 * 0.001);
+                self.scores[idx] = self.snakes[idx].size() as f64 + (self.tick as f64 * 0.005);
             }
         }
         self.snakes.retain(|s| !s.is_colliding());

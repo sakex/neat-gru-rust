@@ -3,6 +3,7 @@ use std::io::Write;
 
 use crate::defs::RESOLUTION;
 use crate::game::Game;
+use itertools::Itertools;
 use neat_gru::neural_network::nn::NeuralNetwork;
 
 pub struct TrainingSimulation {
@@ -23,19 +24,14 @@ impl TrainingSimulation {
 
 impl neat_gru::game::Game<f64> for TrainingSimulation {
     fn run_generation(&mut self) -> Vec<f64> {
-        let (ctx, events_loop) = ggez::ContextBuilder::new("Snake", "Nereuxofficial")
-            .window_setup(ggez::conf::WindowSetup::default().title("Snake"))
-            .window_mode(
-                ggez::conf::WindowMode::default()
-                    .dimensions((RESOLUTION * 10) as f32, (RESOLUTION * 10) as f32),
-            )
-            .build()
-            .unwrap();
         self.generation += 1;
         let networks = self.networks.take().unwrap();
         let mut game = Game::new(networks);
-        ggez::event::run(ctx, events_loop, game);
+        game.run_game();
         game.get_scores()
+            .iter_mut()
+            .map(|score| *score + self.generation as f64)
+            .collect_vec()
     }
 
     fn reset_players(&mut self, nets: Vec<NeuralNetwork<f64>>) {
