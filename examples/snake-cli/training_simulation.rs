@@ -28,9 +28,6 @@ impl neat_gru::game::Game<f64> for TrainingSimulation {
         let mut game = Game::new(networks);
         game.run_game();
         game.get_scores()
-            .iter_mut()
-            .map(|score| *score + self.generation as f64)
-            .collect_vec()
     }
 
     fn reset_players(&mut self, nets: Vec<NeuralNetwork<f64>>) {
