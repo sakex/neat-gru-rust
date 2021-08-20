@@ -9,7 +9,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Point {
     pub layer: u8,
     pub index: u8,
@@ -18,22 +18,6 @@ pub struct Point {
 impl Point {
     pub fn new(layer: u8, index: u8) -> Point {
         Point { layer, index }
-    }
-}
-
-impl Hash for Point {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.layer.hash(state);
-        self.index.hash(state)
-    }
-
-    fn hash_slice<H: Hasher>(data: &[Point], state: &mut H)
-    where
-        Self: Sized,
-    {
-        for point in data.iter() {
-            point.hash(state);
-        }
     }
 }
 
@@ -51,10 +35,8 @@ impl Coordinate {
 
 impl Hash for Coordinate {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.input.layer.hash(state);
-        self.input.index.hash(state);
-        self.output.layer.hash(state);
-        self.output.index.hash(state)
+        self.input.hash(state);
+        self.output.hash(state);
     }
 
     fn hash_slice<H: Hasher>(data: &[Coordinate], state: &mut H)
