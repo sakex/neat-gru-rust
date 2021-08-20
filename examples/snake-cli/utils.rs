@@ -1,4 +1,3 @@
-use crate::coordinate::Coordinate;
 use crate::{apple::Apple, defs::RESOLUTION, snake::Snake};
 
 pub fn distance_to_apple_x(snake: &Snake, apple: Apple) -> f64 {

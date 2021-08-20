@@ -10,11 +10,6 @@ pub struct Block {
     cord: Coordinate,
 }
 
-impl Block {
-    fn get_coordinate(&self) -> Coordinate {
-        self.cord
-    }
-}
 #[derive(Clone, PartialEq, Debug)]
 pub struct Snake {
     blocks: LinkedList<Block>,
