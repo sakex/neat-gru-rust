@@ -21,7 +21,7 @@ impl Point {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Hash, Eq)]
 pub struct Coordinate {
     input: Point,
     output: Point,
@@ -30,22 +30,6 @@ pub struct Coordinate {
 impl Coordinate {
     pub fn new(input: Point, output: Point) -> Coordinate {
         Coordinate { input, output }
-    }
-}
-
-impl Hash for Coordinate {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.input.hash(state);
-        self.output.hash(state);
-    }
-
-    fn hash_slice<H: Hasher>(data: &[Coordinate], state: &mut H)
-    where
-        Self: Sized,
-    {
-        for coordinate in data.iter() {
-            coordinate.hash(state);
-        }
     }
 }
 
