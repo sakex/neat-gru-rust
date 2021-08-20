@@ -1,5 +1,6 @@
 use neat_gru::neural_network::nn::NeuralNetwork;
 
+use crate::utils::distance_to_apple;
 use crate::{
     apple::Apple,
     snake::Snake,
@@ -85,9 +86,11 @@ impl Game {
     fn remove_if_dead(&mut self) {
         for idx in 0..self.snakes.len() {
             if self.snakes[idx].is_colliding() {
-                self.scores[idx] = self.snakes[idx].size() as f64 + (self.tick as f64 * 0.001);
+                self.scores[idx] = self.snakes[idx].size() as f64
+                    - 0.1 * (distance_to_apple(&self.snakes[idx], self.apple));
             }
         }
+
         self.snakes.retain(|s| !s.is_colliding());
     }
 }

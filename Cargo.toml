@@ -24,6 +24,12 @@ rayon = "1.5.0"
 itertools = "0.10.0"
 async-trait = "0.1.50"
 
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.1", features = ["js"] }

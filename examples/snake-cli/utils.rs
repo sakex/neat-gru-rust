@@ -1,3 +1,4 @@
+use crate::coordinate::Coordinate;
 use crate::{apple::Apple, defs::RESOLUTION, snake::Snake};
 
 pub fn distance_to_apple_x(snake: &Snake, apple: Apple) -> f64 {
@@ -10,6 +11,11 @@ pub fn distance_to_apple_y(snake: &Snake, apple: Apple) -> f64 {
     let snake_coordinate = snake.get_head_position().y as f64;
     let apple_coordinate = apple.get_coordinate().y as f64;
     (snake_coordinate - apple_coordinate) / RESOLUTION as f64
+}
+
+pub fn distance_to_apple(snake: &Snake, apple: Apple) -> f64 {
+    // In this case we can directly add the distances since the snake can't go diagonally
+    distance_to_apple_x(snake, apple) + distance_to_apple_y(snake, apple)
 }
 
 pub fn distance_to_wall_x(snake: &Snake) -> f64 {

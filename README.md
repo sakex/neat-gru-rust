@@ -10,9 +10,6 @@
 ## Examples
 [XOR](examples/example.rs)
 
-:warning: BETA 
-
-
 [Snake](examples/snake-cli)
 
 
