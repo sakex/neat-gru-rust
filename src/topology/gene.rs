@@ -7,7 +7,7 @@ use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Point {
@@ -202,10 +202,6 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         self.output.layer == other.output.layer && self.output.index == other.output.index
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.output.layer != other.output.layer || self.output.index != other.output.index
     }
 }
 
