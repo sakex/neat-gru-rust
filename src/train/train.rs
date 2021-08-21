@@ -400,18 +400,19 @@ where
     fn natural_selection(&mut self) {
         self.species_
             .retain(|spec| spec.lock().unwrap().stagnation_counter < 20);
-        if self.species_.len() == 1 {
-            let first_spec = &mut *self.species_[0].lock().unwrap();
-            first_spec.max_topologies = self.max_individuals_;
-            self.ev_number_.reset();
-            let ev_number = self.ev_number_.clone();
-            first_spec.natural_selection(ev_number, self.proba.clone());
-            return;
-        }
-        if self.species_.is_empty() {
-            return;
-        }
-        self.species_.iter_mut().for_each(|spec| {
+        match self.species_.len() {
+            0 => return,
+            1 => {
+                let first_spec = &mut *self.species_[0].lock().unwrap();
+                first_spec.max_topologies = self.max_individuals_;
+                self.ev_number_.reset();
+                let ev_number = self.ev_number_.clone();
+                first_spec.natural_selection(ev_number, self.proba.clone());
+                return;
+            }
+            _ => {}
+        };
+        cond_iter_mut!(self.species_).for_each(|spec| {
             spec.get_mut().unwrap().compute_adjusted_fitness();
         });
         let mean = cond_iter!(self.species_)
@@ -419,7 +420,7 @@ where
             .map(|spec| spec.lock().unwrap().adjusted_fitness)
             .sum::<F>()
             / F::from(self.species_.len()).unwrap();
-        let variance = cond_iter!(self.species_)
+        let variance: F = cond_iter!(self.species_)
             .clone()
             .map(|spec| (spec.lock().unwrap().adjusted_fitness - mean).powf(F::from(2.).unwrap()))
             .sum::<F>()
@@ -433,29 +434,11 @@ where
                     .powf((spec.adjusted_fitness - mean) / volatility);
             });
         } else {
-            self.species_.iter_mut().for_each(|spec| {
+            cond_iter_mut!(self.species_).for_each(|spec| {
                 spec.get_mut().unwrap().adjusted_fitness = F::one();
             });
         }
-        self.species_.sort_by(|spec1, spec2| {
-            let spec1 = &*spec1.lock().unwrap();
-            let spec2 = &*spec2.lock().unwrap();
-            if spec1.adjusted_fitness == spec2.adjusted_fitness {
-                spec1
-                    .topologies
-                    .len()
-                    .partial_cmp(&spec2.topologies.len())
-                    .unwrap()
-            } else {
-                spec1
-                    .adjusted_fitness
-                    .partial_cmp(&spec2.adjusted_fitness)
-                    .expect(&*format!(
-                        "First: {}, second: {}, variance {}",
-                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance
-                    ))
-            }
-        });
+        self.sort_species(variance);
         let sum: F = cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().adjusted_fitness)
             .sum();
@@ -492,7 +475,7 @@ where
         {
             self.species_.par_iter_mut().for_each(|species| {
                 species
-                    .lock()
+                    .get_mut()
                     .unwrap()
                     .natural_selection(ev_number.clone(), proba.clone());
             });
@@ -561,6 +544,27 @@ where
         }
     }
 
+    fn sort_species(&mut self, variance: F) {
+        self.species_.sort_by(|spec1, spec2| {
+            let spec1 = &*spec1.lock().unwrap();
+            let spec2 = &*spec2.lock().unwrap();
+            if spec1.adjusted_fitness == spec2.adjusted_fitness {
+                spec1
+                    .topologies
+                    .len()
+                    .partial_cmp(&spec2.topologies.len())
+                    .unwrap()
+            } else {
+                spec1
+                    .adjusted_fitness
+                    .partial_cmp(&spec2.adjusted_fitness)
+                    .expect(&*format!(
+                        "First: {}, second: {}, variance {}",
+                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance
+                    ))
+            }
+        });
+    }
     fn reset_species(&mut self) {
         self.collect_topologies();
         cond_iter_mut!(self.species_).for_each(|spec| {
