@@ -544,6 +544,7 @@ where
         }
     }
 
+    /// Sorts the species according to fitness
     fn sort_species(&mut self, variance: F) {
         self.species_.sort_by(|spec1, spec2| {
             let spec1 = &*spec1.lock().unwrap();
@@ -565,6 +566,7 @@ where
             }
         });
     }
+
     fn reset_species(&mut self) {
         self.collect_topologies();
         cond_iter_mut!(self.species_).for_each(|spec| {
@@ -607,11 +609,15 @@ where
         self.species_ = species;
         self.species_
             .retain(|spec| !spec.lock().unwrap().topologies.is_empty());
-        let biggest_species = cond_iter!(self.species_)
+        println!("BIGGEST SPECIES: {}", self.get_biggest_species());
+    }
+
+    /// Gets the length of the biggest species
+    fn get_biggest_species(&self) -> usize {
+        cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().topologies.len())
             .max()
-            .unwrap_or(0);
-        println!("BIGGEST SPECIES: {}", biggest_species);
+            .unwrap_or(0)
     }
 }
 
