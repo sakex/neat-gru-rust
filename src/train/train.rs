@@ -609,11 +609,11 @@ where
         self.species_ = species;
         self.species_
             .retain(|spec| !spec.lock().unwrap().topologies.is_empty());
-        println!("BIGGEST SPECIES: {}", self.get_biggest_species());
+        println!("BIGGEST SPECIES: {}", self.get_biggest_species_len());
     }
 
     /// Gets the length of the biggest species
-    fn get_biggest_species(&self) -> usize {
+    fn get_biggest_species_len(&self) -> usize {
         cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().topologies.len())
             .max()
