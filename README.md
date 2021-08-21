@@ -23,7 +23,7 @@ cargo run --example example
 In `Cargo.toml`:
 ```
 [dependencies]
-neat-gru = "0.6.5"
+neat-gru = 1.0.0"
 ```
 Create a struct that implements the `Game` trait
 ```rust
