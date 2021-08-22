@@ -37,6 +37,7 @@ impl Game {
         }
     }
 
+    /// Runs the game until every snake is dead
     pub fn run_game(&mut self) {
         while !self.game_over() {
             self.tick();
@@ -80,6 +81,7 @@ impl Game {
     }
 
     fn game_over(&self) -> bool {
+        // When the snakes don't eat the obviously starve, seriously where is the realism...
         self.snakes.is_empty() || self.ticks_since_eaten >= 150
     }
 
@@ -91,6 +93,7 @@ impl Game {
             }
         }
 
+        // Snakes that are idiots get the bonk
         self.snakes.retain(|s| !s.is_colliding());
     }
 }
