@@ -46,7 +46,7 @@ impl Game {
     /// Make the snakes make their decision
     pub fn make_decision(&mut self) {
         let mut inputs: [f64; 4] = [0., 0., 0., 0.];
-        let cloned_apple = self.apple.clone();
+        let cloned_apple = self.apple;
         // Let each snake make a decision
         self.snakes.iter_mut().for_each(|s| {
             // First inputs are the distance to the apple from -1 to 1
@@ -80,7 +80,7 @@ impl Game {
     }
 
     fn game_over(&self) -> bool {
-        self.snakes.is_empty() || self.ticks_since_eaten >= 100
+        self.snakes.is_empty() || self.ticks_since_eaten >= 150
     }
 
     fn remove_if_dead(&mut self) {
