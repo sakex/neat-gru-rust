@@ -81,7 +81,7 @@ impl Game {
     }
 
     fn game_over(&self) -> bool {
-        // When the snakes don't eat the obviously starve, seriously where is the realism...
+        // When the snakes don't eat obviously starve
         self.snakes.is_empty() || self.ticks_since_eaten >= 150
     }
 
@@ -93,7 +93,7 @@ impl Game {
             }
         }
 
-        // Snakes that are idiots get the bonk
+        // Snakes that are idiots get removed
         self.snakes.retain(|s| !s.is_colliding());
     }
 }
