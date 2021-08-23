@@ -9,13 +9,6 @@
   = note: add `#[derive(Debug)]` or manually implement `Debug`
   = note: required because of the requirements on the impl of `Debug` for `&Position`
   = note: required for the cast to the object type `dyn Debug`
-  = note: this error originates in th
-  |     ^^^^^^^^^^^^^ `Position` cannot be formatted using `{:?}`
-  |
-  = help: the trait `Debug` is not implemented for `Position`
-  = note: add `#[derive(Debug)]` or manually implement `Debug`
-  = note: required because of the requirements on the impl of `Debug` for `&Position`
-  = note: required for the cast to the object type `dyn Debug`
   = note: this error originates in th)
 
 ## Documentation
