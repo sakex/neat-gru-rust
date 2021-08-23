@@ -2,14 +2,7 @@
 [![CICD](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml/badge.svg)](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml)
 ![Crates.io](https://img.shields.io/crates/v/neat-gru?style=for-the-badge)
 ![Downloads](https://img.shields.io/crates/d/neat-gru?style=for-the-badge)
-![License](https://img.shields.io/github/license/sakex/neat-gru-rust?style=for-the-badge
-  |     ^^^^^^^^^^^^^ `Position` cannot be formatted using `{:?}`
-  |
-  = help: the trait `Debug` is not implemented for `Position`
-  = note: add `#[derive(Debug)]` or manually implement `Debug`
-  = note: required because of the requirements on the impl of `Debug` for `&Position`
-  = note: required for the cast to the object type `dyn Debug`
-  = note: this error originates in th)
+![License](https://img.shields.io/github/license/sakex/neat-gru-rust?style=for-the-badge)
 
 ## Documentation
 [Crates.io doc](https://docs.rs/neat-gru/)
