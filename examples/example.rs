@@ -13,6 +13,8 @@ struct Player {
 
 impl Player {
     pub fn new(net: NeuralNetwork<f64>) -> Player {
+        File::create("ExampleNN").unwrap();
+
         Player { net }
     }
     /// Runs all the inputs and calculates the outputs
