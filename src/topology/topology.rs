@@ -780,7 +780,11 @@ where
             .flatten()
             .collect();
         let serialization = SerializationTopology::new(biases, genes);
-        write!(f, "{}", serde_json::to_string(&serialization).unwrap())
+        write!(
+            f,
+            "{}",
+            serde_json::to_string_pretty(&serialization).unwrap()
+        )
     }
 }
 

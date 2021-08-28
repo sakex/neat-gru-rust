@@ -1,0 +1,596 @@
+{
+  "biases": [
+    {
+      "neuron": [
+        3,
+        2
+      ],
+      "bias": {
+        "bias_input": -0.12197825442105006,
+        "bias_update": -0.3512783961110883,
+        "bias_reset": 0.03732893413991594
+      }
+    },
+    {
+      "neuron": [
+        5,
+        0
+      ],
+      "bias": {
+        "bias_input": -0.6546992853663908,
+        "bias_update": -0.4141320241793256,
+        "bias_reset": -0.5633738626623466
+      }
+    },
+    {
+      "neuron": [
+        0,
+        2
+      ],
+      "bias": {
+        "bias_input": -0.5488180362509959,
+        "bias_update": -0.1806297156401049,
+        "bias_reset": -0.05725004085267177
+      }
+    },
+    {
+      "neuron": [
+        2,
+        0
+      ],
+      "bias": {
+        "bias_input": 0.32081128621624855,
+        "bias_update": 0.2011243194554006,
+        "bias_reset": -0.2920839057693987
+      }
+    },
+    {
+      "neuron": [
+        3,
+        1
+      ],
+      "bias": {
+        "bias_input": -0.1623161199643319,
+        "bias_update": 0.28890798880629287,
+        "bias_reset": -0.31314158971819767
+      }
+    },
+    {
+      "neuron": [
+        3,
+        3
+      ],
+      "bias": {
+        "bias_input": 0.7231893838556656,
+        "bias_update": -0.46285176796547123,
+        "bias_reset": -0.7884127207021288
+      }
+    },
+    {
+      "neuron": [
+        0,
+        3
+      ],
+      "bias": {
+        "bias_input": 0.26366231744884067,
+        "bias_update": 0.25148671800329914,
+        "bias_reset": -1.233430536524573
+      }
+    },
+    {
+      "neuron": [
+        0,
+        0
+      ],
+      "bias": {
+        "bias_input": -0.2821297073980792,
+        "bias_update": 0.6850320489123115,
+        "bias_reset": 0.6601393928613262
+      }
+    },
+    {
+      "neuron": [
+        4,
+        0
+      ],
+      "bias": {
+        "bias_input": -0.14494070012366483,
+        "bias_update": -0.010953307751109672,
+        "bias_reset": -0.06251158965598189
+      }
+    },
+    {
+      "neuron": [
+        0,
+        1
+      ],
+      "bias": {
+        "bias_input": 0.08921003095987093,
+        "bias_update": -0.25535417621557344,
+        "bias_reset": -0.09956754064732123
+      }
+    },
+    {
+      "neuron": [
+        1,
+        0
+      ],
+      "bias": {
+        "bias_input": 0.6742833308143651,
+        "bias_update": 0.5493149832292287,
+        "bias_reset": -0.5612200420492762
+      }
+    },
+    {
+      "neuron": [
+        3,
+        0
+      ],
+      "bias": {
+        "bias_input": -0.008026181636048516,
+        "bias_update": 0.1666437758808091,
+        "bias_reset": -0.5676672321901474
+      }
+    },
+    {
+      "neuron": [
+        6,
+        0
+      ],
+      "bias": {
+        "bias_input": 0.5804218127983782,
+        "bias_update": 0.3274411060860364,
+        "bias_reset": -0.7071156018446664
+      }
+    },
+    {
+      "neuron": [
+        6,
+        1
+      ],
+      "bias": {
+        "bias_input": 0.03911333992868528,
+        "bias_update": 0.5434913502217243,
+        "bias_reset": -0.3354076229108049
+      }
+    },
+    {
+      "neuron": [
+        6,
+        2
+      ],
+      "bias": {
+        "bias_input": 0.20759609209784013,
+        "bias_update": 0.2021111102981616,
+        "bias_reset": -0.27214464589135345
+      }
+    },
+    {
+      "neuron": [
+        6,
+        3
+      ],
+      "bias": {
+        "bias_input": 0.1147987269869073,
+        "bias_update": -0.011115670525246668,
+        "bias_reset": -0.15631755743233267
+      }
+    }
+  ],
+  "genes": [
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        3,
+        2
+      ],
+      "input_weight": 0.6386978501315573,
+      "memory_weight": 0.8668885999141718,
+      "output": [
+        6,
+        0
+      ],
+      "reset_input_weight": 0.13688495638185044,
+      "reset_memory_weight": 0.6365507692665415,
+      "update_input_weight": 0.8282072490050422,
+      "update_memory_weight": -0.13905559039768536
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        3,
+        2
+      ],
+      "input_weight": 0.7198076175396841,
+      "memory_weight": 0.6029255083491911,
+      "output": [
+        6,
+        3
+      ],
+      "reset_input_weight": 0.6658427582839018,
+      "reset_memory_weight": 0.6443965904549056,
+      "update_input_weight": 0.49533825775801316,
+      "update_memory_weight": 0.7291810769489155
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        5,
+        0
+      ],
+      "input_weight": 0.03087736653576338,
+      "memory_weight": 0.1050045940847244,
+      "output": [
+        6,
+        2
+      ],
+      "reset_input_weight": -0.1763479266191611,
+      "reset_memory_weight": -0.592628196020016,
+      "update_input_weight": 0.054420726333605896,
+      "update_memory_weight": -0.1007327271283747
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        5,
+        0
+      ],
+      "input_weight": 1.0495957857653628,
+      "memory_weight": 1.0660899770203531,
+      "output": [
+        6,
+        0
+      ],
+      "reset_input_weight": 1.0371042574702707,
+      "reset_memory_weight": 1.026578314091005,
+      "update_input_weight": 0.8625220871481992,
+      "update_memory_weight": 1.029127330535889
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        0,
+        2
+      ],
+      "input_weight": 0.4018387408140178,
+      "memory_weight": 0.6202672190485321,
+      "output": [
+        6,
+        2
+      ],
+      "reset_input_weight": 0.3815129035610941,
+      "reset_memory_weight": 0.5020930346282222,
+      "update_input_weight": 0.5778170720971538,
+      "update_memory_weight": 0.34683839331225436
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        0,
+        2
+      ],
+      "input_weight": 0.18898247335451546,
+      "memory_weight": 0.4217345665230764,
+      "output": [
+        1,
+        0
+      ],
+      "reset_input_weight": 0.0848941646047306,
+      "reset_memory_weight": 0.7960488542410544,
+      "update_input_weight": 0.8061864459775152,
+      "update_memory_weight": 0.1676953975782164
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        2,
+        0
+      ],
+      "input_weight": 0.6493954055482594,
+      "memory_weight": 0.6226289996014658,
+      "output": [
+        3,
+        2
+      ],
+      "reset_input_weight": 0.34172267782706134,
+      "reset_memory_weight": 0.6060880883094367,
+      "update_input_weight": 0.8238939071654371,
+      "update_memory_weight": 0.7365572622366421
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        2,
+        0
+      ],
+      "input_weight": 0.6779440248671462,
+      "memory_weight": -0.7208646099545,
+      "output": [
+        3,
+        3
+      ],
+      "reset_input_weight": 0.8453488068715538,
+      "reset_memory_weight": -0.4609409149647961,
+      "update_input_weight": 0.3982254718381156,
+      "update_memory_weight": -0.41152976475885655
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        2,
+        0
+      ],
+      "input_weight": 0.961802651281088,
+      "memory_weight": 1.005648567991713,
+      "output": [
+        3,
+        0
+      ],
+      "reset_input_weight": 0.7259700624399228,
+      "reset_memory_weight": 0.8682150640953608,
+      "update_input_weight": 1.138226918102283,
+      "update_memory_weight": 1.0141648992830419
+    },
+    {
+      "connection_type": 0,
+      "disabled": false,
+      "input": [
+        3,
+        1
+      ],
+      "input_weight": -0.30723875050148797,
+      "memory_weight": 0.04797324185855254,
+      "output": [
+        6,
+        0
+      ],
+      "reset_input_weight": -0.45968749834116834,
+      "reset_memory_weight": 0.3941987301747495,
+      "update_input_weight": -0.3810309071302042,
+      "update_memory_weight": -0.49975517035902906
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        3,
+        1
+      ],
+      "input_weight": -0.6012488373209863,
+      "memory_weight": 0.42106019670799366,
+      "output": [
+        6,
+        3
+      ],
+      "reset_input_weight": 0.6289403073912458,
+      "reset_memory_weight": -0.2693453368970082,
+      "update_input_weight": 0.21769666497159199,
+      "update_memory_weight": -0.040448087326662274
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        3,
+        1
+      ],
+      "input_weight": 0.9691571887572908,
+      "memory_weight": -0.5959216458917461,
+      "output": [
+        6,
+        2
+      ],
+      "reset_input_weight": -0.6530633410258838,
+      "reset_memory_weight": -0.644510218424454,
+      "update_input_weight": -0.7941962901320494,
+      "update_memory_weight": -0.42066403417891146
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        3,
+        3
+      ],
+      "input_weight": 0.9528220176851441,
+      "memory_weight": 0.9167394419678561,
+      "output": [
+        4,
+        0
+      ],
+      "reset_input_weight": 1.0705388640526055,
+      "reset_memory_weight": 0.956052593960707,
+      "update_input_weight": 0.898223500270279,
+      "update_memory_weight": 0.9988949168163517
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        0,
+        3
+      ],
+      "input_weight": 0.970202146496217,
+      "memory_weight": 0.92429787685623,
+      "output": [
+        1,
+        0
+      ],
+      "reset_input_weight": 0.9230488538372961,
+      "reset_memory_weight": 1.0595015804264185,
+      "update_input_weight": 0.9756920859710281,
+      "update_memory_weight": 0.9881861566447755
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        0,
+        0
+      ],
+      "input_weight": 1.0699536914606036,
+      "memory_weight": 1.0375576487472074,
+      "output": [
+        1,
+        0
+      ],
+      "reset_input_weight": 0.897624764929014,
+      "reset_memory_weight": 1.021655739367869,
+      "update_input_weight": 0.9873325459273112,
+      "update_memory_weight": 0.9468094656177555
+    },
+    {
+      "connection_type": 0,
+      "disabled": false,
+      "input": [
+        4,
+        0
+      ],
+      "input_weight": 0.8185869488180935,
+      "memory_weight": -0.6396563912726455,
+      "output": [
+        6,
+        3
+      ],
+      "reset_input_weight": -0.5353294707023177,
+      "reset_memory_weight": -0.6204752261667463,
+      "update_input_weight": -0.36035357589314987,
+      "update_memory_weight": -1.030649318689755
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        4,
+        0
+      ],
+      "input_weight": 1.0089446460762515,
+      "memory_weight": 0.9596993819129611,
+      "output": [
+        5,
+        0
+      ],
+      "reset_input_weight": 0.9244523608775992,
+      "reset_memory_weight": 1.0481216551240313,
+      "update_input_weight": 0.9707656957591784,
+      "update_memory_weight": 1.0093816309597397
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        0,
+        1
+      ],
+      "input_weight": 0.6624151438121612,
+      "memory_weight": 0.42458190022989084,
+      "output": [
+        6,
+        2
+      ],
+      "reset_input_weight": -0.7185368671724097,
+      "reset_memory_weight": -0.4438329004274527,
+      "update_input_weight": 0.50006818251439,
+      "update_memory_weight": -0.12849306445853598
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        0,
+        1
+      ],
+      "input_weight": 0.01527395057481823,
+      "memory_weight": 0.04356234338486187,
+      "output": [
+        1,
+        0
+      ],
+      "reset_input_weight": 0.14184472679927973,
+      "reset_memory_weight": 0.3149534104472975,
+      "update_input_weight": 0.6316508636132993,
+      "update_memory_weight": -0.00595547314203132
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        1,
+        0
+      ],
+      "input_weight": 0.8096866457668834,
+      "memory_weight": -0.42350746619088114,
+      "output": [
+        3,
+        1
+      ],
+      "reset_input_weight": 0.4071195957601003,
+      "reset_memory_weight": -0.172097504784938,
+      "update_input_weight": 0.21878526360028755,
+      "update_memory_weight": -0.21318642064403492
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        1,
+        0
+      ],
+      "input_weight": 0.9908135596619445,
+      "memory_weight": 0.9499628764159571,
+      "output": [
+        2,
+        0
+      ],
+      "reset_input_weight": 0.9695650523915453,
+      "reset_memory_weight": 0.9531296772870813,
+      "update_input_weight": 1.0508021987088179,
+      "update_memory_weight": 0.9602172430977385
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        3,
+        0
+      ],
+      "input_weight": 0.8074479114148789,
+      "memory_weight": 1.0196448943431844,
+      "output": [
+        6,
+        1
+      ],
+      "reset_input_weight": 0.7116257088977129,
+      "reset_memory_weight": 0.6580370166514686,
+      "update_input_weight": 0.5356814174174317,
+      "update_memory_weight": 0.6483388962350225
+    },
+    {
+      "connection_type": 1,
+      "disabled": false,
+      "input": [
+        3,
+        0
+      ],
+      "input_weight": 1.1461613541261133,
+      "memory_weight": 0.9984884418621701,
+      "output": [
+        4,
+        0
+      ],
+      "reset_input_weight": 1.0036868531838785,
+      "reset_memory_weight": 1.0438788564735437,
+      "update_input_weight": 1.0194775784764043,
+      "update_memory_weight": 0.8646128639920583
+    }
+  ]
+}
