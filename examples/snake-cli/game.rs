@@ -62,13 +62,20 @@ impl Game {
     /// Updates the game. Should be called every tick
     pub fn tick(&mut self) {
         let apple_coordinate = self.apple.get_coordinate();
+
+        // Let each snake make a decision
+        self.make_decision();
+
+        // Remove the dead snake so that they can't produce invalid coordinates
         self.remove_if_dead();
-        // And then update it
+
+        // Update every snake
         let replace_apple = self
             .snakes
             .iter_mut()
             .map(|s| -> bool { s.update(apple_coordinate) })
             .any(|b| b);
+        // Increase all ticks and increase ticks_since_eaten if no apple was replaced
         self.tick += 1;
         if replace_apple {
             self.apple = Apple::generate_apple();
@@ -76,8 +83,6 @@ impl Game {
         } else {
             self.ticks_since_eaten += 1;
         }
-        // Let each snake make a decision
-        self.make_decision();
     }
 
     fn game_over(&self) -> bool {

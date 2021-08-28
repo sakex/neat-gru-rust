@@ -102,7 +102,7 @@ impl Snake {
         let head_position = self.get_head_position();
         match self.moving_direction {
             Direction::Up => {
-                if head_position.y <= 0 {
+                if head_position.y < 1 {
                     return true;
                 }
             }
@@ -117,7 +117,7 @@ impl Snake {
                 }
             }
             Direction::Left => {
-                if head_position.x <= 0 {
+                if head_position.x < 1 {
                     return true;
                 }
             }
