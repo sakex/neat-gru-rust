@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::Read;
 
 fn benchmark(c: &mut Criterion) {
-    let mut file = File::open("snakes.json").expect("Can't open XOR file. Run 'Example' first.");
+    let mut file = File::open("snakes.json").expect("Can't open snakes.json");
     let file_string = &mut "".to_string();
     file.read_to_string(file_string).unwrap();
     let topology = Topology::from_string(file_string);
