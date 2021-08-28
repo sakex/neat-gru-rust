@@ -7,10 +7,10 @@ use std::fs::File;
 use std::io::Read;
 
 fn benchmark(c: &mut Criterion) {
-    let mut file = File::open("XOR").expect("Can't open XOR file. Run 'Example' first.");
+    let mut file = File::open("snakes.json").expect("Can't open XOR file. Run 'Example' first.");
     let file_string = &mut "".to_string();
     file.read_to_string(file_string).unwrap();
-    let topology = Topology::from_serde_string(file_string);
+    let topology = Topology::from_string(file_string);
     let mut network = unsafe { NeuralNetwork::new(&topology) };
     c.bench_function("nn::compute", |b| {
         b.iter(|| network.compute(black_box(&[0.0, 0.0])))
