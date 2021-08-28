@@ -85,7 +85,7 @@ impl Game<f64> for Simulation {
         // Iter on best topologies and upload the best one
         let best = history.last().unwrap();
         let mut output = File::create("XOR").expect("Could not create output file");
-        write!(output, "{:?}", best).unwrap();
+        write!(output, "{:?}", best.to_serde_string()).unwrap();
     }
 }
 
