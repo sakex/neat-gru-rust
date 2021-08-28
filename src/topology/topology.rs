@@ -854,7 +854,7 @@ where
         new_top
     }
 
-    pub fn to_serde_string(&self) -> Vec<u8> {
-        serde_json::to_vec_pretty(&self).unwrap()
+    pub fn to_serde_string(&self) -> String {
+        serde_json::to_string(&self).unwrap()
     }
 }
