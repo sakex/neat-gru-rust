@@ -848,17 +848,3 @@ where
         true
     }
 }
-
-impl<'a, T> Topology<T>
-where
-    T: Float + std::ops::AddAssign + Deserialize<'a> + Serialize + Display,
-{
-    pub fn from_serde_string(serialized: &'a str) -> Topology<T> {
-        let new_top: Topology<T> = serde_json::from_str(serialized).unwrap();
-        new_top
-    }
-
-    pub fn to_serde_string(&self) -> String {
-        serde_json::to_string(&self).unwrap()
-    }
-}
