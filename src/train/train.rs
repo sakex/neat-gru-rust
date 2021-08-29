@@ -397,6 +397,23 @@ where
             })
     }
 
+    /// Calculates the mean
+    fn calculate_mean(&self) -> F {
+        cond_iter!(self.species_)
+            .clone()
+            .map(|spec| spec.lock().unwrap().adjusted_fitness)
+            .sum::<F>()
+            / F::from(self.species_.len()).unwrap()
+    }
+
+    /// Calculates the variance
+    fn calculate_variance(&self, mean: F) -> F {
+        cond_iter!(self.species_)
+            .clone()
+            .map(|spec| (spec.lock().unwrap().adjusted_fitness - mean).powf(F::from(2.).unwrap()))
+            .sum::<F>()
+            / F::from(self.species_.len() - 1).unwrap()
+    }
     fn natural_selection(&mut self) {
         self.species_
             .retain(|spec| spec.lock().unwrap().stagnation_counter < 20);
@@ -415,16 +432,10 @@ where
         cond_iter_mut!(self.species_).for_each(|spec| {
             spec.get_mut().unwrap().compute_adjusted_fitness();
         });
-        let mean = cond_iter!(self.species_)
-            .clone()
-            .map(|spec| spec.lock().unwrap().adjusted_fitness)
-            .sum::<F>()
-            / F::from(self.species_.len()).unwrap();
-        let variance: F = cond_iter!(self.species_)
-            .clone()
-            .map(|spec| (spec.lock().unwrap().adjusted_fitness - mean).powf(F::from(2.).unwrap()))
-            .sum::<F>()
-            / F::from(self.species_.len() - 1).unwrap();
+
+        let mean = self.calculate_mean();
+        let variance: F = self.calculate_variance(mean);
+
         if variance >= F::from(0.00001).unwrap() {
             let volatility = variance.sqrt();
             self.species_.iter_mut().for_each(|spec| {
@@ -434,7 +445,7 @@ where
                     .powf((spec.adjusted_fitness - mean) / volatility);
             });
         } else {
-            cond_iter_mut!(self.species_).for_each(|spec| {
+            self.species_.iter_mut().for_each(|spec| {
                 spec.get_mut().unwrap().adjusted_fitness = F::one();
             });
         }
@@ -462,24 +473,12 @@ where
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
         let proba = self.proba.clone();
-        #[cfg(any(debug_assertions, target_arch = "wasm32"))]
-        {
-            self.species_.iter_mut().for_each(|species| {
-                species
-                    .get_mut()
-                    .unwrap()
-                    .natural_selection(ev_number.clone(), proba.clone());
-            });
-        }
-        #[cfg(all(not(debug_assertions), not(target_arch = "wasm32")))]
-        {
-            self.species_.par_iter_mut().for_each(|species| {
-                species
-                    .get_mut()
-                    .unwrap()
-                    .natural_selection(ev_number.clone(), proba.clone());
-            });
-        }
+        cond_iter_mut!(self.species_).for_each(|species| {
+            species
+                .get_mut()
+                .unwrap()
+                .natural_selection(ev_number.clone(), proba.clone());
+        });
 
         let mut species_sizes_vec: Vec<(usize, usize)> = Vec::new();
         let mut current_count: (usize, usize) = (0, 0);

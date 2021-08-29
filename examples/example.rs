@@ -65,7 +65,7 @@ fn compute_score(inputs: &[f64], output: f64) -> f64 {
 
 /// Rounds a float to a bool
 fn round(float: f64) -> bool {
-    !(float < 0.1)
+    float >= 0.1
 }
 
 impl Game<f64> for Simulation {
