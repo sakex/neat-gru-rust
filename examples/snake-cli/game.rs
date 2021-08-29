@@ -6,6 +6,8 @@ use crate::{
     snake::Snake,
     utils::{distance_to_apple_x, distance_to_apple_y, distance_to_wall_x, distance_to_wall_y},
 };
+use rayon::iter::ParallelIterator;
+use rayon::prelude::IntoParallelRefMutIterator;
 
 #[derive(Debug)]
 pub struct Game {
@@ -46,16 +48,17 @@ impl Game {
 
     /// Make the snakes make their decision
     pub fn make_decision(&mut self) {
-        let mut inputs: [f64; 4] = [0., 0., 0., 0.];
         let cloned_apple = self.apple;
         // Let each snake make a decision
-        self.snakes.iter_mut().for_each(|s| {
-            // First inputs are the distance to the apple from -1 to 1
-            inputs[0] = distance_to_apple_x(s, cloned_apple);
-            inputs[1] = distance_to_apple_y(s, cloned_apple);
-            inputs[2] = distance_to_wall_x(s);
-            inputs[3] = distance_to_wall_y(s);
-            s.make_decision(&inputs)
+        self.snakes.par_iter_mut().for_each(|s| {
+            s.make_decision(&[
+                // First inputs are the distance to the apple from -1 to 1
+                distance_to_apple_x(s, cloned_apple),
+                distance_to_apple_y(s, cloned_apple),
+                // The other inputs are the position in the game from -1 to 1
+                distance_to_wall_x(s),
+                distance_to_wall_y(s),
+            ])
         });
     }
 
@@ -72,7 +75,7 @@ impl Game {
         // Update every snake
         let replace_apple = self
             .snakes
-            .iter_mut()
+            .par_iter_mut()
             .map(|s| -> bool { s.update(apple_coordinate) })
             .any(|b| b);
         // Increase all ticks and increase ticks_since_eaten if no apple was replaced
