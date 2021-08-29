@@ -414,6 +414,15 @@ where
             .sum::<F>()
             / F::from(self.species_.len() - 1).unwrap()
     }
+
+    /// Gets the species lengths as a string
+    fn get_species_lengths(&self, species_sizes_vec: Vec<(usize, usize)>) -> String {
+        species_sizes_vec
+            .iter()
+            .map(|(value, count)| format!("{} x {}", count, value))
+            .join(" | ")
+    }
+
     fn natural_selection(&mut self) {
         self.species_
             .retain(|spec| spec.lock().unwrap().stagnation_counter < 20);
@@ -494,11 +503,10 @@ where
             }
         }
         species_sizes_vec.push(current_count);
-        let lengths_str = species_sizes_vec
-            .iter()
-            .map(|(value, count)| format!("{} x {}", count, value))
-            .join(" | ");
-        println!("SPECIES LENGTHS: {}", lengths_str);
+        println!(
+            "SPECIES LENGTHS: {}",
+            self.get_species_lengths(species_sizes_vec)
+        );
     }
 
     fn push_to_history(&mut self) {
