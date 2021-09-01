@@ -12,7 +12,7 @@ use rand_distr::{Distribution, Normal};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -708,7 +708,7 @@ where
             if let Some(final_gene) = new_topology.genes_ev_number.get(ev_number) {
                 let final_cell = &**final_gene;
                 let final_gene = &mut *final_cell.borrow_mut();
-                final_gene.average_weights(&worst_gene);
+                final_gene.average_weights(worst_gene);
             } else {
                 // If gene only exists in the worst topology, try to add it only if the neuron
                 // exists in the best topology
@@ -731,8 +731,13 @@ where
         }
         Arc::new(Mutex::new(new_topology))
     }
+}
 
-    pub fn to_string(&self) -> String {
+impl<'a, T> Display for Topology<T>
+where
+    T: Float + std::ops::AddAssign + Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut biases: Vec<SerializationBias> = self
             .genes_point
             .iter()
@@ -775,7 +780,11 @@ where
             .flatten()
             .collect();
         let serialization = SerializationTopology::new(biases, genes);
-        serde_json::to_string(&serialization).unwrap()
+        write!(
+            f,
+            "{}",
+            serde_json::to_string_pretty(&serialization).unwrap()
+        )
     }
 }
 
@@ -837,19 +846,5 @@ where
             }
         }
         true
-    }
-}
-
-impl<'a, T> Topology<T>
-where
-    T: Float + std::ops::AddAssign + Deserialize<'a> + Serialize + Display,
-{
-    pub fn from_serde_string(serialized: &'a str) -> Topology<T> {
-        let new_top: Topology<T> = serde_json::from_str(serialized).unwrap();
-        new_top
-    }
-
-    pub fn to_serde_string(&self) -> String {
-        serde_json::to_string(&self).unwrap()
     }
 }

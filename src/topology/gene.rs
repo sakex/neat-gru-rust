@@ -7,9 +7,9 @@ use rand::distributions::{Distribution, Uniform};
 use rand::prelude::ThreadRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Point {
     pub layer: u8,
     pub index: u8,
@@ -21,23 +21,7 @@ impl Point {
     }
 }
 
-impl Hash for Point {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.layer.hash(state);
-        self.index.hash(state)
-    }
-
-    fn hash_slice<H: Hasher>(data: &[Point], state: &mut H)
-    where
-        Self: Sized,
-    {
-        for point in data.iter() {
-            point.hash(state);
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Hash, Eq)]
 pub struct Coordinate {
     input: Point,
     output: Point,
@@ -46,24 +30,6 @@ pub struct Coordinate {
 impl Coordinate {
     pub fn new(input: Point, output: Point) -> Coordinate {
         Coordinate { input, output }
-    }
-}
-
-impl Hash for Coordinate {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.input.layer.hash(state);
-        self.input.index.hash(state);
-        self.output.layer.hash(state);
-        self.output.index.hash(state)
-    }
-
-    fn hash_slice<H: Hasher>(data: &[Coordinate], state: &mut H)
-    where
-        Self: Sized,
-    {
-        for coordinate in data.iter() {
-            coordinate.hash(state);
-        }
     }
 }
 
@@ -236,10 +202,6 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         self.output.layer == other.output.layer && self.output.index == other.output.index
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.output.layer != other.output.layer || self.output.index != other.output.index
     }
 }
 

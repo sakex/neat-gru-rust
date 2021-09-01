@@ -397,33 +397,54 @@ where
             })
     }
 
-    fn natural_selection(&mut self) {
-        self.species_
-            .retain(|spec| spec.lock().unwrap().stagnation_counter < 20);
-        if self.species_.len() == 1 {
-            let first_spec = &mut *self.species_[0].lock().unwrap();
-            first_spec.max_topologies = self.max_individuals_;
-            self.ev_number_.reset();
-            let ev_number = self.ev_number_.clone();
-            first_spec.natural_selection(ev_number, self.proba.clone());
-            return;
-        }
-        if self.species_.is_empty() {
-            return;
-        }
-        self.species_.iter_mut().for_each(|spec| {
-            spec.get_mut().unwrap().compute_adjusted_fitness();
-        });
-        let mean = cond_iter!(self.species_)
+    /// Calculates the mean
+    fn calculate_mean(&self) -> F {
+        cond_iter!(self.species_)
             .clone()
             .map(|spec| spec.lock().unwrap().adjusted_fitness)
             .sum::<F>()
-            / F::from(self.species_.len()).unwrap();
-        let variance = cond_iter!(self.species_)
+            / F::from(self.species_.len()).unwrap()
+    }
+
+    /// Calculates the variance
+    fn calculate_variance(&self, mean: F) -> F {
+        cond_iter!(self.species_)
             .clone()
             .map(|spec| (spec.lock().unwrap().adjusted_fitness - mean).powf(F::from(2.).unwrap()))
             .sum::<F>()
-            / F::from(self.species_.len() - 1).unwrap();
+            / F::from(self.species_.len() - 1).unwrap()
+    }
+
+    /// Gets the species lengths as a string
+    fn get_species_lengths(&self, species_sizes_vec: Vec<(usize, usize)>) -> String {
+        species_sizes_vec
+            .iter()
+            .map(|(value, count)| format!("{} x {}", count, value))
+            .join(" | ")
+    }
+
+    fn natural_selection(&mut self) {
+        self.species_
+            .retain(|spec| spec.lock().unwrap().stagnation_counter < 20);
+        match self.species_.len() {
+            0 => return,
+            1 => {
+                let first_spec = &mut *self.species_[0].lock().unwrap();
+                first_spec.max_topologies = self.max_individuals_;
+                self.ev_number_.reset();
+                let ev_number = self.ev_number_.clone();
+                first_spec.natural_selection(ev_number, self.proba.clone());
+                return;
+            }
+            _ => {}
+        };
+        cond_iter_mut!(self.species_).for_each(|spec| {
+            spec.get_mut().unwrap().compute_adjusted_fitness();
+        });
+
+        let mean = self.calculate_mean();
+        let variance: F = self.calculate_variance(mean);
+
         if variance >= F::from(0.00001).unwrap() {
             let volatility = variance.sqrt();
             self.species_.iter_mut().for_each(|spec| {
@@ -437,25 +458,7 @@ where
                 spec.get_mut().unwrap().adjusted_fitness = F::one();
             });
         }
-        self.species_.sort_by(|spec1, spec2| {
-            let spec1 = &*spec1.lock().unwrap();
-            let spec2 = &*spec2.lock().unwrap();
-            if spec1.adjusted_fitness == spec2.adjusted_fitness {
-                spec1
-                    .topologies
-                    .len()
-                    .partial_cmp(&spec2.topologies.len())
-                    .unwrap()
-            } else {
-                spec1
-                    .adjusted_fitness
-                    .partial_cmp(&spec2.adjusted_fitness)
-                    .expect(&*format!(
-                        "First: {}, second: {}, variance {}",
-                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance
-                    ))
-            }
-        });
+        self.sort_species(variance);
         let sum: F = cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().adjusted_fitness)
             .sum();
@@ -479,24 +482,12 @@ where
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
         let proba = self.proba.clone();
-        #[cfg(any(debug_assertions, target_arch = "wasm32"))]
-        {
-            self.species_.iter_mut().for_each(|species| {
-                species
-                    .get_mut()
-                    .unwrap()
-                    .natural_selection(ev_number.clone(), proba.clone());
-            });
-        }
-        #[cfg(all(not(debug_assertions), not(target_arch = "wasm32")))]
-        {
-            self.species_.par_iter_mut().for_each(|species| {
-                species
-                    .lock()
-                    .unwrap()
-                    .natural_selection(ev_number.clone(), proba.clone());
-            });
-        }
+        cond_iter_mut!(self.species_).for_each(|species| {
+            species
+                .get_mut()
+                .unwrap()
+                .natural_selection(ev_number.clone(), proba.clone());
+        });
 
         let mut species_sizes_vec: Vec<(usize, usize)> = Vec::new();
         let mut current_count: (usize, usize) = (0, 0);
@@ -512,11 +503,10 @@ where
             }
         }
         species_sizes_vec.push(current_count);
-        let lengths_str = species_sizes_vec
-            .iter()
-            .map(|(value, count)| format!("{} x {}", count, value))
-            .join(" | ");
-        println!("SPECIES LENGTHS: {}", lengths_str);
+        println!(
+            "SPECIES LENGTHS: {}",
+            self.get_species_lengths(species_sizes_vec)
+        );
     }
 
     fn push_to_history(&mut self) {
@@ -561,6 +551,29 @@ where
         }
     }
 
+    /// Sorts the species according to fitness
+    fn sort_species(&mut self, variance: F) {
+        self.species_.sort_by(|spec1, spec2| {
+            let spec1 = &*spec1.lock().unwrap();
+            let spec2 = &*spec2.lock().unwrap();
+            if spec1.adjusted_fitness == spec2.adjusted_fitness {
+                spec1
+                    .topologies
+                    .len()
+                    .partial_cmp(&spec2.topologies.len())
+                    .unwrap()
+            } else {
+                spec1
+                    .adjusted_fitness
+                    .partial_cmp(&spec2.adjusted_fitness)
+                    .expect(&*format!(
+                        "First: {}, second: {}, variance {}",
+                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance
+                    ))
+            }
+        });
+    }
+
     fn reset_species(&mut self) {
         self.collect_topologies();
         cond_iter_mut!(self.species_).for_each(|spec| {
@@ -603,11 +616,15 @@ where
         self.species_ = species;
         self.species_
             .retain(|spec| !spec.lock().unwrap().topologies.is_empty());
-        let biggest_species = cond_iter!(self.species_)
+        println!("BIGGEST SPECIES: {}", self.get_biggest_species_len());
+    }
+
+    /// Gets the length of the biggest species
+    fn get_biggest_species_len(&self) -> usize {
+        cond_iter!(self.species_)
             .map(|spec| spec.lock().unwrap().topologies.len())
             .max()
-            .unwrap_or(0);
-        println!("BIGGEST SPECIES: {}", biggest_species);
+            .unwrap_or(0)
     }
 }
 

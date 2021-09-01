@@ -4,12 +4,12 @@ use crate::coordinate::Coordinate;
 use crate::defs::RESOLUTION;
 use crate::direction::Direction;
 use neat_gru::neural_network::nn::NeuralNetwork;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Block {
     cord: Coordinate,
 }
 
-impl Block {}
 #[derive(Clone, PartialEq, Debug)]
 pub struct Snake {
     blocks: LinkedList<Block>,
@@ -39,9 +39,13 @@ impl Snake {
     /// Changes the direction of the snake if it hasn't already been changed this tick
     pub fn change_direction(&mut self, dir: Direction) {
         // We don't want to change the direction multiple times per tick and also don't want to move into the snakes body
-        if !self.dir_changed && dir.opposite() != self.moving_direction {
+        if !self.dir_changed
+            && dir.opposite() != self.moving_direction
+            && self.moving_direction != dir
+        {
             self.moving_direction = dir;
             self.dir_changed = true;
+            //println!("Dir changed to {:?}", dir);
         }
     }
     fn is_eating(&self, apple: Coordinate) -> bool {
@@ -65,11 +69,10 @@ impl Snake {
     /// Updates the snake. Eating determines whether the snake is eating and returns
     /// whether it crashed and whether it ate an apple
     pub fn update(&mut self, apple: Coordinate) -> bool {
-        let mut eating = false;
+        let eating = self.is_eating(apple);
         // If the snake is eating it gets longer
-        if !self.is_eating(apple) {
+        if !eating {
             self.blocks.pop_back();
-            eating = true;
         }
         // Move the body
         if self.move_body() {
@@ -99,7 +102,7 @@ impl Snake {
         let head_position = self.get_head_position();
         match self.moving_direction {
             Direction::Up => {
-                if head_position.y <= 0 {
+                if head_position.y < 1 {
                     return true;
                 }
             }
@@ -114,7 +117,7 @@ impl Snake {
                 }
             }
             Direction::Left => {
-                if head_position.x <= 0 {
+                if head_position.x < 1 {
                     return true;
                 }
             }

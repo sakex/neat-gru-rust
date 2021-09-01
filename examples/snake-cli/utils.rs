@@ -12,6 +12,11 @@ pub fn distance_to_apple_y(snake: &Snake, apple: Apple) -> f64 {
     (snake_coordinate - apple_coordinate) / RESOLUTION as f64
 }
 
+pub fn distance_to_apple(snake: &Snake, apple: Apple) -> f64 {
+    // In this case we can directly add the distances since the snake can't go diagonally
+    distance_to_apple_x(snake, apple) + distance_to_apple_y(snake, apple)
+}
+
 pub fn distance_to_wall_x(snake: &Snake) -> f64 {
     let pos = snake.get_head_position();
     let distance = (RESOLUTION - pos.x) as f64;

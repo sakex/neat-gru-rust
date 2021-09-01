@@ -55,7 +55,7 @@ fn compute_score(inputs: &[f64], output: f64) -> f64 {
     // https://en.wikipedia.org/wiki/XOR_gate
     // Returns 1.0 for a wrong output and 0.0 for a right output. Should be used as a score
     // We first need to round the numbers to booleans
-    let inputs: Vec<bool> = inputs.into_iter().map(|f| round(*f)).collect();
+    let inputs: Vec<bool> = inputs.iter().map(|f| round(*f)).collect();
     let output = round(output);
     if inputs[0] ^ inputs[1] == output {
         return 1.0;
@@ -65,11 +65,7 @@ fn compute_score(inputs: &[f64], output: f64) -> f64 {
 
 /// Rounds a float to a bool
 fn round(float: f64) -> bool {
-    if float < 0.1 {
-        false
-    } else {
-        true
-    }
+    float >= 0.1
 }
 
 impl Game<f64> for Simulation {
@@ -89,7 +85,7 @@ impl Game<f64> for Simulation {
         // Iter on best topologies and upload the best one
         let best = history.last().unwrap();
         let mut output = File::create("XOR").expect("Could not create output file");
-        write!(output, "{:?}", best).unwrap();
+        write!(output, "{}", best).unwrap();
     }
 }
 

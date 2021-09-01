@@ -1,14 +1,17 @@
 # neat-gru-rust
 [![CICD](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml/badge.svg)](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml)
-![Crates.io](https://img.shields.io/crates/v/neat-gru)
-![Downloads](https://img.shields.io/crates/d/neat-gru)
-![License](https://img.shields.io/github/license/sakex/neat-gru-rust)
+![Crates.io](https://img.shields.io/crates/v/neat-gru?style=for-the-badge)
+![Downloads](https://img.shields.io/crates/d/neat-gru?style=for-the-badge)
+![License](https://img.shields.io/github/license/sakex/neat-gru-rust?style=for-the-badge)
 
 ## Documentation
 [Crates.io doc](https://docs.rs/neat-gru/)
 
 ## Examples
 [XOR](examples/example.rs)
+
+[Snake](examples/snake-cli)
+
 
 Right now this is the only working example. You can run it via:
 ```
@@ -20,7 +23,7 @@ cargo run --example example
 In `Cargo.toml`:
 ```
 [dependencies]
-neat-gru = "0.6.5"
+neat-gru = 1.0.0"
 ```
 Create a struct that implements the `Game` trait
 ```rust
