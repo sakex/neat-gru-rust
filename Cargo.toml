@@ -31,6 +31,10 @@ criterion = "0.3.5"
 name = "benchmark"
 harness = false
 
+[[bench]]
+name="math_functions"
+harness=false
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.1", features = ["js"] }
 

@@ -1,5 +1,5 @@
 mod connection_gru;
 mod connection_sigmoid;
-mod functions;
+pub mod functions;
 mod neuron;
 pub mod nn;
