@@ -1,5 +1,5 @@
 //! Contains benchmarks of the functions stored in neural_network::functions.
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use neat_gru::neural_network::functions::*;
 
 extern crate neat_gru;
