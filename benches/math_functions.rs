@@ -50,6 +50,29 @@ fn bench_tanh(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_relu(c: &mut Criterion) {
+    let size: f32 = 0.3518392;
+    let mut group = c.benchmark_group("relu Function");
+    for size in [
+        size * 0.0,
+        size,
+        size * 2.0,
+        size * 4.0,
+        size * 6.0,
+        size * 8.0,
+        size * 10.0,
+        size * 12.0,
+        size * 14.0,
+    ]
+        .iter()
+    {
+        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, size| {
+            b.iter(|| re_lu(*size))
+        });
+    }
+    group.finish();
+}
+
 criterion_group! {
     name = benches;
     config = Criterion::default();

@@ -19,3 +19,8 @@ pub fn fast_tanh<T: Float>(x: T) -> T {
     let b = 135135 + x2 * (62370 + x2 * (3150 + x2 * 28));
     a / b
 }
+
+#[inline]
+pub fn re_lu<T: Float>(x: T) -> T{
+    x.max(T::zero())
+}
