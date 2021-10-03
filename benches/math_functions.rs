@@ -73,9 +73,33 @@ fn bench_relu(c: &mut Criterion) {
     group.finish();
 }
 
+fn comparison(c: &mut Criterion) {
+    let size: f32 = 0.3518392;
+    let mut group = c.benchmark_group("relu vs sigmoid");
+    for size in [
+        size * 0.0,
+        size,
+        size * 2.0,
+        size * 4.0,
+        size * 6.0,
+        size * 8.0,
+        size * 10.0,
+        size * 12.0,
+        size * 14.0,
+    ]
+        .iter()
+    {
+        group.bench_with_input(BenchmarkId::new("Sigmoid", size), size,
+        |b, size| b.iter(|| fast_sigmoid(*size)));
+        group.bench_with_input(BenchmarkId::new("Relu", size), size,
+                               |b, size| b.iter(|| fast_sigmoid(*size)));
+    }
+    group.finish();
+}
+
 criterion_group! {
     name = benches;
     config = Criterion::default();
-    targets = bench_tanh, bench_sigmoid,
+    targets = bench_tanh, bench_sigmoid, bench_relu, comparison
 }
 criterion_main!(benches);
