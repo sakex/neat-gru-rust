@@ -153,12 +153,15 @@ where
     ) -> Vec<TopologySmrtPtr<T>> {
         let mut new_topologies: Vec<TopologySmrtPtr<T>> = Vec::new();
         new_topologies.reserve_exact(self.max_topologies);
-        let mutations_count = if surviving_topologies.len() >= 3 {
+        /*let mutations_count = if surviving_topologies.len() >= 3 {
             // 90% mutation, 10% crossover
             (surviving_topologies.len() * 9) / 10
         } else {
             self.max_topologies
-        };
+        };*/
+        let mutations_count = self.max_topologies;
+
+        // Mutations
         while new_topologies.len() < mutations_count {
             for topology in surviving_topologies.iter().rev() {
                 let top = &mut *topology.lock().unwrap();
@@ -168,7 +171,8 @@ where
                 }
             }
         }
-        let mut rng = thread_rng();
+        // Crossover
+        /*let mut rng = thread_rng();
         while new_topologies.len() < self.max_topologies {
             for (index, best) in surviving_topologies
                 .iter()
@@ -184,7 +188,7 @@ where
                     return new_topologies;
                 }
             }
-        }
+        }*/
         new_topologies
     }
 
