@@ -705,8 +705,7 @@ where
             let cell = &**worst_gene;
             let worst_gene = &mut *cell.borrow_mut();
             // If gene exists in both topologies, adjust weight to the average between the 2
-            if let Some(_) = new_topology.genes_ev_number.get(ev_number) {
-            } else {
+            if new_topology.genes_ev_number.get(ev_number).is_none() {
                 // If gene only exists in the worst topology, try to add it only if the neuron
                 // exists in the best topology
                 // Only crossover this gene if both inputs and outputs neuron already exist

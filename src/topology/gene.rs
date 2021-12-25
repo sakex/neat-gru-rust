@@ -64,7 +64,7 @@ where
         ev_number: &EvNumber,
     ) -> Gene<T> {
         let unif = Uniform::from(min..max);
-        let connection_type_picker = Uniform::from(0..2);
+        let connection_type_picker = Uniform::from(0..3);
         let connection_type = connection_type_picker.sample(rng);
         let coordinate = Coordinate::new(input.clone(), output.clone());
         Gene {
@@ -124,7 +124,7 @@ where
         rng: &mut ThreadRng,
     ) -> Gene<T> {
         let mut new_gene = Gene::new_zero(input, output, ev_number);
-        let connection_type: i32 = rng.gen_range(0..2);
+        let connection_type: i32 = rng.gen_range(0..3);
         new_gene.connection_type = ConnectionType::from_int(connection_type);
         new_gene
     }

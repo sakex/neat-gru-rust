@@ -7,6 +7,8 @@ use crate::topology::Topology;
 use num::Float;
 use std::fmt::Display;
 
+use super::connection_relu::ConnectionRelu;
+
 #[derive(Debug)]
 pub struct NeuralNetwork<T>
 where
@@ -75,6 +77,10 @@ where
                     ConnectionType::Sigmoid => {
                         let connection = ConnectionSigmoid::new(gene.input_weight, output_neuron);
                         (*input_neuron).connections_sigmoid.push(connection);
+                    }
+                    ConnectionType::Relu => {
+                        let connection = ConnectionRelu::new(gene.input_weight, output_neuron);
+                        (*input_neuron).connections_relu.push(connection);
                     }
                     ConnectionType::GRU => {
                         let connection = ConnectionGru::new(

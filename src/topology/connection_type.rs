@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub enum ConnectionType {
     Sigmoid,
     GRU,
+    Relu,
 }
 
 impl ConnectionType {
@@ -11,6 +12,7 @@ impl ConnectionType {
         match i {
             0 => ConnectionType::Sigmoid,
             1 => ConnectionType::GRU,
+            2 => ConnectionType::Relu,
             _ => panic!("Invalid value {}", i),
         }
     }
@@ -19,6 +21,7 @@ impl ConnectionType {
         match self {
             ConnectionType::Sigmoid => 0,
             ConnectionType::GRU => 1,
+            &ConnectionType::Relu => 2,
         }
     }
 }
