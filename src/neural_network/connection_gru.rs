@@ -5,7 +5,7 @@ use num::Float;
 #[derive(Debug)]
 pub struct ConnectionGru<T>
 where
-    T: Float + std::ops::AddAssign + std::cmp::PartialEq,
+    T: Float + std::ops::AddAssign + std::cmp::PartialEq + Send,
 {
     memory: T,
     prev_input: T,
@@ -18,9 +18,14 @@ where
     output: *mut Neuron<T>,
 }
 
+unsafe impl<T> Send for ConnectionGru<T> where
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + std::ops::AddAssign + Send
+{
+}
+
 impl<T> ConnectionGru<T>
 where
-    T: Float + std::ops::AddAssign + std::cmp::PartialEq,
+    T: Float + std::ops::AddAssign + std::cmp::PartialEq + Send,
 {
     pub(crate) fn new(
         input_weight: T,
@@ -90,7 +95,7 @@ where
 
 impl<T> PartialEq for ConnectionGru<T>
 where
-    T: Float + std::ops::AddAssign + std::cmp::PartialEq,
+    T: Float + std::ops::AddAssign + std::cmp::PartialEq + Send,
 {
     fn eq(&self, other: &Self) -> bool {
         floats_almost_equal(self.memory, other.memory)
@@ -103,4 +108,4 @@ where
     }
 }
 
-impl<T> Eq for ConnectionGru<T> where T: Float + std::ops::AddAssign + std::cmp::PartialEq {}
+impl<T> Eq for ConnectionGru<T> where T: Float + std::ops::AddAssign + std::cmp::PartialEq + Send {}

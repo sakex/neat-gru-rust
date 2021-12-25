@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Bias<T>
 where
-    T: Float,
+    T: Float + Send,
 {
     pub bias_input: T,
     pub bias_update: T,
@@ -17,7 +17,7 @@ where
 impl Bias<f64> {
     pub fn cast<T>(&self) -> Bias<T>
     where
-        T: Float,
+        T: Float + Send,
     {
         Bias {
             bias_input: num::cast(self.bias_input).unwrap(),
@@ -29,7 +29,7 @@ impl Bias<f64> {
 
 impl<T> Bias<T>
 where
-    T: Float,
+    T: Float + Send,
 {
     pub fn new_random(rng: &mut ThreadRng) -> Bias<T> {
         let min: f64 = -1.;
@@ -61,7 +61,7 @@ where
 
 impl<T> PartialEq for Bias<T>
 where
-    T: Float,
+    T: Float + Send,
 {
     fn eq(&self, other: &Self) -> bool {
         floats_almost_equal(self.bias_input, other.bias_input)
@@ -70,4 +70,4 @@ where
     }
 }
 
-impl<T> Eq for Bias<T> where T: Float {}
+impl<T> Eq for Bias<T> where T: Float + Send {}

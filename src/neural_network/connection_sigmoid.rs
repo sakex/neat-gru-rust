@@ -6,15 +6,20 @@ use std::ops::AddAssign;
 #[derive(Debug)]
 pub struct ConnectionSigmoid<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     weight: T,
     output: *mut Neuron<T>,
 }
 
+unsafe impl<T> Send for ConnectionSigmoid<T> where
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send
+{
+}
+
 impl<T> ConnectionSigmoid<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     pub(crate) fn new(weight: T, output: *mut Neuron<T>) -> ConnectionSigmoid<T> {
         ConnectionSigmoid { weight, output }
@@ -41,11 +46,11 @@ where
 
 impl<T> PartialEq for ConnectionSigmoid<T>
 where
-    T: Float + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + AddAssign + Send,
 {
     fn eq(&self, other: &Self) -> bool {
         floats_almost_equal(self.weight, other.weight)
     }
 }
 
-impl<T> Eq for ConnectionSigmoid<T> where T: Float + std::cmp::PartialEq + AddAssign {}
+impl<T> Eq for ConnectionSigmoid<T> where T: Float + std::cmp::PartialEq + AddAssign + Send {}

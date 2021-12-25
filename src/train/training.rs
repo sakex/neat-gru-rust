@@ -1,10 +1,10 @@
 use crate::game::{Game, GameAsync};
 #[cfg(target_arch = "wasm32")]
 use crate::instant_wasm_replacement::Instant;
-use crate::neural_network::nn::NeuralNetwork;
+use crate::neural_network::NeuralNetwork;
 use crate::section;
 use crate::topology::mutation_probabilities::MutationProbabilities;
-use crate::topology::topology::{Topology, TopologySmrtPtr};
+use crate::topology::{Topology, TopologySmrtPtr};
 use crate::train::error::TrainingError;
 use crate::train::evolution_number::EvNumber;
 use crate::train::species::Species;
@@ -44,6 +44,8 @@ macro_rules! cond_iter_mut {
     }};
 }
 
+pub type TrainAccessCallback<'a, T, F> = Box<dyn FnMut(&mut Train<'a, T, F>)>;
+
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
 where
@@ -60,6 +62,7 @@ where
     c1_: F,
     c2_: F,
     c3_: F,
+    crossovers_: bool,
     inputs_: Option<usize>,
     outputs_: Option<usize>,
     topologies_: Vec<TopologySmrtPtr<F>>,
@@ -69,7 +72,7 @@ where
     best_historical_score: F,
     no_progress_counter: usize,
     proba: MutationProbabilities,
-    access_train_object_fn: Option<Box<dyn FnMut(&mut Train<'a, T, F>)>>,
+    access_train_object_fn: Option<TrainAccessCallback<'a, T, F>>,
 }
 
 impl<'a, T, F> Train<'a, T, F>
@@ -93,8 +96,8 @@ where
     /// # Example  
     ///
     /// ```
-    /// use neat_gru::neural_network::nn::NeuralNetwork;;
-    /// use neat_gru::topology::topology::Topology;
+    /// use neat_gru::neural_network::NeuralNetwork;
+    /// use neat_gru::topology::Topology;
     /// use neat_gru::game::Game;
     ///
     /// struct TestGame {
@@ -147,6 +150,7 @@ where
             c1_: F::one(),
             c2_: F::one(),
             c3_: F::one(),
+            crossovers_: true,
             inputs_,
             outputs_,
             topologies_: Vec::new(),
@@ -283,6 +287,19 @@ where
         self
     }
 
+    /// Specifies if we should run crossovers or not
+    ///
+    /// This function is optional as the crossovers are run by default
+    ///
+    /// # Arguments
+    ///
+    /// `should_run` - Whether crossover should be run or not
+    #[inline]
+    pub fn crossovers(&mut self, should_run: bool) -> &mut Self {
+        self.crossovers_ = should_run;
+        self
+    }
+
     /// Returns the number of species
     #[inline]
     pub fn species_count(&self) -> usize {
@@ -310,7 +327,7 @@ where
             let now = Instant::now();
             let results = self.simulation.run_generation();
             println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
-            self.set_last_results(&results);
+            self.set_last_results(results);
             let now = Instant::now();
             self.natural_selection();
             self.push_to_history();
@@ -386,7 +403,7 @@ where
         self.simulation.reset_players(networks);
     }
 
-    fn set_last_results(&mut self, results: &Vec<F>) {
+    fn set_last_results(&mut self, results: Vec<F>) {
         cond_iter_mut!(self.topologies_)
             .zip(cond_iter!(results))
             .for_each(|(topology, result)| {
@@ -433,7 +450,7 @@ where
                 first_spec.max_topologies = self.max_individuals_;
                 self.ev_number_.reset();
                 let ev_number = self.ev_number_.clone();
-                first_spec.natural_selection(ev_number, self.proba.clone());
+                first_spec.natural_selection(ev_number, self.proba.clone(), self.crossovers_);
                 return;
             }
             _ => {}
@@ -482,11 +499,13 @@ where
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
         let proba = self.proba.clone();
+        let run_crossovers = self.crossovers_;
         cond_iter_mut!(self.species_).for_each(|species| {
-            species
-                .get_mut()
-                .unwrap()
-                .natural_selection(ev_number.clone(), proba.clone());
+            species.get_mut().unwrap().natural_selection(
+                ev_number.clone(),
+                proba.clone(),
+                run_crossovers,
+            );
         });
 
         let mut species_sizes_vec: Vec<(usize, usize)> = Vec::new();
@@ -654,7 +673,7 @@ where
             let now = Instant::now();
             let results = self.simulation.run_generation_async().await;
             println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
-            self.set_last_results(&results);
+            self.set_last_results(results);
             let now = Instant::now();
             self.natural_selection();
             self.push_to_history();

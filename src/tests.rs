@@ -1,7 +1,7 @@
-use crate::neural_network::nn::NeuralNetwork;
+use crate::neural_network::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
-use crate::topology::topology::Topology;
-use crate::train::train::Train;
+use crate::topology::Topology;
+use crate::train::Train;
 use crate::{game::Game, section};
 use rand::{thread_rng, Rng};
 use std::fs;

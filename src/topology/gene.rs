@@ -55,34 +55,6 @@ impl<T> Gene<T>
 where
     T: Float,
 {
-    pub fn new(
-        input: Point,
-        output: Point,
-        input_weight: T,
-        memory_weight: T,
-        reset_input_weight: T,
-        update_input_weight: T,
-        reset_memory_weight: T,
-        update_memory_weight: T,
-        evolution_number: usize,
-        connection_type: ConnectionType,
-        disabled: bool,
-    ) -> Gene<T> {
-        Gene {
-            input,
-            output,
-            input_weight,
-            memory_weight,
-            reset_input_weight,
-            update_input_weight,
-            reset_memory_weight,
-            update_memory_weight,
-            evolution_number,
-            connection_type,
-            disabled,
-        }
-    }
-
     pub fn new_random(
         rng: &mut ThreadRng,
         input: Point,

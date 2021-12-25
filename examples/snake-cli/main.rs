@@ -1,5 +1,5 @@
 use defs::{OUTPUTS, SNAKE_COUNT};
-use neat_gru::train::train::Train;
+use neat_gru::train::Train;
 use training_simulation::TrainingSimulation;
 
 mod apple;

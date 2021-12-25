@@ -1,5 +1,5 @@
-use crate::neural_network::nn::NeuralNetwork;
-use crate::topology::topology::Topology;
+use crate::neural_network::NeuralNetwork;
+use crate::topology::Topology;
 use async_trait::async_trait;
 use num::Float;
 use std::fmt::Display;
@@ -7,7 +7,7 @@ use std::fmt::Display;
 /// Trait to implement in order to use Train
 pub trait Game<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     /// Run a game round
     fn run_generation(&mut self) -> Vec<T>;
@@ -30,7 +30,7 @@ where
 #[async_trait]
 pub trait GameAsync<T>: Game<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     async fn run_generation_async(&mut self) -> Vec<T>;
 }

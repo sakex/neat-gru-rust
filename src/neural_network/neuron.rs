@@ -10,7 +10,7 @@ use std::ops::AddAssign;
 #[derive(Debug)]
 pub struct Neuron<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     input: T,
     memory: T,
@@ -21,9 +21,14 @@ where
     pub(crate) connections_sigmoid: Vec<ConnectionSigmoid<T>>,
 }
 
+unsafe impl<T> Send for Neuron<T> where
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send
+{
+}
+
 impl<T> Neuron<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     pub fn new() -> Neuron<T> {
         Neuron {
@@ -138,7 +143,7 @@ where
 
 impl<T> PartialEq for Neuron<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     fn eq(&self, other: &Neuron<T>) -> bool {
         if self.connections_sigmoid.len() != other.connections_sigmoid.len()

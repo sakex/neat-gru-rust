@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Write;
 
 use crate::game::Game;
-use neat_gru::neural_network::nn::NeuralNetwork;
+use neat_gru::neural_network::NeuralNetwork;
 
 pub struct TrainingSimulation {
     networks: Option<Vec<NeuralNetwork<f64>>>,
@@ -33,7 +33,7 @@ impl neat_gru::game::Game<f64> for TrainingSimulation {
         self.networks = Some(nets);
     }
 
-    fn post_training(&mut self, history: &[neat_gru::topology::topology::Topology<f64>]) {
+    fn post_training(&mut self, history: &[neat_gru::topology::Topology<f64>]) {
         let history: Vec<String> = history.iter().map(|t| t.to_string()).collect();
         let mut output = File::create("snakes.json").expect("Could not create output file");
         write!(output, "{}", history.last().unwrap()).unwrap();

@@ -4,4 +4,6 @@ pub mod connection_type;
 pub mod gene;
 pub mod mutation_probabilities;
 mod serialization;
-pub mod topology;
+mod topology_struct;
+
+pub use topology_struct::*;

@@ -4,9 +4,9 @@ use std::fs::File;
 use std::io::Write;
 
 use neat_gru::game::Game;
-use neat_gru::neural_network::nn::NeuralNetwork;
-use neat_gru::topology::topology::Topology;
-use neat_gru::train::train::Train;
+use neat_gru::neural_network::NeuralNetwork;
+use neat_gru::topology::Topology;
+use neat_gru::train::Train;
 struct Player {
     pub net: NeuralNetwork<f64>,
 }

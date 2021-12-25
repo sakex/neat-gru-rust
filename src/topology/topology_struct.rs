@@ -23,7 +23,7 @@ pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Topology<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     max_layers: usize,
     max_per_layers: usize,
@@ -37,13 +37,13 @@ where
 
 pub type TopologySmrtPtr<T> = Arc<Mutex<Topology<T>>>;
 
-unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign + Display {}
+unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign + Display + Send {}
 
-unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign + Display {}
+unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign + Display + Send {}
 
 impl<'a, T> Clone for Topology<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     fn clone(&self) -> Topology<T> {
         let genes_ev_number: HashMap<usize, GeneSmrtPtr<T>> = self
@@ -100,7 +100,7 @@ where
 
 impl<'a, T> Topology<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     pub fn new(max_layers: usize, max_per_layers: usize) -> Topology<T> {
         Topology {
@@ -662,19 +662,19 @@ where
         for gene in &serialization.genes {
             let input = Point::new(gene.input.0, gene.input.1);
             let output = Point::new(gene.output.0, gene.output.1);
-            let new_gene = Rc::new(RefCell::new(Gene::new(
-                input.clone(),
+            let new_gene = Rc::new(RefCell::new(Gene {
+                input: input.clone(),
                 output,
-                num::cast(gene.input_weight).unwrap(),
-                num::cast(gene.memory_weight).unwrap(),
-                num::cast(gene.reset_input_weight).unwrap(),
-                num::cast(gene.update_input_weight).unwrap(),
-                num::cast(gene.reset_memory_weight).unwrap(),
-                num::cast(gene.update_memory_weight).unwrap(),
-                0,
-                ConnectionType::from_int(gene.connection_type),
-                gene.disabled,
-            )));
+                input_weight: num::cast(gene.input_weight).unwrap(),
+                memory_weight: num::cast(gene.memory_weight).unwrap(),
+                reset_input_weight: num::cast(gene.reset_input_weight).unwrap(),
+                update_input_weight: num::cast(gene.update_input_weight).unwrap(),
+                reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
+                update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
+                evolution_number: 0,
+                connection_type: ConnectionType::from_int(gene.connection_type),
+                disabled: gene.disabled,
+            }));
 
             if gene.disabled {
                 continue;
@@ -735,7 +735,7 @@ where
 
 impl<'a, T> Display for Topology<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut biases: Vec<SerializationBias> = self
@@ -756,28 +756,27 @@ where
         let genes = self
             .genes_point
             .iter()
-            .map(|(_point, gene)| {
+            .flat_map(|(_point, gene)| {
                 gene.genes
                     .iter()
                     .map(|gene| {
                         let cell = &**gene;
                         let gene = &*cell.borrow();
-                        SerializationGene::new(
-                            gene.connection_type.to_int(),
-                            gene.disabled,
-                            (gene.input.layer, gene.input.index),
-                            num::cast(gene.input_weight).unwrap(),
-                            num::cast(gene.memory_weight).unwrap(),
-                            (gene.output.layer, gene.output.index),
-                            num::cast(gene.reset_input_weight).unwrap(),
-                            num::cast(gene.reset_memory_weight).unwrap(),
-                            num::cast(gene.update_input_weight).unwrap(),
-                            num::cast(gene.update_memory_weight).unwrap(),
-                        )
+                        SerializationGene {
+                            connection_type: gene.connection_type.to_int(),
+                            disabled: gene.disabled,
+                            input: (gene.input.layer, gene.input.index),
+                            input_weight: num::cast(gene.input_weight).unwrap(),
+                            memory_weight: num::cast(gene.memory_weight).unwrap(),
+                            output: (gene.output.layer, gene.output.index),
+                            reset_input_weight: num::cast(gene.reset_input_weight).unwrap(),
+                            reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
+                            update_input_weight: num::cast(gene.update_input_weight).unwrap(),
+                            update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
+                        }
                     })
                     .collect::<Vec<SerializationGene>>()
             })
-            .flatten()
             .collect();
         let serialization = SerializationTopology::new(biases, genes);
         write!(
@@ -790,7 +789,7 @@ where
 
 impl<'a, T> PartialEq for Topology<T>
 where
-    T: Float + std::ops::AddAssign + Display,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     fn eq(&self, other: &Self) -> bool {
         if self.layers_sizes.len() != other.layers_sizes.len()

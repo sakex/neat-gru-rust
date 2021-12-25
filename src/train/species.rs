@@ -1,5 +1,5 @@
 use crate::topology::mutation_probabilities::MutationProbabilities;
-use crate::topology::topology::{Topology, TopologySmrtPtr};
+use crate::topology::{Topology, TopologySmrtPtr};
 use crate::train::evolution_number::EvNumber;
 use num::Float;
 use rand::prelude::ThreadRng;
@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 pub struct Species<T>
 where
-    T: Float + Sum + std::ops::AddAssign + Display,
+    T: Float + Sum + std::ops::AddAssign + Display + Send,
 {
     pub topologies: Vec<TopologySmrtPtr<T>>,
     pub best_topology: Topology<T>,
@@ -22,7 +22,7 @@ where
 
 impl<T> Species<T>
 where
-    T: Float + Sum + std::ops::AddAssign + Display,
+    T: Float + Sum + std::ops::AddAssign + Display + Send,
 {
     pub fn new(first_topology: TopologySmrtPtr<T>) -> Species<T> {
         Species {
@@ -97,7 +97,12 @@ where
         }
     }
 
-    pub fn natural_selection(&mut self, ev_number: Arc<EvNumber>, proba: MutationProbabilities) {
+    pub fn natural_selection(
+        &mut self,
+        ev_number: Arc<EvNumber>,
+        proba: MutationProbabilities,
+        run_crossovers: bool,
+    ) {
         self.topologies.sort_by(|top1, top2| {
             let top1_borrow = &**top1;
             let top1 = &*top1_borrow.lock().unwrap();
@@ -120,10 +125,15 @@ where
         } else {
             self.stagnation_counter += 1;
         }
-        self.do_selection(ev_number, proba);
+        self.do_selection(ev_number, proba, run_crossovers);
     }
 
-    fn do_selection(&mut self, ev_number: Arc<EvNumber>, proba: MutationProbabilities) {
+    fn do_selection(
+        &mut self,
+        ev_number: Arc<EvNumber>,
+        proba: MutationProbabilities,
+        run_crossovers: bool,
+    ) {
         let size = self.topologies.len();
         let will_copy_best = size >= 5;
         if size == 0 || self.max_topologies == 0 {
@@ -138,7 +148,7 @@ where
             .cloned()
             .collect();
 
-        self.topologies = self.evolve(&surviving_topologies, ev_number, proba);
+        self.topologies = self.evolve(&surviving_topologies, ev_number, proba, run_crossovers);
         if will_copy_best {
             self.topologies
                 .push(Arc::new(Mutex::new(self.best_topology.clone())));
@@ -150,10 +160,11 @@ where
         surviving_topologies: &[TopologySmrtPtr<T>],
         ev_number: Arc<EvNumber>,
         proba: MutationProbabilities,
+        run_crossovers: bool,
     ) -> Vec<TopologySmrtPtr<T>> {
         let mut new_topologies: Vec<TopologySmrtPtr<T>> = Vec::new();
         new_topologies.reserve_exact(self.max_topologies);
-        let mutations_count = if surviving_topologies.len() >= 3 {
+        let mutations_count = if run_crossovers && surviving_topologies.len() >= 3 {
             // 90% mutation, 10% crossover
             (surviving_topologies.len() * 9) / 10
         } else {
