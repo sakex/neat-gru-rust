@@ -4,5 +4,8 @@ mod connection_sigmoid;
 mod functions;
 mod neuron;
 mod nn;
+pub mod nn_trait;
 
 pub use nn::*;
+#[cfg(feature = "snn")]
+pub mod spiking;

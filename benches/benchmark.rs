@@ -10,7 +10,7 @@ fn benchmark(c: &mut Criterion) {
     let file_string = &mut "".to_string();
     file.read_to_string(file_string).unwrap();
     let topology = Topology::from_string(file_string);
-    let mut network = unsafe { NeuralNetwork::new(&topology) };
+    let mut network = unsafe { NeuralNetwork::from_topology(&topology) };
     c.bench_function("nn::compute", |b| {
         b.iter(|| network.compute(black_box(&[0.0, 0.0])))
     });

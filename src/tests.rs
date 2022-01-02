@@ -21,7 +21,7 @@ pub fn test_import_network() {
         .expect("Something went wrong reading the topology_test.json");
 
     let top = Topology::from_string(&serialized);
-    let cloned: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top) };
+    let cloned: NeuralNetwork<f64> = unsafe { NeuralNetwork::from_topology(&top) };
     let mut net = NeuralNetwork::from_string(&serialized);
     assert_eq!(net, cloned);
 
@@ -109,9 +109,10 @@ impl Game<f64> for TestGame {
             assert_eq!(*top, top_cp);
 
             let as_str = top.to_string();
-            let network = unsafe { NeuralNetwork::new(top) };
+            let network = unsafe { NeuralNetwork::from_topology(top) };
             let top2 = Topology::from_string(&*as_str);
-            let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
+            let network_from_string: NeuralNetwork<f64> =
+                unsafe { NeuralNetwork::from_topology(&top2) };
             if network != network_from_string {
                 println!("{:?}, {:?}", top.layers_sizes, top2.layers_sizes);
                 println!("{}", as_str);
@@ -197,9 +198,10 @@ impl Game<f64> for MemoryCount {
             let top_cp = top.clone();
             assert_eq!(*top, top_cp);
             let as_str = top.to_string();
-            let network = unsafe { NeuralNetwork::new(top) };
+            let network = unsafe { NeuralNetwork::from_topology(top) };
             let top2 = Topology::from_string(&*as_str);
-            let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
+            let network_from_string: NeuralNetwork<f64> =
+                unsafe { NeuralNetwork::from_topology(&top2) };
             if network != network_from_string {
                 println!("{}", as_str);
                 section!();

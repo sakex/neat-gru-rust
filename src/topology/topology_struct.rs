@@ -16,9 +16,9 @@ use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-const NORMAL_STDDEV: f64 = 0.04;
+use super::bias_and_genes::GeneSmrtPtr;
 
-pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
+const NORMAL_STDDEV: f64 = 0.04;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Topology<T>
