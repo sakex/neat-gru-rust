@@ -10,20 +10,21 @@
 ## Examples
 [XOR](examples/example.rs)
 
-[Snake](examples/snake-cli)
-
-
-Right now this is the only working example. You can run it via:
-```
+```bash
 cargo run --example example
 ```
 
+[Snake](examples/snake-cli)
+
+```bash
+cargo run --example snake-cli
+```
 
 ## How to use
 In `Cargo.toml`:
 ```
 [dependencies]
-neat-gru = 1.0.0"
+neat-gru = 1.1.0"
 ```
 Create a struct that implements the `Game` trait
 ```rust
