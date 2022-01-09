@@ -4,6 +4,7 @@ use neat_gru::neural_network::nn::NeuralNetwork;
 use neat_gru::topology::Topology;
 use std::fs::File;
 use std::io::Read;
+use neat_gru::neural_network::nn_trait::NN;
 
 fn benchmark(c: &mut Criterion) {
     let mut file = File::open("snakes_benchmark.json").expect("Can't open snakes_benchmark.json");

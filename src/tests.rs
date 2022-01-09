@@ -5,6 +5,7 @@ use crate::train::Train;
 use crate::{game::Game, section};
 use rand::{thread_rng, Rng};
 use std::fs;
+use crate::neural_network::nn_trait::NN;
 
 macro_rules! check_output {
     ($output: expr, $as_str: expr, $index: expr) => {
