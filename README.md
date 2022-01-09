@@ -28,8 +28,8 @@ neat-gru = 1.0.0"
 Create a struct that implements the `Game` trait
 ```rust
 use neat_gru::game::Game;
-use neat_gru::neural_network::nn::NeuralNetwork;
-use neat_gru::topology::topology::Topology;
+use neat_gru::neural_network::NeuralNetwork;
+use neat_gru::topology::Topology;
 struct Player {
     pub net: NeuralNetwork<f64>,
 }

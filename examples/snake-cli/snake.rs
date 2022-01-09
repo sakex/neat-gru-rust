@@ -3,7 +3,7 @@ use std::collections::LinkedList;
 use crate::coordinate::Coordinate;
 use crate::defs::RESOLUTION;
 use crate::direction::Direction;
-use neat_gru::neural_network::nn::NeuralNetwork;
+use neat_gru::neural_network::NeuralNetwork;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Block {

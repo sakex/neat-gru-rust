@@ -1,4 +1,5 @@
 use crate::neural_network::connection_gru::ConnectionGru;
+use crate::neural_network::connection_relu::ConnectionRelu;
 use crate::neural_network::connection_sigmoid::ConnectionSigmoid;
 use crate::neural_network::functions::{fast_sigmoid, fast_tanh, re_lu};
 use crate::topology::bias::Bias;
@@ -10,7 +11,7 @@ use std::ops::AddAssign;
 #[derive(Debug)]
 pub struct Neuron<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     input: T,
     memory: T,
@@ -19,11 +20,17 @@ where
     pub(crate) prev_reset: T,
     pub(crate) connections_gru: Vec<ConnectionGru<T>>,
     pub(crate) connections_sigmoid: Vec<ConnectionSigmoid<T>>,
+    pub(crate) connections_relu: Vec<ConnectionRelu<T>>,
+}
+
+unsafe impl<T> Send for Neuron<T> where
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send
+{
 }
 
 impl<T> Neuron<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     pub fn new() -> Neuron<T> {
         Neuron {
@@ -34,6 +41,7 @@ where
             prev_reset: T::zero(),
             connections_gru: vec![],
             connections_sigmoid: vec![],
+            connections_relu: vec![],
         }
     }
 
@@ -54,6 +62,11 @@ where
                 .iter()
                 .map(ConnectionSigmoid::<T>::clone_with_old_pointer)
                 .collect(),
+            connections_relu: self
+                .connections_relu
+                .iter()
+                .map(ConnectionRelu::<T>::clone_with_old_pointer)
+                .collect(),
         }
     }
 
@@ -62,6 +75,9 @@ where
             connection.increment_pointer(diff);
         }
         for connection in &mut self.connections_sigmoid {
+            connection.increment_pointer(diff);
+        }
+        for connection in &mut self.connections_relu {
             connection.increment_pointer(diff);
         }
     }
@@ -103,6 +119,10 @@ where
             connection.activate(value);
         }
 
+        for connection in self.connections_relu.iter_mut() {
+            connection.activate(value);
+        }
+
         self.prev_reset = reset_gate;
     }
 
@@ -138,11 +158,12 @@ where
 
 impl<T> PartialEq for Neuron<T>
 where
-    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign,
+    T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
     fn eq(&self, other: &Neuron<T>) -> bool {
         if self.connections_sigmoid.len() != other.connections_sigmoid.len()
             || self.connections_gru.len() != other.connections_gru.len()
+            || self.connections_relu.len() != other.connections_relu.len()
         {
             return false;
         }
@@ -159,6 +180,15 @@ where
             .connections_gru
             .iter()
             .zip(other.connections_gru.iter())
+            .all(|(c1, c2)| *c1 == *c2)
+        {
+            return false;
+        }
+
+        if !self
+            .connections_relu
+            .iter()
+            .zip(other.connections_relu.iter())
             .all(|(c1, c2)| *c1 == *c2)
         {
             return false;

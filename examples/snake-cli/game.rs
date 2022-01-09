@@ -1,4 +1,4 @@
-use neat_gru::neural_network::nn::NeuralNetwork;
+use neat_gru::neural_network::NeuralNetwork;
 
 use crate::utils::distance_to_apple;
 use crate::{

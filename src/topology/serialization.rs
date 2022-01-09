@@ -12,7 +12,7 @@ pub struct SerializationBias {
 impl SerializationBias {
     pub fn new<T>(neuron: Point, bias: Bias<T>) -> SerializationBias
     where
-        T: Float,
+        T: Float + Send,
     {
         let bias_f64: Bias<f64> = Bias::new(
             num::cast(bias.bias_input).unwrap(),
@@ -38,34 +38,6 @@ pub struct SerializationGene {
     pub reset_memory_weight: f64,
     pub update_input_weight: f64,
     pub update_memory_weight: f64,
-}
-
-impl SerializationGene {
-    pub fn new(
-        connection_type: i32,
-        disabled: bool,
-        input: (u8, u8),
-        input_weight: f64,
-        memory_weight: f64,
-        output: (u8, u8),
-        reset_input_weight: f64,
-        reset_memory_weight: f64,
-        update_input_weight: f64,
-        update_memory_weight: f64,
-    ) -> SerializationGene {
-        SerializationGene {
-            connection_type,
-            disabled,
-            input,
-            input_weight,
-            memory_weight,
-            output,
-            reset_input_weight,
-            reset_memory_weight,
-            update_input_weight,
-            update_memory_weight,
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize)]

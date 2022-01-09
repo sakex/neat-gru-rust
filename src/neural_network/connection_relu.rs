@@ -4,7 +4,7 @@ use num::Float;
 use std::ops::AddAssign;
 
 #[derive(Debug)]
-pub struct ConnectionSigmoid<T>
+pub struct ConnectionRelu<T>
 where
     T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
@@ -12,21 +12,21 @@ where
     output: *mut Neuron<T>,
 }
 
-unsafe impl<T> Send for ConnectionSigmoid<T> where
+unsafe impl<T> Send for ConnectionRelu<T> where
     T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send
 {
 }
 
-impl<T> ConnectionSigmoid<T>
+impl<T> ConnectionRelu<T>
 where
     T: Float + std::cmp::PartialEq + std::cmp::PartialEq + AddAssign + Send,
 {
-    pub(crate) fn new(weight: T, output: *mut Neuron<T>) -> ConnectionSigmoid<T> {
-        ConnectionSigmoid { weight, output }
+    pub(crate) fn new(weight: T, output: *mut Neuron<T>) -> ConnectionRelu<T> {
+        ConnectionRelu { weight, output }
     }
 
-    pub(crate) fn clone_with_old_pointer(&self) -> ConnectionSigmoid<T> {
-        ConnectionSigmoid {
+    pub(crate) fn clone_with_old_pointer(&self) -> ConnectionRelu<T> {
+        ConnectionRelu {
             weight: self.weight,
             output: self.output,
         }
@@ -39,12 +39,12 @@ where
     #[inline]
     pub(crate) fn activate(&mut self, value: T) {
         unsafe {
-            (*self.output).increment_value(value * self.weight);
+            (*self.output).increment_value((value * self.weight).max(T::zero()));
         };
     }
 }
 
-impl<T> PartialEq for ConnectionSigmoid<T>
+impl<T> PartialEq for ConnectionRelu<T>
 where
     T: Float + std::cmp::PartialEq + AddAssign + Send,
 {
@@ -53,4 +53,4 @@ where
     }
 }
 
-impl<T> Eq for ConnectionSigmoid<T> where T: Float + std::cmp::PartialEq + AddAssign + Send {}
+impl<T> Eq for ConnectionRelu<T> where T: Float + std::cmp::PartialEq + AddAssign + Send {}
