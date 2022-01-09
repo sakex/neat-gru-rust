@@ -14,7 +14,7 @@ use super::spiking_neuron::SpikingNeuron;
 ///
 /// Initialize with `from_topology`
 ///
-/// You can send input witht the `send` function and subscribe asynchronously to output using `recv`
+/// You can send input with the `send` function and subscribe asynchronously to output using `recv`
 pub struct SpikingNeuralNetwork<T>
 where
     T: Float + std::ops::AddAssign + Display + Send + Sync + 'static,
