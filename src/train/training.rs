@@ -1,6 +1,7 @@
 use crate::game::{Game, GameAsync};
 #[cfg(target_arch = "wasm32")]
 use crate::instant_wasm_replacement::Instant;
+use crate::neural_network::nn_trait::NN;
 use crate::neural_network::NeuralNetwork;
 use crate::section;
 use crate::topology::mutation_probabilities::MutationProbabilities;
@@ -44,14 +45,15 @@ macro_rules! cond_iter_mut {
     }};
 }
 
-pub type TrainAccessCallback<'a, T, F> = Box<dyn FnMut(&mut Train<'a, T, F>)>;
+pub type TrainAccessCallback<'a, T, F, N> = Box<dyn FnMut(&mut Train<'a, T, F, N>)>;
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
-pub struct Train<'a, T, F>
+pub struct Train<'a, T, F, N>
 where
     F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     T: Game<F>,
     &'a [F]: rayon::iter::IntoParallelIterator,
+    N: NN<F>,
 {
     pub simulation: &'a mut T,
     iterations_: usize,
@@ -72,14 +74,15 @@ where
     best_historical_score: F,
     no_progress_counter: usize,
     proba: MutationProbabilities,
-    access_train_object_fn: Option<TrainAccessCallback<'a, T, F>>,
+    access_train_object_fn: Option<TrainAccessCallback<'a, T, F, N>>,
 }
 
-impl<'a, T, F> Train<'a, T, F>
+impl<'a, T, F, N> Train<'a, T, F, N>
 where
     T: Game<F>,
     F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     &'a [F]: rayon::iter::IntoParallelIterator,
+    N: NN<F>,
 {
     /// Creates a Train<T: Game> instance
     ///
@@ -134,7 +137,7 @@ where
     /// }
     /// ```
     #[inline]
-    pub fn new(simulation: &'a mut T) -> Train<'a, T, F> {
+    pub fn new(simulation: &'a mut T) -> Train<'a, T, F, N> {
         let iterations_: usize = 1000;
         let max_individuals_: usize = 100;
         let inputs_ = None;
@@ -314,7 +317,7 @@ where
     #[inline]
     pub fn access_train_object(
         &mut self,
-        callback: Box<dyn FnMut(&mut Train<'a, T, F>)>,
+        callback: Box<dyn FnMut(&mut Train<'a, T, F, N>)>,
     ) -> &mut Self {
         self.access_train_object_fn = Some(callback);
         self
@@ -392,7 +395,7 @@ where
             .map(|top_rc| {
                 let lock = top_rc.lock().unwrap();
                 let top = &*lock;
-                unsafe { NeuralNetwork::new(top) }
+                unsafe { NeuralNetwork::from_topology(top) }
             })
             .collect();
         println!(
@@ -407,9 +410,7 @@ where
         cond_iter_mut!(self.topologies_)
             .zip(cond_iter!(results))
             .for_each(|(topology, result)| {
-                if result.is_nan() {
-                    panic!("NaN result");
-                }
+                assert!(!result.is_nan(), "NaN result");
                 topology.lock().unwrap().set_last_result(*result);
             })
     }
@@ -647,11 +648,12 @@ where
     }
 }
 
-impl<'a, T, F> Train<'a, T, F>
+impl<'a, T, F, N> Train<'a, T, F, N>
 where
     T: GameAsync<F>,
     F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     &'a [F]: rayon::iter::IntoParallelIterator,
+    N: NN<F>,
 {
     pub async fn start_async(&mut self) -> Result<(), TrainingError> {
         let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;

@@ -1,7 +1,12 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::topology::bias::Bias;
-use crate::topology::GeneSmrtPtr;
 use num::Float;
 use serde::{Deserialize, Serialize};
+
+use super::gene::Gene;
+
+pub type GeneSmrtPtr<T> = Rc<RefCell<Gene<T>>>;
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct BiasAndGenes<T>
