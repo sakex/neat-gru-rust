@@ -18,7 +18,7 @@ impl Player {
     /// Runs all the inputs and calculates the outputs
     fn run(&mut self) -> f64 {
         // Get the inputs
-        let inputs = XOR::get_inputs();
+        let inputs = Xor::get_inputs();
         // Calculate a score for every input
         let outputs: Vec<f64> = inputs.iter().map(|i| self.net.compute(i)[0]).collect();
         let mut scores: Vec<f64> = vec![];
@@ -42,9 +42,9 @@ impl Simulation {
     }
 }
 
-struct XOR {}
+struct Xor {}
 
-impl XOR {
+impl Xor {
     fn get_inputs<'a>() -> &'a [[f64; 2]; 4] {
         &[[0.0, 0.0], [1.0, 1.0], [1.0, 0.0], [0.0, 1.0]]
     }
