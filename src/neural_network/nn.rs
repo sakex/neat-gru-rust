@@ -121,6 +121,7 @@ where
         }
     }
 
+    /// Computes the Neural Network based on the inputs and returns the output into a Vec
     #[inline]
     pub fn compute(&mut self, inputs: &[T]) -> Vec<T> {
         let len = inputs.len();
@@ -143,6 +144,29 @@ where
             .collect();
         self.reset_neurons_value();
         ret
+    }
+
+    /// Computes the output into a buffer to prevent allocation
+    ///
+    /// # Safety
+    ///
+    /// The output buffer must be of the same size as the output layer
+    #[inline]
+    pub unsafe fn compute_buffer(&mut self, inputs: &[T], output_buffer: &mut [T]) {
+        let len = inputs.len();
+        for i in 0..len {
+            self.neurons
+                .get_unchecked_mut(i)
+                .set_input_value(*inputs.get_unchecked(i));
+        }
+        let take_amount = self.neurons.len() - self.output_size;
+        for neuron in self.neurons.iter_mut().take(take_amount) {
+            neuron.feed_forward();
+        }
+        for (idx, neuron) in self.neurons.iter_mut().skip(take_amount).enumerate() {
+            *output_buffer.get_unchecked_mut(idx) = neuron.get_value();
+        }
+        self.reset_neurons_value();
     }
 
     #[inline]

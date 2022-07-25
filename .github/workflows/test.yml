@@ -28,3 +28,7 @@ jobs:
       run: cargo test --verbose
     - name: Build wasm32
       run: cargo build --target=wasm32-unknown-unknown
+    - name: Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+    - name: Lint
+      run: cargo fmt --all -- --check
