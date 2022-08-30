@@ -1,7 +1,7 @@
 use crate::neural_network::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::Topology;
-use crate::train::Train;
+use crate::train::{Train, HistoricTopology};
 use crate::{game::Game, section};
 use rand::{thread_rng, Rng};
 use std::fs;
@@ -103,8 +103,9 @@ impl Game<f64> for TestGame {
         self.nets = nets;
     }
 
-    fn post_training(&mut self, history: &[Topology<f64>]) {
+    fn post_training(&mut self, history: &[HistoricTopology<f64>]) {
         for (index, top) in history.iter().enumerate() {
+            let top = &top.topology;
             let top_cp = top.clone();
             assert_eq!(*top, top_cp);
 
@@ -192,8 +193,9 @@ impl Game<f64> for MemoryCount {
         self.nets = nets;
     }
 
-    fn post_training(&mut self, history: &[Topology<f64>]) {
+    fn post_training(&mut self, history: &[HistoricTopology<f64>]) {
         for (index, top) in history.iter().enumerate() {
+            let top = &top.topology;
             let top_cp = top.clone();
             assert_eq!(*top, top_cp);
             let as_str = top.to_string();

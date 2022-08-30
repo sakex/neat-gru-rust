@@ -29,7 +29,7 @@ Create a struct that implements the `Game` trait
 ```rust
 use neat_gru::game::Game;
 use neat_gru::neural_network::NeuralNetwork;
-use neat_gru::topology::Topology;
+use neat_gru::train::{Train, HistoricTopology};
 struct Player {
     pub net: NeuralNetwork<f64>,
 }
@@ -75,7 +75,7 @@ impl Game<f64> for Simulation {
     }
 
     // Called at the end of training
-    fn post_training(&mut self, history: &[Topology<f64>]) {
+    fn post_training(&mut self, history: &[HistoricTopology<f64>]) {
         // Iter on best topologies and upload the best one
     }
 }

@@ -46,6 +46,25 @@ macro_rules! cond_iter_mut {
 
 pub type TrainAccessCallback<'a, T, F> = Box<dyn FnMut(&mut Train<'a, T, F>)>;
 
+pub struct HistoricTopology<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    pub topology: Topology<F>,
+    pub generation: usize,
+}
+
+impl<F> std::ops::Deref for HistoricTopology<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    type Target = Topology<F>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.topology
+    }
+}
+
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
 where
@@ -67,7 +86,7 @@ where
     outputs_: Option<usize>,
     topologies_: Vec<TopologySmrtPtr<F>>,
     species_: Vec<Mutex<Species<F>>>,
-    history_: Vec<Topology<F>>,
+    history_: Vec<HistoricTopology<F>>,
     ev_number_: Arc<EvNumber>,
     best_historical_score: F,
     no_progress_counter: usize,
@@ -98,7 +117,7 @@ where
     /// ```
     /// use neat_gru::neural_network::NeuralNetwork;
     /// use neat_gru::topology::Topology;
-    /// use neat_gru::game::Game;
+    /// use neat_gru::train::HistoricTopology;
     ///
     /// struct TestGame {
     ///     nets: Vec<NeuralNetwork<f64>>,
@@ -130,7 +149,7 @@ where
     ///         self.nets = nets;
     ///     }
     ///
-    ///     fn post_training(&mut self, _history: &[Topology<f64>]) {}
+    ///     fn post_training(&mut self, _history: &[HistoricTopology<f64>]) {}
     /// }
     /// ```
     #[inline]
@@ -323,22 +342,22 @@ where
     fn run_iterations(&mut self) {
         for i in 0..self.iterations_ {
             section!();
-            println!("Generation {}", i);
+            log::info!("Generation {}", i);
             let now = Instant::now();
             let results = self.simulation.run_generation();
-            println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
+            log::info!("RUN GENERATION: {}ms", now.elapsed().as_millis());
             self.set_last_results(results);
             let now = Instant::now();
             self.natural_selection();
-            self.push_to_history();
+            self.push_to_history(i);
             self.reset_species();
             if self.species_.is_empty() {
                 break;
             }
-            println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
+            log::info!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
             let now = Instant::now();
             self.reset_players();
-            println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
+            log::info!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
             let mut cb_option = self.access_train_object_fn.take();
             let cb_option_borrow = &mut cb_option;
             if let Some(cb) = cb_option_borrow {
@@ -369,7 +388,7 @@ where
         // Run generations
         self.run_iterations();
         section!();
-        println!("POST TRAINING");
+        log::info!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
         Ok(())
     }
@@ -395,7 +414,7 @@ where
                 unsafe { NeuralNetwork::new(top) }
             })
             .collect();
-        println!(
+        log::info!(
             "TOPOLOGIES: {}, SPECIES: {}",
             networks.len(),
             self.species_.len()
@@ -522,13 +541,13 @@ where
             }
         }
         species_sizes_vec.push(current_count);
-        println!(
+        log::info!(
             "SPECIES LENGTHS: {}",
             self.get_species_lengths(species_sizes_vec)
         );
     }
 
-    fn push_to_history(&mut self) {
+    fn push_to_history(&mut self, generation: usize) {
         if self.species_.is_empty() {
             return;
         }
@@ -543,7 +562,7 @@ where
         let best = { self.species_.last().unwrap().lock().unwrap().score() };
 
         {
-            println!(
+            log::info!(
                 "BEST OF WORST: {} BEST: {}",
                 self.species_[0].lock().unwrap().score(),
                 best
@@ -555,7 +574,9 @@ where
         } else {
             self.no_progress_counter += 1;
             if self.no_progress_counter >= self.iterations_ / 10 && self.iterations_ > 500 {
-                println!("=========================RESET TO TWO SPECIES=========================");
+                log::info!(
+                    "=========================RESET TO TWO SPECIES========================="
+                );
                 self.best_historical_score = F::zero();
                 self.no_progress_counter = 0;
                 if self.species_.len() > 2 {
@@ -565,8 +586,11 @@ where
         }
 
         for species in self.species_.iter() {
-            self.history_
-                .push(species.lock().unwrap().best_topology.clone())
+            let topology_history = HistoricTopology {
+                topology: species.lock().unwrap().best_topology.clone(),
+                generation,
+            };
+            self.history_.push(topology_history);
         }
     }
 
@@ -635,7 +659,7 @@ where
         self.species_ = species;
         self.species_
             .retain(|spec| !spec.lock().unwrap().topologies.is_empty());
-        println!("BIGGEST SPECIES: {}", self.get_biggest_species_len());
+        log::info!("BIGGEST SPECIES: {}", self.get_biggest_species_len());
     }
 
     /// Gets the length of the biggest species
@@ -669,22 +693,22 @@ where
         self.reset_players();
         for i in 0..self.iterations_ {
             section!();
-            println!("Generation {}", i);
+            log::info!("Generation {}", i);
             let now = Instant::now();
             let results = self.simulation.run_generation_async().await;
-            println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
+            log::info!("RUN GENERATION: {}ms", now.elapsed().as_millis());
             self.set_last_results(results);
             let now = Instant::now();
             self.natural_selection();
-            self.push_to_history();
+            self.push_to_history(i);
             self.reset_species();
             if self.species_.is_empty() {
                 break;
             }
-            println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
+            log::info!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
             let now = Instant::now();
             self.reset_players();
-            println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
+            log::info!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
             let mut cb_option = self.access_train_object_fn.take();
             let cb_option_borrow = &mut cb_option;
             if let Some(cb) = cb_option_borrow {
@@ -692,7 +716,7 @@ where
                 self.access_train_object_fn = cb_option;
             }
         }
-        println!("POST TRAINING");
+        log::info!("POST TRAINING");
         self.simulation.post_training(&*self.history_);
         Ok(())
     }

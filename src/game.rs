@@ -1,5 +1,5 @@
 use crate::neural_network::NeuralNetwork;
-use crate::topology::Topology;
+use crate::train::HistoricTopology;
 use async_trait::async_trait;
 use num::Float;
 use std::fmt::Display;
@@ -24,7 +24,7 @@ where
     /// # Arguments
     ///
     /// `net` - The best historical network
-    fn post_training(&mut self, history: &[Topology<T>]);
+    fn post_training(&mut self, history: &[HistoricTopology<T>]);
 }
 
 #[async_trait]
