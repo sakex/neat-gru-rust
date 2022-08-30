@@ -1,31 +1,37 @@
 # neat-gru-rust
+
 [![CICD](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml/badge.svg)](https://github.com/Nereuxofficial/neat-gru-rust/actions/workflows/test.yml)
 ![Crates.io](https://img.shields.io/crates/v/neat-gru?style=for-the-badge)
 ![Downloads](https://img.shields.io/crates/d/neat-gru?style=for-the-badge)
 ![License](https://img.shields.io/github/license/sakex/neat-gru-rust?style=for-the-badge)
 
 ## Documentation
+
 [Crates.io doc](https://docs.rs/neat-gru/)
 
 ## Examples
+
 [XOR](examples/example.rs)
 
 [Snake](examples/snake-cli)
 
-
 Right now this is the only working example. You can run it via:
+
 ```
 cargo run --example example
 ```
 
-
 ## How to use
+
 In `Cargo.toml`:
+
 ```
 [dependencies]
-neat-gru = 1.0.0"
+neat-gru = 1.3.0"
 ```
+
 Create a struct that implements the `Game` trait
+
 ```rust
 use neat_gru::game::Game;
 use neat_gru::neural_network::NeuralNetwork;
@@ -81,7 +87,9 @@ impl Game<f64> for Simulation {
 }
 
 ```
+
 Async run_generation (has to be run inside an async runtime like Tokio)
+
 ```rust
 
 #[async_trait]
@@ -98,8 +106,8 @@ impl GameAsync<f64> for Simulation {
 }
 ```
 
-
 Launch a training
+
 ```rust
 fn run_sim() {
     let mut sim = Simulation::new();
