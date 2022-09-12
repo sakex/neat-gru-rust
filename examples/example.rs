@@ -5,7 +5,7 @@ use std::io::Write;
 
 use neat_gru::game::Game;
 use neat_gru::neural_network::NeuralNetwork;
-use neat_gru::train::{Train, HistoricTopology};
+use neat_gru::train::{HistoricTopologyLazy, Train};
 struct Player {
     pub net: NeuralNetwork<f64>,
 }
@@ -80,9 +80,10 @@ impl Game<f64> for Simulation {
     }
 
     /// Called at the end of training
-    fn post_training(&mut self, history: &[HistoricTopology<f64>]) {
+    fn post_training(&mut self, mut history: Vec<HistoricTopologyLazy<f64>>) {
         // Iter on best topologies and upload the best one
-        let best = &history.last().unwrap().topology;
+        let last = history.pop().unwrap();
+        let best = last.into_historic().unwrap().topology;
         let mut output = File::create("XOR").expect("Could not create output file");
         write!(output, "{}", best).unwrap();
     }

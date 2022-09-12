@@ -38,6 +38,7 @@ pub struct SerializationGene {
     pub reset_memory_weight: f64,
     pub update_input_weight: f64,
     pub update_memory_weight: f64,
+    pub ev_number: Option<f64>,
 }
 
 #[derive(Deserialize, Serialize)]

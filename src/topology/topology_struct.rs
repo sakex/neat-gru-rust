@@ -651,7 +651,7 @@ where
         let mut layers_sizes = Vec::new();
         let mut output_bias: Vec<Bias<T>> = Vec::new();
         let mut genes_point = HashMap::new();
-        let genes_ev_number = HashMap::new();
+        let mut genes_ev_number = HashMap::new();
 
         for ser_bias in &serialization.biases {
             let input = Point::new(ser_bias.neuron.0, ser_bias.neuron.1);
@@ -687,10 +687,14 @@ where
                 update_input_weight: num::cast(gene.update_input_weight).unwrap(),
                 reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
                 update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
-                evolution_number: 0,
+                evolution_number: gene.ev_number.and_then(num::cast).unwrap_or_default(),
                 connection_type: ConnectionType::from_int(gene.connection_type),
                 disabled: gene.disabled,
             }));
+
+            if let Some(ev_number) = gene.ev_number {
+                genes_ev_number.insert(num::cast(ev_number).unwrap(), Rc::clone(&new_gene));
+            }
 
             if gene.disabled {
                 continue;
@@ -786,6 +790,7 @@ where
                             reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
                             update_input_weight: num::cast(gene.update_input_weight).unwrap(),
                             update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
+                            ev_number: num::cast(gene.evolution_number),
                         }
                     })
                     .collect::<Vec<SerializationGene>>()
