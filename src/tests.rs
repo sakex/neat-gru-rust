@@ -1,7 +1,7 @@
 use crate::neural_network::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::Topology;
-use crate::train::{Train, HistoricTopology};
+use crate::train::{HistoricTopology, Train};
 use crate::{game::Game, section};
 use rand::{thread_rng, Rng};
 use std::fs;
