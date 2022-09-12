@@ -52,6 +52,7 @@ const TEMP_DIR: &str = "temp_history";
 
 pub type TrainAccessCallback<'a, T, F> = Box<dyn FnMut(&mut Train<'a, T, F>)>;
 
+#[derive(Clone)]
 pub struct HistoricTopology<F>
 where
     F: Float + std::ops::AddAssign + Display + Send,
@@ -68,6 +69,66 @@ where
 
     fn deref(&self) -> &Self::Target {
         &self.topology
+    }
+}
+
+pub enum HistoricTopologyLazy<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    Topology(HistoricTopology<F>),
+    Lazy(std::fs::File),
+}
+
+impl<F> HistoricTopologyLazy<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    /// Reads file and returns HistoricTopology<F>
+    pub fn read_file(&self) -> Result<HistoricTopology<F>, io::Error> {
+        use HistoricTopologyLazy::*;
+
+        let file = match self {
+            Lazy(file) => file,
+            Topology(topology) => return Ok(topology.clone()),
+        };
+        let reader = BufReader::new(file);
+
+        let topology = if let Ok(top) = serde_json::from_reader::<_, HistoricTopologyDisk>(reader) {
+            top.into()
+        } else {
+            return Err(io::ErrorKind::InvalidData.into());
+        };
+
+        Ok(topology)
+    }
+
+    /// Converts to Self::Topology, reading the file if needed
+    pub fn load_file(&mut self) -> Result<(), io::Error> {
+        use HistoricTopologyLazy::*;
+
+        let topology = self.read_file()?;
+
+        *self = Topology(topology);
+        Ok(())
+    }
+
+    /// Convert to `HistoricTology`, reading the file if needed
+    pub fn into_historic(mut self) -> Result<HistoricTopology<F>, io::Error> {
+        use HistoricTopologyLazy::*;
+        if let Topology(top) = self {
+            return Ok(top);
+        }
+        self.load_file()?;
+        match self {
+            Topology(top) => Ok(top),
+            _ => unreachable!(),
+        }
+    }
+
+    /// Checks if the file has been loaded
+    pub fn is_loaded(&self) -> bool {
+        matches!(self, Self::Topology(_))
     }
 }
 
@@ -122,7 +183,7 @@ where
     outputs_: Option<usize>,
     topologies_: Vec<TopologySmrtPtr<F>>,
     species_: Vec<Mutex<Species<F>>>,
-    history_: Vec<HistoricTopology<F>>,
+    history_: Vec<HistoricTopologyLazy<F>>,
     ev_number_: Arc<EvNumber>,
     save_history_to_disk_: bool,
     best_historical_score_: F,
@@ -154,9 +215,9 @@ where
     /// ```
     /// use neat_gru::neural_network::NeuralNetwork;
     /// use neat_gru::topology::Topology;
-    /// use neat_gru::train::HistoricTopology;
+    /// use neat_gru::train::HistoricTopologyLazy;
     /// use neat_gru::game::Game;
-    /// 
+    ///
     /// struct TestGame {
     ///     nets: Vec<NeuralNetwork<f64>>,
     /// }
@@ -187,7 +248,7 @@ where
     ///         self.nets = nets;
     ///     }
     ///
-    ///     fn post_training(&mut self, _history: &[HistoricTopology<f64>]) {}
+    ///     fn post_training(&mut self, _history: Vec<HistoricTopologyLazy<f64>>) {}
     /// }
     /// ```
     #[inline]
@@ -429,8 +490,8 @@ where
 
     fn load_post_training_from_temp(
         tempdir: &TempDir,
-    ) -> Result<Vec<HistoricTopology<F>>, io::Error> {
-        let mut saved_topologies: Vec<HistoricTopology<F>> = Vec::new();
+    ) -> Result<Vec<HistoricTopologyLazy<F>>, io::Error> {
+        let mut saved_topologies: Vec<HistoricTopologyLazy<F>> = Vec::new();
         let path = tempdir.path();
         let files = std::fs::read_dir(path)?;
         for file_path in files {
@@ -438,15 +499,9 @@ where
             let is_file = file_path.file_type()?.is_file();
             if is_file {
                 let file = std::fs::File::open(&file_path.path())?;
-                let reader = BufReader::new(file);
+                let historic_topology: HistoricTopologyLazy<F> = HistoricTopologyLazy::Lazy(file);
 
-                let topology =
-                    if let Ok(top) = serde_json::from_reader::<_, HistoricTopologyDisk>(reader) {
-                        top.into()
-                    } else {
-                        return Err(io::ErrorKind::InvalidData.into());
-                    };
-                saved_topologies.push(topology);
+                saved_topologies.push(historic_topology);
             }
         }
 
@@ -486,7 +541,9 @@ where
                 self.history_.push(topology);
             }
         }
-        self.simulation.post_training(&*self.history_);
+        let mut new_history = Vec::new();
+        std::mem::swap(&mut self.history_, &mut new_history);
+        self.simulation.post_training(new_history);
         Ok(())
     }
 
@@ -687,16 +744,17 @@ where
         }
 
         for (idx, species) in self.species_.iter().enumerate() {
-            let topology_history = HistoricTopology {
+            let topology_history = HistoricTopologyLazy::Topology(HistoricTopology {
                 topology: species.lock().unwrap().best_topology.clone(),
                 generation,
-            };
+            });
             if let Some(tempdir) = tempdir {
                 let file_path = tempdir
                     .path()
                     .join(format!("generation-{}-species-{}.json", generation, idx));
                 let mut tmp_file = File::create(file_path)?;
-                let disk_topology_history: HistoricTopologyDisk = topology_history.into();
+                let disk_topology_history: HistoricTopologyDisk =
+                    topology_history.into_historic()?.into();
                 match serde_json::to_string(&disk_topology_history) {
                     Ok(serialized) => tmp_file.write_all(serialized.as_bytes())?,
                     Err(e) => log::error!("Failed to serialize with error: {:?}", e),
@@ -842,7 +900,9 @@ where
                 self.history_.push(topology);
             }
         }
-        self.simulation.post_training(&*self.history_);
+        let mut new_history = Vec::new();
+        std::mem::swap(&mut self.history_, &mut new_history);
+        self.simulation.post_training(new_history);
         Ok(())
     }
 }
