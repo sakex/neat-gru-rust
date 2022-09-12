@@ -687,7 +687,7 @@ where
                 update_input_weight: num::cast(gene.update_input_weight).unwrap(),
                 reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
                 update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
-                evolution_number: 0,
+                evolution_number: gene.ev_number.and_then(num::cast).unwrap_or_default(),
                 connection_type: ConnectionType::from_int(gene.connection_type),
                 disabled: gene.disabled,
             }));

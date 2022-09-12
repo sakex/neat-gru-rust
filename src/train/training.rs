@@ -77,26 +77,26 @@ struct HistoricTopologyDisk {
     generation: usize,
 }
 
-impl<F> Into<HistoricTopologyDisk> for HistoricTopology<F>
+impl<F> From<HistoricTopology<F>> for HistoricTopologyDisk
 where
     F: Float + std::ops::AddAssign + Display + Send,
 {
-    fn into(self) -> HistoricTopologyDisk {
+    fn from(history: HistoricTopology<F>) -> HistoricTopologyDisk {
         HistoricTopologyDisk {
-            topology: self.topology.to_string(),
-            generation: self.generation,
+            topology: history.topology.to_string(),
+            generation: history.generation,
         }
     }
 }
 
-impl<F> Into<HistoricTopology<F>> for HistoricTopologyDisk
+impl<F> From<HistoricTopologyDisk> for HistoricTopology<F>
 where
     F: Float + std::ops::AddAssign + Display + Send,
 {
-    fn into(self) -> HistoricTopology<F> {
+    fn from(disk: HistoricTopologyDisk) -> HistoricTopology<F> {
         HistoricTopology {
-            topology: Topology::from_string(&self.topology),
-            generation: self.generation,
+            topology: Topology::from_string(&disk.topology),
+            generation: disk.generation,
         }
     }
 }
