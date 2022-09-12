@@ -2,13 +2,12 @@ use crate::neural_network::NeuralNetwork;
 use crate::train::HistoricTopology;
 use async_trait::async_trait;
 use num::Float;
-use serde::{de, Serialize};
 use std::fmt::Display;
 
 /// Trait to implement in order to use Train
 pub trait Game<T>
 where
-    T: Float + std::ops::AddAssign + Display + Serialize + de::DeserializeOwned + Send,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     /// Run a game round
     fn run_generation(&mut self) -> Vec<T>;
@@ -31,7 +30,7 @@ where
 #[async_trait]
 pub trait GameAsync<T>: Game<T>
 where
-    T: Float + std::ops::AddAssign + Display + Serialize + de::DeserializeOwned + Send,
+    T: Float + std::ops::AddAssign + Display + Send,
 {
     async fn run_generation_async(&mut self) -> Vec<T>;
 }

@@ -12,7 +12,7 @@ use itertools::Itertools;
 use num::Float;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{self, BufReader, Write};
@@ -52,11 +52,9 @@ const TEMP_DIR: &str = "temp_history";
 
 pub type TrainAccessCallback<'a, T, F> = Box<dyn FnMut(&mut Train<'a, T, F>)>;
 
-#[derive(Serialize, Deserialize)]
-#[serde(bound = "")]
 pub struct HistoricTopology<F>
 where
-    F: Float + std::ops::AddAssign + Display + Send + Serialize + for<'a> Deserialize<'a>,
+    F: Float + std::ops::AddAssign + Display + Send,
 {
     pub topology: Topology<F>,
     pub generation: usize,
@@ -64,7 +62,7 @@ where
 
 impl<F> std::ops::Deref for HistoricTopology<F>
 where
-    F: Float + std::ops::AddAssign + Display + Send + Serialize + for<'a> Deserialize<'a>,
+    F: Float + std::ops::AddAssign + Display + Send,
 {
     type Target = Topology<F>;
 
@@ -73,19 +71,40 @@ where
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct HistoricTopologyDisk {
+    topology: String,
+    generation: usize,
+}
+
+impl<F> Into<HistoricTopologyDisk> for HistoricTopology<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    fn into(self) -> HistoricTopologyDisk {
+        HistoricTopologyDisk {
+            topology: self.topology.to_string(),
+            generation: self.generation,
+        }
+    }
+}
+
+impl<F> Into<HistoricTopology<F>> for HistoricTopologyDisk
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    fn into(self) -> HistoricTopology<F> {
+        HistoricTopology {
+            topology: Topology::from_string(&self.topology),
+            generation: self.generation,
+        }
+    }
+}
+
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
 where
-    F: 'a
-        + Float
-        + Sum
-        + Display
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + Serialize
-        + de::DeserializeOwned
-        + Send
-        + Sync,
+    F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     T: Game<F>,
     &'a [F]: rayon::iter::IntoParallelIterator,
 {
@@ -115,16 +134,7 @@ where
 impl<'a, T, F> Train<'a, T, F>
 where
     T: Game<F>,
-    F: 'a
-        + Float
-        + Sum
-        + Display
-        + std::ops::AddAssign
-        + std::ops::SubAssign
-        + Serialize
-        + de::DeserializeOwned
-        + Send
-        + Sync,
+    F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     &'a [F]: rayon::iter::IntoParallelIterator,
 {
     /// Creates a Train<T: Game> instance
@@ -429,11 +439,12 @@ where
                 let file = std::fs::File::open(&file_path.path())?;
                 let reader = BufReader::new(file);
 
-                let topology = if let Ok(top) = serde_json::from_reader(reader) {
-                    top
-                } else {
-                    return Err(io::ErrorKind::InvalidData.into());
-                };
+                let topology =
+                    if let Ok(top) = serde_json::from_reader::<_, HistoricTopologyDisk>(reader) {
+                        top.into()
+                    } else {
+                        return Err(io::ErrorKind::InvalidData.into());
+                    };
                 saved_topologies.push(topology);
             }
         }
@@ -684,10 +695,10 @@ where
                     .path()
                     .join(format!("generation-{}-species-{}.json", generation, idx));
                 let mut tmp_file = File::create(file_path)?;
-                if let Ok(serialized) = serde_json::to_string(&topology_history) {
-                    tmp_file.write_all(serialized.as_bytes())?;
-                } else {
-                    unreachable!();
+                let disk_topology_history: HistoricTopologyDisk = topology_history.into();
+                match serde_json::to_string(&disk_topology_history) {
+                    Ok(serialized) => tmp_file.write_all(serialized.as_bytes())?,
+                    Err(e) => log::error!("Failed to serialize with error: {:?}", e),
                 }
             } else {
                 self.history_.push(topology_history);
@@ -776,16 +787,7 @@ where
 impl<'a, T, F> Train<'a, T, F>
 where
     T: GameAsync<F>,
-    F: 'a
-        + Float
-        + Sum
-        + Display
-        + std::ops::AddAssign
-        + Serialize
-        + de::DeserializeOwned
-        + std::ops::SubAssign
-        + Send
-        + Sync,
+    F: 'a + Float + Sum + Display + std::ops::AddAssign + std::ops::SubAssign + Send + Sync,
     &'a [F]: rayon::iter::IntoParallelIterator,
 {
     pub async fn start_async(&mut self) -> Result<(), TrainingError> {
