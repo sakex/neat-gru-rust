@@ -155,7 +155,8 @@ where
     /// use neat_gru::neural_network::NeuralNetwork;
     /// use neat_gru::topology::Topology;
     /// use neat_gru::train::HistoricTopology;
-    ///
+    /// use neat_gru::game::Game;
+    /// 
     /// struct TestGame {
     ///     nets: Vec<NeuralNetwork<f64>>,
     /// }
