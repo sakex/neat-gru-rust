@@ -92,7 +92,9 @@ fn comparison(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Sigmoid", size), size,
         |b, size| b.iter(|| fast_sigmoid(*size)));
         group.bench_with_input(BenchmarkId::new("Relu", size), size,
-                               |b, size| b.iter(|| fast_sigmoid(*size)));
+                               |b, size| b.iter(|| re_lu(*size)));
+        group.bench_with_input(BenchmarkId::new("Tanh", size), size,
+                               |b, size| b.iter(|| fast_tanh(*size)));
     }
     group.finish();
 }

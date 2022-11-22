@@ -1,3 +1,4 @@
+use crate::neural_network::nn_trait::NN;
 use crate::neural_network::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::Topology;
@@ -116,7 +117,7 @@ impl Game<f64> for TestGame {
                 println!("{:?}, {:?}", top.layers_sizes, top2.layers_sizes);
                 println!("{}", as_str);
                 section!();
-                println!("{}", top2.to_string());
+                println!("{}", top2);
                 panic!("Network != Network from string");
             }
             self.nets = vec![network, network_from_string];
@@ -203,7 +204,7 @@ impl Game<f64> for MemoryCount {
             if network != network_from_string {
                 println!("{}", as_str);
                 section!();
-                println!("{}", top2.to_string());
+                println!("{}", top2);
                 panic!("Network != Network from string");
             }
             self.nets = vec![network, network_from_string];

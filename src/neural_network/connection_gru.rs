@@ -1,4 +1,4 @@
-use crate::neural_network::functions::fast_tanh;
+use crate::neural_network::functions::activate;
 use crate::neural_network::neuron::Neuron;
 use crate::utils::floats_almost_equal;
 use num::Float;
@@ -70,7 +70,7 @@ where
     #[inline]
     pub(crate) fn activate(&mut self, value: T) {
         let prev_reset = unsafe { (*self.output).prev_reset };
-        self.memory = fast_tanh(
+        self.memory = activate(
             self.prev_input * self.input_weight + self.memory_weight * prev_reset * self.memory,
         );
         self.prev_input = value;

@@ -21,10 +21,11 @@ impl Player {
         let inputs = XOR::get_inputs();
         // Calculate a score for every input
         let outputs: Vec<f64> = inputs.iter().map(|i| self.net.compute(i)[0]).collect();
-        let mut scores: Vec<f64> = vec![];
-        for (input, output) in inputs.iter().zip(outputs.iter()) {
-            scores.push(compute_score(input, *output));
-        }
+        let scores = inputs
+            .iter()
+            .zip(outputs.iter())
+            .map(|(input, output)| compute_score(input, *output))
+            .collect::<Vec<f64>>();
         // And return the sum of the scores
         scores.iter().sum()
     }

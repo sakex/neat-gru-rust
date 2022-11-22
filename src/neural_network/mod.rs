@@ -3,6 +3,7 @@ mod connection_relu;
 mod connection_sigmoid;
 pub mod functions;
 mod neuron;
-mod nn;
+pub mod nn;
+pub mod nn_trait;
 
 pub use nn::*;

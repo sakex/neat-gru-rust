@@ -41,7 +41,7 @@ unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign + Displ
 
 unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign + Display + Send {}
 
-impl<'a, T> Clone for Topology<T>
+impl<T> Clone for Topology<T>
 where
     T: Float + std::ops::AddAssign + Display + Send,
 {
@@ -98,7 +98,7 @@ where
     }
 }
 
-impl<'a, T> Topology<T>
+impl<T> Topology<T>
 where
     T: Float + std::ops::AddAssign + Display + Send,
 {
@@ -729,7 +729,7 @@ where
     }
 }
 
-impl<'a, T> Display for Topology<T>
+impl<T> Display for Topology<T>
 where
     T: Float + std::ops::AddAssign + Display + Send,
 {
@@ -783,7 +783,7 @@ where
     }
 }
 
-impl<'a, T> PartialEq for Topology<T>
+impl<T> PartialEq for Topology<T>
 where
     T: Float + std::ops::AddAssign + Display + Send,
 {
