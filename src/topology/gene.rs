@@ -8,8 +8,9 @@ use rand::prelude::ThreadRng;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
+use std::ops::{Add, AddAssign};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Point {
     pub layer: u8,
     pub index: u8,
@@ -51,6 +52,52 @@ where
     pub disabled: bool,
 }
 
+impl<T> Add for Gene<T>
+where
+    T: Float,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            input: self.input,
+            output: self.input,
+            input_weight: self.input_weight + rhs.input_weight,
+            memory_weight: self.memory_weight + rhs.memory_weight,
+            reset_input_weight: self.reset_input_weight + rhs.reset_input_weight,
+            update_input_weight: self.update_input_weight + rhs.update_input_weight,
+            reset_memory_weight: self.reset_memory_weight + rhs.reset_memory_weight,
+            update_memory_weight: self.update_memory_weight + rhs.update_memory_weight,
+            evolution_number: self.evolution_number,
+            connection_type: if matches!(self.connection_type, ConnectionType::GRU) {
+                self.connection_type
+            } else {
+                rhs.connection_type
+            },
+            disabled: self.disabled,
+        }
+    }
+}
+
+impl<T> AddAssign for Gene<T>
+where
+    T: Float,
+{
+    fn add_assign(&mut self, rhs: Self) {
+        self.input_weight = self.input_weight + rhs.input_weight;
+        self.memory_weight = self.memory_weight + rhs.memory_weight;
+        self.reset_input_weight = self.reset_input_weight + rhs.reset_input_weight;
+        self.update_input_weight = self.update_input_weight + rhs.update_input_weight;
+        self.reset_memory_weight = self.reset_memory_weight + rhs.reset_memory_weight;
+        self.update_memory_weight = self.update_memory_weight + rhs.update_memory_weight;
+        self.connection_type = if matches!(self.connection_type, ConnectionType::GRU) {
+            self.connection_type
+        } else {
+            rhs.connection_type
+        };
+    }
+}
+
 impl<T> Gene<T>
 where
     T: Float,
@@ -66,7 +113,7 @@ where
         let unif = Uniform::from(min..max);
         let connection_type_picker = Uniform::from(0..3);
         let connection_type = connection_type_picker.sample(rng);
-        let coordinate = Coordinate::new(input.clone(), output.clone());
+        let coordinate = Coordinate::new(input, output);
         Gene {
             input,
             output,
@@ -83,7 +130,7 @@ where
     }
 
     pub fn new_one(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
-        let coordinate = Coordinate::new(input.clone(), output.clone());
+        let coordinate = Coordinate::new(input, output);
         Gene {
             input,
             output,
@@ -101,7 +148,7 @@ where
 
     #[replace_numeric_literals(T::from(literal).unwrap())]
     pub fn new_zero(input: Point, output: Point, ev_number: &EvNumber) -> Gene<T> {
-        let coordinate = Coordinate::new(input.clone(), output.clone());
+        let coordinate = Coordinate::new(input, output);
         Gene {
             input,
             output,
@@ -129,10 +176,21 @@ where
         new_gene
     }
 
-    pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
-        let first_gene = Gene::new_one(self.input.clone(), middle_point.clone(), ev_number);
+    pub fn assign_values(&mut self, values: Self) {
+        self.input_weight = values.input_weight;
+        self.memory_weight = values.memory_weight;
+        self.reset_input_weight = values.reset_input_weight;
+        self.update_input_weight = values.update_input_weight;
+        self.reset_memory_weight = values.reset_memory_weight;
+        self.update_memory_weight = values.update_memory_weight;
+        self.evolution_number = values.evolution_number;
+        self.connection_type = values.connection_type;
+    }
 
-        let coordinate = Coordinate::new(middle_point.clone(), self.output.clone());
+    pub fn split(&self, middle_point: Point, ev_number: &EvNumber) -> (Gene<T>, Gene<T>) {
+        let first_gene = Gene::new_one(self.input, middle_point, ev_number);
+
+        let coordinate = Coordinate::new(middle_point, self.output);
         let mut second_gene = self.clone();
         second_gene.input = middle_point;
         second_gene.evolution_number = ev_number.number(coordinate);

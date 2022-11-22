@@ -12,11 +12,15 @@ use itertools::Itertools;
 use num::Float;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::fs::File;
+use std::io::{self, BufReader, Write};
 use std::iter::Sum;
 use std::sync::{Arc, Mutex};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+use tempdir::TempDir;
 
 macro_rules! cond_iter {
     ($collection: expr) => {{
@@ -44,7 +48,119 @@ macro_rules! cond_iter_mut {
     }};
 }
 
+const TEMP_DIR: &str = "temp_history";
+
 pub type TrainAccessCallback<'a, T, F> = Box<dyn FnMut(&mut Train<'a, T, F>)>;
+
+#[derive(Clone)]
+pub struct HistoricTopology<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    pub topology: Topology<F>,
+    pub generation: usize,
+}
+
+impl<F> std::ops::Deref for HistoricTopology<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    type Target = Topology<F>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.topology
+    }
+}
+
+pub enum HistoricTopologyLazy<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    Topology(HistoricTopology<F>),
+    Lazy(std::fs::File),
+}
+
+impl<F> HistoricTopologyLazy<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    /// Reads file and returns HistoricTopology<F>
+    pub fn read_file(&self) -> Result<HistoricTopology<F>, io::Error> {
+        use HistoricTopologyLazy::*;
+
+        let file = match self {
+            Lazy(file) => file,
+            Topology(topology) => return Ok(topology.clone()),
+        };
+        let reader = BufReader::new(file);
+
+        let topology = if let Ok(top) = serde_json::from_reader::<_, HistoricTopologyDisk>(reader) {
+            top.into()
+        } else {
+            return Err(io::ErrorKind::InvalidData.into());
+        };
+
+        Ok(topology)
+    }
+
+    /// Converts to Self::Topology, reading the file if needed
+    pub fn load_file(&mut self) -> Result<(), io::Error> {
+        use HistoricTopologyLazy::*;
+
+        let topology = self.read_file()?;
+
+        *self = Topology(topology);
+        Ok(())
+    }
+
+    /// Convert to `HistoricTology`, reading the file if needed
+    pub fn into_historic(mut self) -> Result<HistoricTopology<F>, io::Error> {
+        use HistoricTopologyLazy::*;
+        if let Topology(top) = self {
+            return Ok(top);
+        }
+        self.load_file()?;
+        match self {
+            Topology(top) => Ok(top),
+            _ => unreachable!(),
+        }
+    }
+
+    /// Checks if the file has been loaded
+    pub fn is_loaded(&self) -> bool {
+        matches!(self, Self::Topology(_))
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct HistoricTopologyDisk {
+    topology: String,
+    generation: usize,
+}
+
+impl<F> From<HistoricTopology<F>> for HistoricTopologyDisk
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    fn from(history: HistoricTopology<F>) -> HistoricTopologyDisk {
+        HistoricTopologyDisk {
+            topology: history.topology.to_string(),
+            generation: history.generation,
+        }
+    }
+}
+
+impl<F> From<HistoricTopologyDisk> for HistoricTopology<F>
+where
+    F: Float + std::ops::AddAssign + Display + Send,
+{
+    fn from(disk: HistoricTopologyDisk) -> HistoricTopology<F> {
+        HistoricTopology {
+            topology: Topology::from_string(&disk.topology),
+            generation: disk.generation,
+        }
+    }
+}
 
 /// The train struct is used to train a Neural Network on a simulation with the NEAT algorithm
 pub struct Train<'a, T, F>
@@ -67,12 +183,13 @@ where
     outputs_: Option<usize>,
     topologies_: Vec<TopologySmrtPtr<F>>,
     species_: Vec<Mutex<Species<F>>>,
-    history_: Vec<Topology<F>>,
+    history_: Vec<HistoricTopologyLazy<F>>,
     ev_number_: Arc<EvNumber>,
-    best_historical_score: F,
-    no_progress_counter: usize,
-    proba: MutationProbabilities,
-    access_train_object_fn: Option<TrainAccessCallback<'a, T, F>>,
+    save_history_to_disk_: bool,
+    best_historical_score_: F,
+    no_progress_counter_: usize,
+    proba_: MutationProbabilities,
+    access_train_object_fn_: Option<TrainAccessCallback<'a, T, F>>,
 }
 
 impl<'a, T, F> Train<'a, T, F>
@@ -98,6 +215,7 @@ where
     /// ```
     /// use neat_gru::neural_network::NeuralNetwork;
     /// use neat_gru::topology::Topology;
+    /// use neat_gru::train::HistoricTopologyLazy;
     /// use neat_gru::game::Game;
     ///
     /// struct TestGame {
@@ -130,7 +248,7 @@ where
     ///         self.nets = nets;
     ///     }
     ///
-    ///     fn post_training(&mut self, _history: &[Topology<f64>]) {}
+    ///     fn post_training(&mut self, _history: Vec<HistoricTopologyLazy<f64>>) {}
     /// }
     /// ```
     #[inline]
@@ -157,13 +275,14 @@ where
             species_: Vec::new(),
             history_: Vec::new(),
             ev_number_: Arc::new(EvNumber::new()),
-            best_historical_score: F::zero(),
-            no_progress_counter: 0,
-            access_train_object_fn: None,
-            proba: MutationProbabilities {
+            best_historical_score_: F::zero(),
+            no_progress_counter_: 0,
+            access_train_object_fn_: None,
+            proba_: MutationProbabilities {
                 change_weights: 0.95,
                 guaranteed_new_neuron: 0.2,
             },
+            save_history_to_disk_: false,
         }
     }
 
@@ -231,7 +350,7 @@ where
     /// `proba` - The new probabilities
     #[inline]
     pub fn mutation_probabilities(&mut self, proba: MutationProbabilities) -> &mut Self {
-        self.proba = proba;
+        self.proba_ = proba;
         self
     }
 
@@ -316,36 +435,77 @@ where
         &mut self,
         callback: Box<dyn FnMut(&mut Train<'a, T, F>)>,
     ) -> &mut Self {
-        self.access_train_object_fn = Some(callback);
+        self.access_train_object_fn_ = Some(callback);
         self
     }
 
-    fn run_iterations(&mut self) {
+    fn run_iterations(&mut self, tempdir: &Option<TempDir>) -> Result<(), TrainingError> {
         for i in 0..self.iterations_ {
             section!();
-            println!("Generation {}", i);
+            log::info!("Generation {}", i);
             let now = Instant::now();
             let results = self.simulation.run_generation();
-            println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
+            log::info!("RUN GENERATION: {}ms", now.elapsed().as_millis());
             self.set_last_results(results);
             let now = Instant::now();
             self.natural_selection();
-            self.push_to_history();
+            self.push_to_history(i, tempdir)?;
             self.reset_species();
             if self.species_.is_empty() {
                 break;
             }
-            println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
+            log::info!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
             let now = Instant::now();
             self.reset_players();
-            println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
-            let mut cb_option = self.access_train_object_fn.take();
+            log::info!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
+            let mut cb_option = self.access_train_object_fn_.take();
             let cb_option_borrow = &mut cb_option;
             if let Some(cb) = cb_option_borrow {
                 (*cb)(self);
-                self.access_train_object_fn = cb_option;
+                self.access_train_object_fn_ = cb_option;
             }
         }
+
+        Ok(())
+    }
+
+    /// If set to true, saves the history in the disk instead of keeping in RAM to prevent memory leak.
+    /// The files are saved in a TempFile
+    ///
+    /// Defaults to false
+    ///
+    /// # Arguments
+    ///
+    /// `should_use_disk` - Whether to save history on disk
+    #[inline]
+    pub fn save_history_to_disk(&mut self, should_use_disk: bool) -> &mut Self {
+        self.save_history_to_disk_ = should_use_disk;
+        self
+    }
+
+    fn create_temp_dir() -> Result<TempDir, io::Error> {
+        let tmp_dir = TempDir::new(TEMP_DIR)?;
+        Ok(tmp_dir)
+    }
+
+    fn load_post_training_from_temp(
+        tempdir: &TempDir,
+    ) -> Result<Vec<HistoricTopologyLazy<F>>, io::Error> {
+        let mut saved_topologies: Vec<HistoricTopologyLazy<F>> = Vec::new();
+        let path = tempdir.path();
+        let files = std::fs::read_dir(path)?;
+        for file_path in files {
+            let file_path = file_path?;
+            let is_file = file_path.file_type()?.is_file();
+            if is_file {
+                let file = std::fs::File::open(&file_path.path())?;
+                let historic_topology: HistoricTopologyLazy<F> = HistoricTopologyLazy::Lazy(file);
+
+                saved_topologies.push(historic_topology);
+            }
+        }
+
+        Ok(saved_topologies)
     }
 
     /// Starts the training.
@@ -353,6 +513,11 @@ where
     /// May return a NoInput Error if no input or output is given
     #[inline]
     pub fn start(&mut self) -> Result<(), TrainingError> {
+        let topologies_tmp_dir = if self.save_history_to_disk_ {
+            Some(Self::create_temp_dir().map_err(TrainingError::from)?)
+        } else {
+            None
+        };
         let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;
 
         let outputs = self.outputs_.ok_or(TrainingError::NoInput)?;
@@ -367,10 +532,18 @@ where
 
         self.reset_players();
         // Run generations
-        self.run_iterations();
+        self.run_iterations(&topologies_tmp_dir)?;
         section!();
-        println!("POST TRAINING");
-        self.simulation.post_training(&self.history_);
+        log::info!("POST TRAINING");
+        if let Some(topologies_tmp_dir) = topologies_tmp_dir {
+            let topologies_on_disk = Self::load_post_training_from_temp(&topologies_tmp_dir)?;
+            for topology in topologies_on_disk {
+                self.history_.push(topology);
+            }
+        }
+        let mut new_history = Vec::new();
+        std::mem::swap(&mut self.history_, &mut new_history);
+        self.simulation.post_training(new_history);
         Ok(())
     }
 
@@ -395,7 +568,7 @@ where
                 unsafe { NeuralNetwork::new(top) }
             })
             .collect();
-        println!(
+        log::info!(
             "TOPOLOGIES: {}, SPECIES: {}",
             networks.len(),
             self.species_.len()
@@ -450,7 +623,7 @@ where
                 first_spec.max_topologies = self.max_individuals_;
                 self.ev_number_.reset();
                 let ev_number = self.ev_number_.clone();
-                first_spec.natural_selection(ev_number, self.proba.clone(), self.crossovers_);
+                first_spec.natural_selection(ev_number, self.proba_.clone(), self.crossovers_);
                 return;
             }
             _ => {}
@@ -498,7 +671,7 @@ where
         }
         self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
-        let proba = self.proba.clone();
+        let proba = self.proba_.clone();
         let run_crossovers = self.crossovers_;
         cond_iter_mut!(self.species_).for_each(|species| {
             species.get_mut().unwrap().natural_selection(
@@ -522,15 +695,19 @@ where
             }
         }
         species_sizes_vec.push(current_count);
-        println!(
+        log::info!(
             "SPECIES LENGTHS: {}",
             self.get_species_lengths(species_sizes_vec)
         );
     }
 
-    fn push_to_history(&mut self) {
+    fn push_to_history(
+        &mut self,
+        generation: usize,
+        tempdir: &Option<TempDir>,
+    ) -> Result<(), io::Error> {
         if self.species_.is_empty() {
-            return;
+            return Ok(());
         }
         self.species_.sort_by(|s1, s2| {
             s1.lock()
@@ -543,31 +720,50 @@ where
         let best = { self.species_.last().unwrap().lock().unwrap().score() };
 
         {
-            println!(
+            log::info!(
                 "BEST OF WORST: {} BEST: {}",
                 self.species_[0].lock().unwrap().score(),
                 best
             );
         }
-        if best > self.best_historical_score {
-            self.best_historical_score = best;
-            self.no_progress_counter = 0;
+        if best > self.best_historical_score_ {
+            self.best_historical_score_ = best;
+            self.no_progress_counter_ = 0;
         } else {
-            self.no_progress_counter += 1;
-            if self.no_progress_counter >= self.iterations_ / 10 && self.iterations_ > 500 {
-                println!("=========================RESET TO TWO SPECIES=========================");
-                self.best_historical_score = F::zero();
-                self.no_progress_counter = 0;
+            self.no_progress_counter_ += 1;
+            if self.no_progress_counter_ >= self.iterations_ / 10 && self.iterations_ > 500 {
+                log::info!(
+                    "=========================RESET TO TWO SPECIES========================="
+                );
+                self.best_historical_score_ = F::zero();
+                self.no_progress_counter_ = 0;
                 if self.species_.len() > 2 {
                     self.species_ = self.species_.split_off(self.species_.len() - 2);
                 }
             }
         }
 
-        for species in self.species_.iter() {
-            self.history_
-                .push(species.lock().unwrap().best_topology.clone())
+        for (idx, species) in self.species_.iter().enumerate() {
+            let topology_history = HistoricTopologyLazy::Topology(HistoricTopology {
+                topology: species.lock().unwrap().best_topology.clone(),
+                generation,
+            });
+            if let Some(tempdir) = tempdir {
+                let file_path = tempdir
+                    .path()
+                    .join(format!("generation-{}-species-{}.json", generation, idx));
+                let mut tmp_file = File::create(file_path)?;
+                let disk_topology_history: HistoricTopologyDisk =
+                    topology_history.into_historic()?.into();
+                match serde_json::to_string(&disk_topology_history) {
+                    Ok(serialized) => tmp_file.write_all(serialized.as_bytes())?,
+                    Err(e) => log::error!("Failed to serialize with error: {:?}", e),
+                }
+            } else {
+                self.history_.push(topology_history);
+            }
         }
+        Ok(())
     }
 
     /// Sorts the species according to fitness
@@ -633,7 +829,7 @@ where
         self.species_ = species;
         self.species_
             .retain(|spec| !spec.lock().unwrap().topologies.is_empty());
-        println!("BIGGEST SPECIES: {}", self.get_biggest_species_len());
+        log::info!("BIGGEST SPECIES: {}", self.get_biggest_species_len());
     }
 
     /// Gets the length of the biggest species
@@ -652,6 +848,11 @@ where
     &'a [F]: rayon::iter::IntoParallelIterator,
 {
     pub async fn start_async(&mut self) -> Result<(), TrainingError> {
+        let topologies_tmp_dir = if self.save_history_to_disk_ {
+            Some(Self::create_temp_dir().map_err(TrainingError::from)?)
+        } else {
+            None
+        };
         let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;
 
         let outputs = self.inputs_.ok_or(TrainingError::NoInput)?;
@@ -667,31 +868,39 @@ where
         self.reset_players();
         for i in 0..self.iterations_ {
             section!();
-            println!("Generation {}", i);
+            log::info!("Generation {}", i);
             let now = Instant::now();
             let results = self.simulation.run_generation_async().await;
-            println!("RUN GENERATION: {}ms", now.elapsed().as_millis());
+            log::info!("RUN GENERATION: {}ms", now.elapsed().as_millis());
             self.set_last_results(results);
             let now = Instant::now();
             self.natural_selection();
-            self.push_to_history();
+            self.push_to_history(i, &topologies_tmp_dir)?;
             self.reset_species();
             if self.species_.is_empty() {
                 break;
             }
-            println!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
+            log::info!("NATURAL SELECTION: {}ms", now.elapsed().as_millis());
             let now = Instant::now();
             self.reset_players();
-            println!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
-            let mut cb_option = self.access_train_object_fn.take();
+            log::info!("RESET PLAYERS: {}ms", now.elapsed().as_millis());
+            let mut cb_option = self.access_train_object_fn_.take();
             let cb_option_borrow = &mut cb_option;
             if let Some(cb) = cb_option_borrow {
                 (*cb)(self);
-                self.access_train_object_fn = cb_option;
+                self.access_train_object_fn_ = cb_option;
             }
         }
-        println!("POST TRAINING");
-        self.simulation.post_training(&self.history_);
+        log::info!("POST TRAINING");
+        if let Some(topologies_tmp_dir) = topologies_tmp_dir {
+            let topologies_on_disk = Self::load_post_training_from_temp(&topologies_tmp_dir)?;
+            for topology in topologies_on_disk {
+                self.history_.push(topology);
+            }
+        }
+        let mut new_history = Vec::new();
+        std::mem::swap(&mut self.history_, &mut new_history);
+        self.simulation.post_training(new_history);
         Ok(())
     }
 }

@@ -81,7 +81,7 @@ where
                         }
                     })
                     .collect();
-                (point.clone(), new_bg)
+                (*point, new_bg)
             })
             .collect();
 
@@ -186,12 +186,7 @@ where
                 not_added_it += 1;
                 let output = Point::new(1, index as u8);
                 let gene = Rc::new(RefCell::new(Gene::new_random(
-                    rng,
-                    input.clone(),
-                    output,
-                    -1.,
-                    1.,
-                    ev_number,
+                    rng, input, output, -1., 1., ev_number,
                 )));
                 new_topology.insert_gene(gene);
             }
@@ -300,7 +295,7 @@ where
     pub fn insert_gene(&mut self, gene: GeneSmrtPtr<T>) {
         let (input, ev_number) = {
             let gene = &*gene.borrow();
-            (gene.input.clone(), gene.evolution_number)
+            (gene.input, gene.evolution_number)
         };
         match self.genes_point.get_mut(&input) {
             Some(found) => {
@@ -310,7 +305,7 @@ where
                 let bias = Bias::new_zero();
                 let mut bias_and_genes: BiasAndGenes<T> = BiasAndGenes::new(bias);
                 bias_and_genes.genes = vec![gene.clone()];
-                self.genes_point.insert(input.clone(), bias_and_genes);
+                self.genes_point.insert(input, bias_and_genes);
             }
         }
         self.genes_ev_number.insert(ev_number, gene);
@@ -338,7 +333,7 @@ where
                     let point_cp = Point::new(point.layer + 1, point.index);
                     (point_cp, b_and_g.clone())
                 } else {
-                    (point.clone(), b_and_g.clone())
+                    (*point, b_and_g.clone())
                 }
             })
             .collect();
@@ -406,8 +401,12 @@ where
 
         let input = Point::new(input_layer, input_index);
         let output = Point::new(output_layer, output_index);
-        let just_created = self.new_gene(input.clone(), output.clone(), ev_number, rng);
-        self.disable_genes(input, output, just_created);
+        let just_created = self.new_gene(input, output, ev_number, rng);
+        if let Some(old_values) =
+            self.disable_genes(input, output, Rc::clone(&just_created), Some(ev_number))
+        {
+            just_created.borrow_mut().assign_values(old_values);
+        }
     }
 
     /*#[allow(dead_code)]
@@ -492,7 +491,7 @@ where
 
     fn remove_neuron(&mut self, gene_rc: &GeneSmrtPtr<T>) {
         // get bias_and_gene
-        let input = { gene_rc.borrow().input.clone() };
+        let input = { gene_rc.borrow().input };
         let bias_and_gene = match self.genes_point.remove(&input) {
             None => {
                 return;
@@ -516,7 +515,7 @@ where
             .genes_point
             .iter_mut()
             .map(|(point, bias_and_gene)| {
-                let mut point = point.clone();
+                let mut point = *point;
                 if point.layer == input.layer && point.index > input.index {
                     point.index -= 1;
                 }
@@ -563,8 +562,19 @@ where
         })
     }
 
-    fn disable_genes(&mut self, input: Point, output: Point, last: GeneSmrtPtr<T>) {
+    fn disable_genes(
+        &mut self,
+        input: Point,
+        output: Point,
+        last: GeneSmrtPtr<T>,
+        ev_number: Option<&EvNumber>,
+    ) -> Option<Gene<T>> {
         if let Some(found) = self.genes_point.get(&input) {
+            let mut aggregate_output_gene = ev_number.map(|ev_number| {
+                let mut new_gene = Gene::new_zero(input, output, ev_number);
+                new_gene.connection_type = ConnectionType::Relu;
+                new_gene
+            }); // Sums the values of the deleted genes to set value of the newly created gene
             let genes = &found.genes;
             for gene_rc in genes {
                 if Rc::ptr_eq(gene_rc, &last) {
@@ -576,20 +586,26 @@ where
                     if gene.disabled {
                         continue;
                     }
-                    gene.output.clone()
+                    gene.clone()
                 };
-                if output == compared_output
+                if output == compared_output.output
                     || self.path_overrides(
                         &output,
-                        &compared_output,
+                        &compared_output.output,
                         &last,
                         self.layers_sizes.len() as i8 >> 1,
                     )
                 {
                     let mut gene = cell.borrow_mut();
                     gene.disabled = true;
+                    if let Some(aggregate_output_gene) = &mut aggregate_output_gene {
+                        *aggregate_output_gene += compared_output;
+                    }
                 }
             }
+            aggregate_output_gene
+        } else {
+            None
         }
     }
 
@@ -635,7 +651,7 @@ where
         let mut layers_sizes = Vec::new();
         let mut output_bias: Vec<Bias<T>> = Vec::new();
         let mut genes_point = HashMap::new();
-        let genes_ev_number = HashMap::new();
+        let mut genes_ev_number = HashMap::new();
 
         for ser_bias in &serialization.biases {
             let input = Point::new(ser_bias.neuron.0, ser_bias.neuron.1);
@@ -663,7 +679,7 @@ where
             let input = Point::new(gene.input.0, gene.input.1);
             let output = Point::new(gene.output.0, gene.output.1);
             let new_gene = Rc::new(RefCell::new(Gene {
-                input: input.clone(),
+                input,
                 output,
                 input_weight: num::cast(gene.input_weight).unwrap(),
                 memory_weight: num::cast(gene.memory_weight).unwrap(),
@@ -671,10 +687,14 @@ where
                 update_input_weight: num::cast(gene.update_input_weight).unwrap(),
                 reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
                 update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
-                evolution_number: 0,
+                evolution_number: gene.ev_number.and_then(num::cast).unwrap_or_default(),
                 connection_type: ConnectionType::from_int(gene.connection_type),
                 disabled: gene.disabled,
             }));
+
+            if let Some(ev_number) = gene.ev_number {
+                genes_ev_number.insert(num::cast(ev_number).unwrap(), Rc::clone(&new_gene));
+            }
 
             if gene.disabled {
                 continue;
@@ -717,9 +737,10 @@ where
                             .genes_ev_number
                             .insert(worst_gene.evolution_number, worst_gene_clone.clone());
                         new_topology.disable_genes(
-                            worst_gene.input.clone(),
-                            worst_gene.output.clone(),
+                            worst_gene.input,
+                            worst_gene.output,
                             worst_gene_clone,
+                            None,
                         );
                     }
                 }
@@ -737,7 +758,7 @@ where
         let mut biases: Vec<SerializationBias> = self
             .genes_point
             .iter()
-            .map(|(point, b_and_g)| SerializationBias::new(point.clone(), b_and_g.bias.clone()))
+            .map(|(point, b_and_g)| SerializationBias::new(*point, b_and_g.bias.clone()))
             .collect();
         let last_layer = self.layers_sizes.len() - 1;
         let mut output_biases: Vec<SerializationBias> = self
@@ -769,6 +790,7 @@ where
                             reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
                             update_input_weight: num::cast(gene.update_input_weight).unwrap(),
                             update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
+                            ev_number: num::cast(gene.evolution_number),
                         }
                     })
                     .collect::<Vec<SerializationGene>>()

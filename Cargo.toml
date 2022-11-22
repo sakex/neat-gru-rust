@@ -1,6 +1,6 @@
 [package]
 name = "neat-gru"
-version = "1.1.1"
+version = "1.4.0"
 authors = ["sakex <alexandre@senges.ch>"]
 edition = "2018"
 description = "NEAT algorithm with GRU gates"
@@ -26,9 +26,9 @@ rand_distr = "0.4.3"
 numeric_literals = "0.2.0"
 rayon = "1.5.3"
 itertools = "0.10.1"
-async-trait = "0.1.57"
-futures = { version = "0.3.23", optional = true }
-tokio = { version = "1.20", optional = true, features = ["sync", "rt", "macros", "time"] }
+async-trait = "0.1.51"
+log = "0.4.17"
+tempdir = "0.3.7"
 
 [dev-dependencies]
 criterion = "0.4.0"
