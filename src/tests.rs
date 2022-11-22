@@ -1,4 +1,3 @@
-use crate::neural_network::nn_trait::NN;
 use crate::neural_network::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::Topology;
