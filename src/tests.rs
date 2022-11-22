@@ -1,7 +1,7 @@
 use crate::neural_network::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::Topology;
-use crate::train::Train;
+use crate::train::{HistoricTopologyLazy, Train};
 use crate::{game::Game, section};
 use rand::{thread_rng, Rng};
 use std::fs;
@@ -103,20 +103,21 @@ impl Game<f64> for TestGame {
         self.nets = nets;
     }
 
-    fn post_training(&mut self, history: &[Topology<f64>]) {
-        for (index, top) in history.iter().enumerate() {
+    fn post_training(&mut self, history: Vec<HistoricTopologyLazy<f64>>) {
+        for (index, top) in history.into_iter().enumerate() {
+            let top = top.into_historic().unwrap().topology;
             let top_cp = top.clone();
-            assert_eq!(*top, top_cp);
+            assert_eq!(top, top_cp);
 
             let as_str = top.to_string();
-            let network = unsafe { NeuralNetwork::new(top) };
+            let network = unsafe { NeuralNetwork::new(&top) };
             let top2 = Topology::from_string(&*as_str);
             let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
             if network != network_from_string {
                 println!("{:?}, {:?}", top.layers_sizes, top2.layers_sizes);
                 println!("{}", as_str);
                 section!();
-                println!("{}", top2.to_string());
+                println!("{}", top2);
                 panic!("Network != Network from string");
             }
             self.nets = vec![network, network_from_string];
@@ -192,8 +193,9 @@ impl Game<f64> for MemoryCount {
         self.nets = nets;
     }
 
-    fn post_training(&mut self, history: &[Topology<f64>]) {
-        for (index, top) in history.iter().enumerate() {
+    fn post_training(&mut self, history: Vec<HistoricTopologyLazy<f64>>) {
+        for (index, top) in history.into_iter().enumerate() {
+            let top = &top.into_historic().unwrap().topology;
             let top_cp = top.clone();
             assert_eq!(*top, top_cp);
             let as_str = top.to_string();
@@ -203,7 +205,7 @@ impl Game<f64> for MemoryCount {
             if network != network_from_string {
                 println!("{}", as_str);
                 section!();
-                println!("{}", top2.to_string());
+                println!("{}", top2);
                 panic!("Network != Network from string");
             }
             self.nets = vec![network, network_from_string];

@@ -9,6 +9,6 @@ pub fn floats_almost_equal<T: Float>(f1: T, f2: T) -> bool {
 #[macro_export]
 macro_rules! section {
     () => {
-        println!("\n=========================\n");
+        log::info!("\n=========================\n");
     };
 }

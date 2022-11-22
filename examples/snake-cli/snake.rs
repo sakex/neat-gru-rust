@@ -45,7 +45,6 @@ impl Snake {
         {
             self.moving_direction = dir;
             self.dir_changed = true;
-            //println!("Dir changed to {:?}", dir);
         }
     }
     fn is_eating(&self, apple: Coordinate) -> bool {
