@@ -3,99 +3,51 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use neat_gru::neural_network::functions::*;
 
 extern crate neat_gru;
-
-fn bench_sigmoid(c: &mut Criterion) {
+fn input_data() -> impl IntoIterator<Item = f32>{
     let size: f32 = 0.3518392;
+    (0..20).map(move |i| size * i as f32)
+}
+fn bench_sigmoid(c: &mut Criterion) {
     let mut group = c.benchmark_group("Sigmoid Function");
-    for size in [
-        size * 0.0,
-        size,
-        size * 2.0,
-        size * 4.0,
-        size * 6.0,
-        size * 8.0,
-        size * 10.0,
-        size * 12.0,
-        size * 14.0,
-    ]
-    .iter()
-    {
-        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, size| {
+    input_data().into_iter().for_each(|s|{
+        group.bench_with_input(BenchmarkId::from_parameter(s), &s, |b, size| {
             b.iter(|| fast_sigmoid(*size))
         });
-    }
+    });
     group.finish();
 }
 
 fn bench_tanh(c: &mut Criterion) {
-    let size: f32 = 0.3518392;
-    let mut group = c.benchmark_group("tanh Function");
-    for size in [
-        size * 0.0,
-        size,
-        size * 2.0,
-        size * 4.0,
-        size * 6.0,
-        size * 8.0,
-        size * 10.0,
-        size * 12.0,
-        size * 14.0,
-    ]
-    .iter()
-    {
-        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, size| {
-            b.iter(|| fast_tanh(*size))
+    let mut group = c.benchmark_group("Tanh Function");
+    input_data().into_iter().for_each(|s|{
+        group.bench_with_input(BenchmarkId::from_parameter(s), &s, |b, s| {
+            b.iter(|| fast_tanh(*s))
         });
-    }
+    });
     group.finish();
 }
 
 fn bench_relu(c: &mut Criterion) {
-    let size: f32 = 0.3518392;
-    let mut group = c.benchmark_group("relu Function");
-    for size in [
-        size * 0.0,
-        size,
-        size * 2.0,
-        size * 4.0,
-        size * 6.0,
-        size * 8.0,
-        size * 10.0,
-        size * 12.0,
-        size * 14.0,
-    ]
-        .iter()
-    {
-        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, size| {
-            b.iter(|| re_lu(*size))
+    let mut group = c.benchmark_group("Relu Function");
+    input_data().into_iter().for_each(|s|{
+        group.bench_with_input(BenchmarkId::from_parameter(s), &s, |b, s| {
+            b.iter(|| re_lu(*s))
         });
-    }
+    });
     group.finish();
 }
 
 fn comparison(c: &mut Criterion) {
-    let size: f32 = 0.3518392;
-    let mut group = c.benchmark_group("relu vs sigmoid");
-    for size in [
-        size * 0.0,
-        size,
-        size * 2.0,
-        size * 4.0,
-        size * 6.0,
-        size * 8.0,
-        size * 10.0,
-        size * 12.0,
-        size * 14.0,
-    ]
-        .iter()
+    let mut group = c.benchmark_group("Relu vs Sigmoid");
+    input_data().into_iter().for_each(|s|
     {
-        group.bench_with_input(BenchmarkId::new("Sigmoid", size), size,
+        group.bench_with_input(BenchmarkId::new("Sigmoid", s), &s,
         |b, size| b.iter(|| fast_sigmoid(*size)));
-        group.bench_with_input(BenchmarkId::new("Relu", size), size,
-                               |b, size| b.iter(|| re_lu(*size)));
-        group.bench_with_input(BenchmarkId::new("Tanh", size), size,
-                               |b, size| b.iter(|| fast_tanh(*size)));
-    }
+        group.bench_with_input(BenchmarkId::new("Relu", s), &s,
+                               |b, s| b.iter(|| re_lu(*s)));
+        group.bench_with_input(BenchmarkId::new("Tanh", s), &s,
+                               |b, s| b.iter(|| fast_tanh(*s)));
+    });
     group.finish();
 }
 

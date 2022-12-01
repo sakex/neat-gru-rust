@@ -1,13 +1,20 @@
 use num::Float;
 use numeric_literals::replace_numeric_literals;
+
 #[inline(always)]
 #[cfg(feature = "relu")]
 pub fn activate<T: Float>(value: T) -> T {
     re_lu(value)
 }
-#[cfg(not(feature = "relu"))]
+#[cfg((feature = "tanh"))]
+#[inline(always)]
 pub fn activate<T: Float>(value: T) -> T {
     fast_tanh(value)
+}
+#[cfg((feature = "sigmoid"))]
+#[inline(always)]
+pub fn activate<T: Float>(value: T) -> T {
+    fast_sigmoid(value)
 }
 
 #[inline(always)]

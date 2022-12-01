@@ -10,8 +10,10 @@ categories = ["science", "wasm"]
 keywords = ["neat", "ai", "machine-learning", "genetic", "algorithm"]
 
 [features]
-default = []
+default = ["tanh"]
 relu = []
+sigmoid = []
+tanh = []
 
 [lib]
 crate-type = ["cdylib", "rlib"]
