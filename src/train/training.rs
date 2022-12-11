@@ -781,10 +781,8 @@ where
                 spec1
                     .adjusted_fitness
                     .partial_cmp(&spec2.adjusted_fitness)
-                    .expect(&*format!(
-                        "First: {}, second: {}, variance {}",
-                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance
-                    ))
+                    .unwrap_or_else(|| panic!("First: {}, second: {}, variance {}",
+                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance))
             }
         });
     }

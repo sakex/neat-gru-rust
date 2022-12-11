@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 extern crate neat_gru;
-use neat_gru::neural_network::NeuralNetwork;
+use neat_gru::neural_network::nn::NeuralNetwork;
 use neat_gru::topology::Topology;
 use std::fs::File;
 use std::io::Read;
@@ -15,5 +15,6 @@ fn benchmark(c: &mut Criterion) {
         b.iter(|| network.compute(black_box(&[0.0, 0.0])))
     });
 }
+
 criterion_group!(benches, benchmark);
 criterion_main!(benches);
