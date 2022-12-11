@@ -6,12 +6,12 @@ use numeric_literals::replace_numeric_literals;
 pub fn activate<T: Float>(value: T) -> T {
     re_lu(value)
 }
-#[cfg((feature = "tanh"))]
+#[cfg(feature = "tanh")]
 #[inline(always)]
 pub fn activate<T: Float>(value: T) -> T {
     fast_tanh(value)
 }
-#[cfg((feature = "sigmoid"))]
+#[cfg(feature = "sigmoid")]
 #[inline(always)]
 pub fn activate<T: Float>(value: T) -> T {
     fast_sigmoid(value)
@@ -37,6 +37,6 @@ pub fn fast_tanh<T: Float>(x: T) -> T {
 }
 
 #[inline(always)]
-pub fn re_lu<T: Float>(x: T) -> T{
+pub fn re_lu<T: Float>(x: T) -> T {
     x.max(T::zero())
 }
