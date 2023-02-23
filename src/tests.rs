@@ -35,7 +35,7 @@ pub fn test_import_network() {
     // 1 and 2 should by definition be different
     assert_ne!(output_1, output_2);
     assert_ne!(output_1, output_3);
-    //Because of GRU gates, giving the same input twice won't yield the same output
+    // Because of GRU gates, giving the same input twice won't yield the same output
     assert_ne!(output_2, output_3);
 
     // Reset
