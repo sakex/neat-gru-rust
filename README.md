@@ -9,6 +9,61 @@
 
 [Crates.io doc](https://docs.rs/neat-gru/)
 
+## Install & Build for C / C++
+
+Build the dynamic library and install it in `/usr/local/bin`, copy headers in `/usr/local/include/neat_gru_lib`.
+This command will ask for your root password as it is needed to do the installation.
+
+```bash
+./bootstrap.sh
+```
+
+## Use in C / C++
+
+Link `neat_gru` dynamic library.
+
+
+```
+#include "neat_gru_lib/neat_gru.h"
+```
+
+C
+
+```c
+const char path[] = "path.json";
+
+const NeatGruResult result = load_network_from_file_f64(path);
+assert(result.status == NeatGruStatus::Sucess);
+
+const long INPUT_SIZE = 4;
+const double input[INPUT_SIZE] = {0.5, 0.5, 0.1, -0.2};
+double output[2];
+compute_network_f64(result.network, INPUT_SIZE, input, output);
+// Do something with output buffer.
+// ...
+// Free memory.
+free_network_f64(result.network);
+```
+
+C++
+
+```cpp
+using namespace NeatGru;
+
+const std::string path = "path.json";
+NeuralNetwork<double> network = NeuralNetwork<double>::FromFile(path);
+
+const long INPUT_SIZE = 4;
+const double input[INPUT_SIZE] = {0.5, 0.5, 0.1, -0.2};
+double output[2];
+
+// We use raw C pointers for performance.
+network.Compute(INPUT_SIZE, input, output);
+// Do something with output buffer.
+// ...
+network.Reset();
+```
+
 ## Examples
 
 [XOR](examples/example.rs)

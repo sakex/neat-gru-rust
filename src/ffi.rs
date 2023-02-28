@@ -49,7 +49,7 @@ where
     };
 
     let mut file_string = String::new();
-    if let Err(_) = file.read_to_string(&mut file_string) {
+    if file.read_to_string(&mut file_string).is_err() {
         return NeatGruResult::from(NeatGruStatus::FailedToReadFile);
     }
 
@@ -75,6 +75,11 @@ pub extern "C" fn load_network_from_file_f64(file_path: *const c_char) -> NeatGr
     load_network_from_file_impl::<f64>(file_path)
 }
 
+///
+/// # Safety
+///
+/// `network`, `inputs` and `outputs` should be valid pointers. `inputs` should be of size `input_size` and `outputs` should be at least of the size of the output of the network.
+///
 unsafe fn compute_network_impl<T>(
     network: &mut NeuralNetwork<T>,
     input_size: usize,
@@ -89,8 +94,13 @@ unsafe fn compute_network_impl<T>(
     network.compute_buffer(input_slice, output_slice);
 }
 
+///
+/// # Safety
+///
+/// `network`, `inputs` and `outputs` should be valid pointers. `inputs` should be of size `input_size` and `outputs` should be at least of the size of the output of the network.
+///
 #[no_mangle]
-pub extern "C" fn compute_network_f32(
+pub unsafe extern "C" fn compute_network_f32(
     network: *mut NeuralNetworkErased,
     input_size: std::ffi::c_long,
     inputs: *const f32,
@@ -98,13 +108,16 @@ pub extern "C" fn compute_network_f32(
 ) {
     let network_f32 = network as *mut NeuralNetwork<f32>;
     assert!(!network_f32.is_null());
-    unsafe {
-        compute_network_impl(&mut *network_f32, input_size as usize, inputs, outputs);
-    }
+    compute_network_impl(&mut *network_f32, input_size as usize, inputs, outputs);
 }
 
+///
+/// # Safety
+///
+/// `network`, `inputs` and `outputs` should be valid pointers. `inputs` should be of size `input_size` and `outputs` should be at least of the size of the output of the network.
+///
 #[no_mangle]
-pub extern "C" fn compute_network_f64(
+pub unsafe extern "C" fn compute_network_f64(
     network: *mut NeuralNetworkErased,
     input_size: std::ffi::c_long,
     inputs: *const f64,
@@ -112,25 +125,53 @@ pub extern "C" fn compute_network_f64(
 ) {
     let network_f64 = network as *mut NeuralNetwork<f64>;
     assert!(!network_f64.is_null());
-    unsafe {
-        compute_network_impl(&mut *network_f64, input_size as usize, inputs, outputs);
-    }
+    compute_network_impl(&mut *network_f64, input_size as usize, inputs, outputs);
 }
 
+///
+/// # Safety
+///
+/// `network` should be a valid pointer
+///
 #[no_mangle]
-pub extern "C" fn reset_network_f32(network: *mut NeuralNetworkErased) {
+pub unsafe extern "C" fn reset_network_f32(network: *mut NeuralNetworkErased) {
     let network_f32 = network as *mut NeuralNetwork<f32>;
     assert!(!network_f32.is_null());
-    unsafe {
-        (*network_f32).reset_state();
-    }
+    (*network_f32).reset_state();
 }
 
+///
+/// # Safety
+///
+/// `network` should be a valid pointer
+///
 #[no_mangle]
-pub extern "C" fn reset_network_f64(network: *mut NeuralNetworkErased) {
+pub unsafe extern "C" fn reset_network_f64(network: *mut NeuralNetworkErased) {
     let network_f64 = network as *mut NeuralNetwork<f64>;
     assert!(!network_f64.is_null());
-    unsafe {
-        (*network_f64).reset_state();
-    }
+    (*network_f64).reset_state();
+}
+
+///
+/// # Safety
+///
+/// `network` should be a valid pointer
+///
+#[no_mangle]
+pub unsafe extern "C" fn free_network_f32(network: *mut NeuralNetworkErased) {
+    let network_f32 = network as *mut NeuralNetwork<f32>;
+    assert!(!network_f32.is_null());
+    std::mem::drop(Box::from_raw(network_f32));
+}
+
+///
+/// # Safety
+///
+/// `network` should be a valid pointer
+///
+#[no_mangle]
+pub unsafe extern "C" fn free_network_f64(network: *mut NeuralNetworkErased) {
+    let network_f64 = network as *mut NeuralNetwork<f64>;
+    assert!(!network_f64.is_null());
+    std::mem::drop(Box::from_raw(network_f64));
 }

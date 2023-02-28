@@ -32,3 +32,5 @@ jobs:
       run: cargo clippy --all-targets --all-features -- -D warnings
     - name: Lint
       run: cargo fmt --all -- --check
+    - name: C tests
+      run: ./bootstrap.sh && ./test_c_bindings.sh

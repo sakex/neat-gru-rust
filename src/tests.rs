@@ -89,7 +89,7 @@ impl Game<f64> for TestGame {
             .iter_mut()
             .map(|network| {
                 let inputs = vec![0.1, 0.2, 0.3, 0.4, 0.5];
-                let out = network.compute(&*inputs);
+                let out = network.compute(&inputs);
                 let mut diff = 0f64;
                 inputs.iter().zip(out.iter()).for_each(|(a, b)| {
                     diff -= (a - b).abs();
@@ -111,7 +111,7 @@ impl Game<f64> for TestGame {
 
             let as_str = top.to_string();
             let network = unsafe { NeuralNetwork::new(&top) };
-            let top2 = Topology::from_string(&*as_str);
+            let top2 = Topology::from_string(&as_str);
             let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
             if network != network_from_string {
                 println!("{:?}, {:?}", top.layers_sizes, top2.layers_sizes);
@@ -200,7 +200,7 @@ impl Game<f64> for MemoryCount {
             assert_eq!(*top, top_cp);
             let as_str = top.to_string();
             let network = unsafe { NeuralNetwork::new(top) };
-            let top2 = Topology::from_string(&*as_str);
+            let top2 = Topology::from_string(&as_str);
             let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
             if network != network_from_string {
                 println!("{}", as_str);
