@@ -645,6 +645,10 @@ where
         }
     }
 
+    pub fn is_valid_topology_json(serialized: &str) -> bool {
+        SerializationTopology::from_string(serialized).is_ok()
+    }
+
     pub fn from_string(serialized: &str) -> Topology<T> {
         let serialization: SerializationTopology =
             SerializationTopology::from_string(serialized).unwrap();
