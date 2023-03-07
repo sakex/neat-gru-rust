@@ -15,5 +15,6 @@ fn benchmark(c: &mut Criterion) {
         b.iter(|| network.compute(black_box(&[0.0, 0.0])))
     });
 }
+
 criterion_group!(benches, benchmark);
 criterion_main!(benches);

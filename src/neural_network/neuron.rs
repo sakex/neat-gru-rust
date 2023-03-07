@@ -1,7 +1,7 @@
 use crate::neural_network::connection_gru::ConnectionGru;
 use crate::neural_network::connection_relu::ConnectionRelu;
 use crate::neural_network::connection_sigmoid::ConnectionSigmoid;
-use crate::neural_network::functions::{fast_sigmoid, fast_tanh};
+use crate::neural_network::functions::{fast_sigmoid, fast_tanh, re_lu};
 use crate::topology::bias::Bias;
 use crate::utils::floats_almost_equal;
 use num::Float;
@@ -95,8 +95,8 @@ where
     #[replace_numeric_literals(T::from(literal).unwrap())]
     #[inline]
     pub fn get_value(&mut self) -> T {
-        let update_gate = fast_sigmoid(self.update);
-        let reset_gate = fast_sigmoid(self.reset);
+        let update_gate = re_lu(self.update);
+        let reset_gate = re_lu(self.reset);
         let current_memory = fast_tanh(self.input + self.memory * reset_gate);
         let value = update_gate * self.memory + (1 - update_gate) * current_memory;
 
@@ -107,8 +107,8 @@ where
     #[replace_numeric_literals(T::from(literal).unwrap())]
     #[inline]
     pub fn feed_forward(&mut self) {
-        let update_gate = fast_sigmoid(self.update);
-        let reset_gate = fast_sigmoid(self.reset);
+        let update_gate = re_lu(self.update);
+        let reset_gate = re_lu(self.reset);
         let current_memory = self.input + self.memory * reset_gate;
         let value = update_gate * self.memory + (1 - update_gate) * current_memory;
         for connection in self.connections_gru.iter_mut() {
