@@ -4,7 +4,7 @@ version = "1.4.0"
 authors = ["sakex <alexandre@senges.ch>"]
 edition = "2018"
 description = "NEAT algorithm with GRU gates"
-license = "GPL-3.0"
+license = "MIT"
 repository = "https://github.com/sakex/neat-gru-rust"
 categories = ["science", "wasm"]
 keywords = ["neat", "ai", "machine-learning", "genetic", "algorithm"]
@@ -25,6 +25,7 @@ itertools = "0.10.1"
 async-trait = "0.1.51"
 log = "0.4.17"
 tempdir = "0.3.7"
+libc = "0.2.139"
 
 [dev-dependencies]
 criterion = "0.3.5"

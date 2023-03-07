@@ -192,6 +192,8 @@ where
     access_train_object_fn_: Option<TrainAccessCallback<'a, T, F>>,
 }
 
+pub type TrainCallback<'a, T, F> = Box<dyn FnMut(&mut Train<'a, T, F>)>;
+
 impl<'a, T, F> Train<'a, T, F>
 where
     T: Game<F>,
@@ -431,10 +433,7 @@ where
     ///
     /// `callback` - Callback called after `reset_players`
     #[inline]
-    pub fn access_train_object(
-        &mut self,
-        callback: Box<dyn FnMut(&mut Train<'a, T, F>)>,
-    ) -> &mut Self {
+    pub fn access_train_object(&mut self, callback: TrainCallback<'a, T, F>) -> &mut Self {
         self.access_train_object_fn_ = Some(callback);
         self
     }
@@ -781,10 +780,12 @@ where
                 spec1
                     .adjusted_fitness
                     .partial_cmp(&spec2.adjusted_fitness)
-                    .expect(&*format!(
-                        "First: {}, second: {}, variance {}",
-                        spec1.adjusted_fitness, spec2.adjusted_fitness, variance
-                    ))
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "First: {}, second: {}, variance {}",
+                            spec1.adjusted_fitness, spec2.adjusted_fitness, variance
+                        )
+                    })
             }
         });
     }

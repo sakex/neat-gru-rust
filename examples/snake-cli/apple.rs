@@ -9,11 +9,7 @@ impl Apple {
     pub fn generate_apple() -> Self {
         let mut rng = rand::thread_rng();
         Apple {
-            cord: (
-                rng.gen_range(0..RESOLUTION as usize),
-                rng.gen_range(0..RESOLUTION as usize),
-            )
-                .into(),
+            cord: (rng.gen_range(0..RESOLUTION), rng.gen_range(0..RESOLUTION)).into(),
         }
     }
     pub fn get_coordinate(&self) -> Coordinate {
