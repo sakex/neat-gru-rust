@@ -731,11 +731,9 @@ where
             return Ok(());
         }
         self.species_.sort_by(|s1, s2| {
-            s1.lock()
-                .unwrap()
-                .score()
-                .partial_cmp(&s2.lock().unwrap().score())
-                .unwrap()
+            let score1 = s1.lock().unwrap().score();
+            let score2 = s2.lock().unwrap().score();
+            score1.partial_cmp(&score2).unwrap()
         });
 
         let best = { self.species_.last().unwrap().lock().unwrap().score() };
@@ -789,25 +787,23 @@ where
 
     /// Sorts the species according to fitness
     fn sort_species(&mut self, variance: F) {
+        // Never lock two species at once: the sort may compare a species with itself
+        let key = |spec: &Mutex<Species<F>>| {
+            let spec = spec.lock().unwrap();
+            (spec.adjusted_fitness, spec.topologies.len())
+        };
         self.species_.sort_by(|spec1, spec2| {
-            let spec1 = &*spec1.lock().unwrap();
-            let spec2 = &*spec2.lock().unwrap();
-            if spec1.adjusted_fitness == spec2.adjusted_fitness {
-                spec1
-                    .topologies
-                    .len()
-                    .partial_cmp(&spec2.topologies.len())
-                    .unwrap()
+            let (fitness1, len1) = key(spec1);
+            let (fitness2, len2) = key(spec2);
+            if fitness1 == fitness2 {
+                len1.cmp(&len2)
             } else {
-                spec1
-                    .adjusted_fitness
-                    .partial_cmp(&spec2.adjusted_fitness)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "First: {}, second: {}, variance {}",
-                            spec1.adjusted_fitness, spec2.adjusted_fitness, variance
-                        )
-                    })
+                fitness1.partial_cmp(&fitness2).unwrap_or_else(|| {
+                    panic!(
+                        "First: {}, second: {}, variance {}",
+                        fitness1, fitness2, variance
+                    )
+                })
             }
         });
     }

@@ -2,6 +2,8 @@ use crate::game::GameAsync;
 use crate::neural_network::NeuralNetwork;
 use crate::topology::mutation_probabilities::MutationProbabilities;
 use crate::topology::Topology;
+use crate::train::evolution_number::EvNumber;
+use crate::train::species::Species;
 use crate::train::{HistoricTopologyLazy, Train};
 use crate::{game::Game, section};
 use async_trait::async_trait;
@@ -440,4 +442,37 @@ pub fn test_start_async_uses_outputs() {
         };
     }
     assert_eq!(game.outputs, 2);
+}
+
+#[test]
+pub fn test_species_selection_doesnt_deadlock() {
+    use std::sync::mpsc::channel;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    let (sender, receiver) = channel();
+    std::thread::spawn(move || {
+        let ev_number = Arc::new(EvNumber::new());
+        let mut rng = thread_rng();
+        let new_topology = |result: f64| {
+            let mut topology = Topology::<f64>::new_uniform(2, 1, 4, 4, &ev_number);
+            topology.set_last_result(result);
+            Arc::new(Mutex::new(topology))
+        };
+        let mut species = Species::new(new_topology(0.));
+        // The same topology can be in a species twice, the sort must not lock it twice
+        for _ in 0..200 {
+            let topology = new_topology(rng.gen_range(0.0..1.));
+            species.push(topology.clone());
+            species.push(topology);
+        }
+        species.max_topologies = 100;
+        let proba = MutationProbabilities::new(0.8, 0.2).unwrap();
+        species.natural_selection(ev_number.clone(), proba, true);
+        sender.send(species.topologies.len()).unwrap();
+    });
+    let size = receiver
+        .recv_timeout(Duration::from_secs(30))
+        .expect("Natural selection deadlocked");
+    assert_eq!(size, 100);
 }

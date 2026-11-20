@@ -103,14 +103,12 @@ where
         proba: MutationProbabilities,
         run_crossovers: bool,
     ) {
+        // The results are read one at a time: locking two topologies in the comparator
+        // deadlocks when the sort compares a topology with itself
         self.topologies.sort_by(|top1, top2| {
-            let top1_borrow = &**top1;
-            let top1 = &*top1_borrow.lock().unwrap();
-            let top2_borrow = &**top2;
-            let top2 = &*top2_borrow.lock().unwrap();
-            top1.get_last_result()
-                .partial_cmp(&top2.get_last_result())
-                .unwrap()
+            let result1 = top1.lock().unwrap().get_last_result();
+            let result2 = top2.lock().unwrap().get_last_result();
+            result1.partial_cmp(&result2).unwrap()
         });
         let best_topology = self.topologies.last().unwrap();
         let last_result = {

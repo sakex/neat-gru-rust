@@ -1,6 +1,6 @@
 pub mod error;
 pub mod evolution_number;
-mod species;
+pub(crate) mod species;
 mod training;
 
 pub use training::*;
