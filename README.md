@@ -150,7 +150,7 @@ Async run_generation (has to be run inside an async runtime like Tokio)
 #[async_trait]
 impl GameAsync<f64> for Simulation {
     // Loss function
-    async fn run_generation(&mut self) -> Vec<f64> {
+    async fn run_generation_async(&mut self) -> Vec<f64> {
         let inputs = get_inputs().await;
         self.players.iter().map(|p| {
             let output = p.net.compute(inputs);
@@ -170,12 +170,11 @@ fn run_sim() {
     let mut runner = Train::new(&mut sim);
     runner
         .inputs(input_count)
-        .outputs(output_count as i32)
-        .iterations(nb_generations as i32)
-        .max_layers((hidden_layers + 2) as i32)
-        .max_per_layers(hidden_layers as i32)
-        .max_species(max_species as i32)
-        .max_individuals(max_individuals as i32)
+        .outputs(output_count)
+        .iterations(nb_generations)
+        .max_layers(hidden_layers + 2)
+        .max_per_layers(max_per_layers)
+        .max_individuals(max_individuals)
         .delta_threshold(2.) // Delta parameter from NEAT paper
         .formula(0.8, 0.8, 0.3) // c1, c2 and c3 from NEAT paper
         .access_train_object(Box::new(|train| {

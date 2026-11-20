@@ -28,7 +28,7 @@ where
         Species {
             topologies: vec![first_topology.clone()],
             best_topology: first_topology.lock().unwrap().clone(),
-            best_historical_score: T::zero(),
+            best_historical_score: T::neg_infinity(),
             stagnation_counter: 0,
             adjusted_fitness: T::zero(),
             max_topologies: 0,
@@ -61,7 +61,7 @@ where
         Species {
             topologies,
             best_topology,
-            best_historical_score: T::zero(),
+            best_historical_score: T::neg_infinity(),
             stagnation_counter: 0,
             adjusted_fitness: T::zero(),
             max_topologies: 0,
@@ -90,7 +90,7 @@ where
         Species {
             topologies,
             best_topology,
-            best_historical_score: T::zero(),
+            best_historical_score: T::neg_infinity(),
             stagnation_counter: 0,
             adjusted_fitness: T::zero(),
             max_topologies: 0,
@@ -148,27 +148,37 @@ where
             .cloned()
             .collect();
 
-        self.topologies = self.evolve(&surviving_topologies, ev_number, proba, run_crossovers);
+        // Keep a slot for the unchanged copy of the best topology
+        let offspring_count = self.max_topologies - will_copy_best as usize;
+        self.topologies = self.evolve(
+            &surviving_topologies,
+            offspring_count,
+            ev_number,
+            proba,
+            run_crossovers,
+        );
         if will_copy_best {
             self.topologies
                 .push(Arc::new(Mutex::new(self.best_topology.clone())));
         }
     }
 
+    /// Creates `offspring_count` new topologies from the surviving ones
     fn evolve(
         &mut self,
         surviving_topologies: &[TopologySmrtPtr<T>],
+        offspring_count: usize,
         ev_number: Arc<EvNumber>,
         proba: MutationProbabilities,
         run_crossovers: bool,
     ) -> Vec<TopologySmrtPtr<T>> {
         let mut new_topologies: Vec<TopologySmrtPtr<T>> = Vec::new();
-        new_topologies.reserve_exact(self.max_topologies);
+        new_topologies.reserve_exact(offspring_count);
         let mutations_count = if run_crossovers && surviving_topologies.len() >= 3 {
             // 90% mutation, 10% crossover
-            (surviving_topologies.len() * 9) / 10
+            (offspring_count * 9).div_ceil(10)
         } else {
-            self.max_topologies
+            offspring_count
         };
         while new_topologies.len() < mutations_count {
             for topology in surviving_topologies.iter().rev() {
@@ -180,7 +190,7 @@ where
             }
         }
         let mut rng = thread_rng();
-        while new_topologies.len() < self.max_topologies {
+        while new_topologies.len() < offspring_count {
             for (index, best) in surviving_topologies
                 .iter()
                 .enumerate()
@@ -191,7 +201,7 @@ where
                 let worst = &*surviving_topologies[mated_index].lock().unwrap();
                 let best = &*best.lock().unwrap();
                 new_topologies.push(Topology::crossover(best, worst));
-                if new_topologies.len() >= self.max_topologies {
+                if new_topologies.len() >= offspring_count {
                     return new_topologies;
                 }
             }

@@ -101,6 +101,7 @@ where
         floats_almost_equal(self.memory, other.memory)
             && floats_almost_equal(self.prev_input, other.prev_input)
             && floats_almost_equal(self.input_weight, other.input_weight)
+            && floats_almost_equal(self.memory_weight, other.memory_weight)
             && floats_almost_equal(self.reset_input_weight, other.reset_input_weight)
             && floats_almost_equal(self.update_input_weight, other.update_input_weight)
             && floats_almost_equal(self.reset_memory_weight, other.reset_memory_weight)

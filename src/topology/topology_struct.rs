@@ -39,8 +39,6 @@ pub type TopologySmrtPtr<T> = Arc<Mutex<Topology<T>>>;
 
 unsafe impl<T> Send for Topology<T> where T: Float + std::ops::AddAssign + Display + Send {}
 
-unsafe impl<T> Sync for Topology<T> where T: Float + std::ops::AddAssign + Display + Send {}
-
 impl<T> Clone for Topology<T>
 where
     T: Float + std::ops::AddAssign + Display + Send,
@@ -144,7 +142,9 @@ where
                 }
             }
         }
-        w = w / common;
+        if common > T::zero() {
+            w = w / common;
+        }
         let size_1 = T::from(top1.genes_ev_number.len()).unwrap();
         let size_2 = T::from(top2.genes_ev_number.len()).unwrap();
         let larger = size_1.max(size_2);
@@ -316,7 +316,7 @@ where
         self.layers_sizes.insert(layer as usize, 1);
 
         for gene_rc in self.genes_ev_number.values_mut() {
-            let mut gene = &mut *gene_rc.borrow_mut();
+            let gene = &mut *gene_rc.borrow_mut();
             if gene.input.layer >= layer {
                 gene.input.layer += 1;
             }
@@ -339,37 +339,49 @@ where
             .collect();
     }
 
-    /// Find random input and random output and adds a connection in the middle
+    /// Picks a random connection and splits it by adding a neuron in the middle
+    ///
+    /// Returns false if no neuron could be added without exceeding `max_layers` or
+    /// `max_per_layers`
     #[inline]
-    fn add_node(&mut self, ev_number: &EvNumber, rng: &mut ThreadRng) {
-        let non_disabled_connections = self
+    fn add_node(&mut self, ev_number: &EvNumber, rng: &mut ThreadRng) -> bool {
+        let max_layers = self.max_layers.min(u8::MAX as usize);
+        let max_per_layers = self.max_per_layers.min(u8::MAX as usize);
+        // Only keep the connections that can be split within the size limits
+        let splittable_connections = self
             .genes_ev_number
-            .iter()
-            .filter_map(|(_ev, gene_rc)| {
-                if !gene_rc.borrow().disabled {
-                    Some(gene_rc.clone())
+            .values()
+            .filter(|gene_rc| {
+                let gene = gene_rc.borrow();
+                if gene.disabled {
+                    return false;
+                }
+                if gene.output.layer - gene.input.layer >= 2 {
+                    // The new neuron goes on the existing layer right after the input
+                    (self.layers_sizes[gene.input.layer as usize + 1] as usize) < max_per_layers
                 } else {
-                    None
+                    // A new layer has to be created
+                    self.layers_sizes.len() < max_layers
                 }
             })
+            .cloned()
             .collect::<Vec<GeneSmrtPtr<T>>>();
+        if splittable_connections.is_empty() {
+            return false;
+        }
 
-        let gene_to_split_index = rng.gen_range(0..non_disabled_connections.len());
-        let gene_to_split = &non_disabled_connections[gene_to_split_index];
-        let (mut original_gene, should_create_new_layer) = {
-            let mut gene = &mut *gene_to_split.borrow_mut();
-            let should_create_new_layer = gene.output.layer - gene.input.layer >= 2;
-            if should_create_new_layer && self.layers_sizes.len() >= self.max_layers {
-                return;
-            }
+        let gene_to_split_index = rng.gen_range(0..splittable_connections.len());
+        let gene_to_split = &splittable_connections[gene_to_split_index];
+        let (mut original_gene, has_layer_in_between) = {
+            let gene = &mut *gene_to_split.borrow_mut();
             gene.disabled = true;
-            (gene.clone(), should_create_new_layer)
+            (gene.clone(), gene.output.layer - gene.input.layer >= 2)
         };
 
         // If there is a layer between input and output, just add new node to the last index of the
         // layer just after input
-        // Otherwise, we create a gene in the middle
-        let output_of_input = if should_create_new_layer {
+        // Otherwise, we create a new layer in the middle
+        let output_of_input = if has_layer_in_between {
             let output_of_input = Point::new(
                 original_gene.input.layer + 1,
                 self.layers_sizes[original_gene.input.layer as usize + 1],
@@ -385,13 +397,14 @@ where
         let (middle_gene, end_gene) = original_gene.split(output_of_input, ev_number);
         self.insert_gene(Rc::new(RefCell::new(middle_gene)));
         self.insert_gene(Rc::new(RefCell::new(end_gene)));
+        true
     }
 
     #[inline]
     fn add_connection(&mut self, ev_number: &EvNumber, rng: &mut ThreadRng) {
         let max_layer = self.layers_sizes.len();
         let input_layer = if self.layers_sizes.len() > 2 {
-            rng.gen_range(0..(max_layer - 2)) as u8
+            rng.gen_range(0..(max_layer - 1)) as u8
         } else {
             0
         };
@@ -424,55 +437,32 @@ where
             self.change_weights(&mut rng);
         } else {
             let change_topology = rng.gen_range(0.0..1.);
-            if change_topology > proba.guaranteed_new_neuron {
-                self.add_node(ev_number, &mut rng);
-            } else {
+            // Fall back to a new connection if no neuron can be added within the size limits
+            if change_topology >= proba.guaranteed_new_neuron || !self.add_node(ev_number, &mut rng)
+            {
                 self.add_connection(ev_number, &mut rng);
             }
         }
-        loop {
-            let dont_have_outputs: Vec<GeneSmrtPtr<T>> = self
-                .genes_point
-                .iter()
-                .filter_map(|(input, gene_and_bias)| {
-                    if input.layer != 0
-                        && (gene_and_bias.genes.is_empty()
-                            || gene_and_bias
-                                .genes
-                                .iter()
-                                .all(|gene_rc| gene_rc.borrow().disabled))
-                    {
-                        Some(gene_and_bias.genes[0].clone())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            let dont_have_inputs: Vec<GeneSmrtPtr<T>> = self
-                .genes_point
-                .iter()
-                .filter_map(|(input, gene_and_bias)| {
-                    if input.layer != 0 {
-                        if !self.neuron_has_inputs(input) {
-                            Some(gene_and_bias.genes[0].clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            if dont_have_outputs.is_empty() && dont_have_inputs.is_empty() {
-                break;
-            }
-            for gene in &dont_have_outputs {
-                self.remove_neuron(gene);
-            }
-            for gene in &dont_have_inputs {
-                self.remove_neuron(gene);
-            }
+        // Remove the hidden neurons that lost all their inputs or all their outputs.
+        // Removing a neuron shifts the others, so they are searched again after each removal.
+        while let Some(dangling) = self.find_dangling_neuron() {
+            self.remove_neuron(dangling);
         }
+    }
+
+    /// Returns a hidden neuron that has no enabled input or no enabled output
+    fn find_dangling_neuron(&self) -> Option<Point> {
+        self.genes_point
+            .iter()
+            .find(|(point, gene_and_bias)| {
+                point.layer != 0
+                    && (gene_and_bias
+                        .genes
+                        .iter()
+                        .all(|gene_rc| gene_rc.borrow().disabled)
+                        || !self.neuron_has_inputs(point))
+            })
+            .map(|(point, _)| *point)
     }
 
     fn new_gene(
@@ -489,9 +479,8 @@ where
         new_gene
     }
 
-    fn remove_neuron(&mut self, gene_rc: &GeneSmrtPtr<T>) {
+    fn remove_neuron(&mut self, input: Point) {
         // get bias_and_gene
-        let input = { gene_rc.borrow().input };
         let bias_and_gene = match self.genes_point.remove(&input) {
             None => {
                 return;
@@ -645,59 +634,102 @@ where
         }
     }
 
+    /// Returns true if the string can be loaded with `from_string`
     pub fn is_valid_topology_json(serialized: &str) -> bool {
-        SerializationTopology::from_string(serialized).is_ok()
+        Self::try_from_string(serialized).is_ok()
     }
 
+    /// Loads a topology from its JSON representation
+    ///
+    /// # Panics
+    ///
+    /// Panics if the JSON is malformed or describes an ill-formed topology.
+    /// Use `try_from_string` to handle the error instead.
     pub fn from_string(serialized: &str) -> Topology<T> {
+        match Self::try_from_string(serialized) {
+            Ok(topology) => topology,
+            Err(error) => panic!("Invalid topology: {}", error),
+        }
+    }
+
+    /// Loads a topology from its JSON representation, checking that it is well-formed
+    pub fn try_from_string(serialized: &str) -> Result<Topology<T>, String> {
         let serialization: SerializationTopology =
-            SerializationTopology::from_string(serialized).unwrap();
-        let mut layers_sizes = Vec::new();
-        let mut output_bias: Vec<Bias<T>> = Vec::new();
+            SerializationTopology::from_string(serialized).map_err(|err| err.to_string())?;
+        let mut layers_sizes: Vec<u8> = Vec::new();
         let mut genes_point = HashMap::new();
         let mut genes_ev_number = HashMap::new();
 
         for ser_bias in &serialization.biases {
-            let input = Point::new(ser_bias.neuron.0, ser_bias.neuron.1);
-            if input.layer >= layers_sizes.len() as u8 {
-                layers_sizes.resize((input.layer + 1) as usize, 0);
-                layers_sizes[input.layer as usize] = input.index + 1;
-            } else {
-                layers_sizes[input.layer as usize] =
-                    layers_sizes[input.layer as usize].max(input.index + 1);
+            let (layer, index) = ser_bias.neuron;
+            if layer == u8::MAX || index == u8::MAX {
+                return Err(format!("Neuron ({}, {}) is out of bounds", layer, index));
             }
+            if layer as usize >= layers_sizes.len() {
+                layers_sizes.resize(layer as usize + 1, 0);
+            }
+            layers_sizes[layer as usize] = layers_sizes[layer as usize].max(index + 1);
         }
+        if layers_sizes.len() < 2 || layers_sizes.contains(&0) {
+            return Err("The topology needs at least two layers, none of them empty".to_string());
+        }
+        let last_layer = layers_sizes.len() - 1;
 
-        output_bias.resize(*layers_sizes.last().unwrap() as usize, Bias::new_zero());
+        let mut output_bias: Vec<Bias<T>> =
+            vec![Bias::new_zero(); layers_sizes[last_layer] as usize];
         for ser_bias in &serialization.biases {
             let input = Point::new(ser_bias.neuron.0, ser_bias.neuron.1);
-            if input.layer < (layers_sizes.len() - 1) as u8 {
-                let bias_and_gene = BiasAndGenes::new(ser_bias.bias.cast());
-                genes_point.insert(input, bias_and_gene);
+            let bias = Bias {
+                bias_input: Self::cast_value(ser_bias.bias.bias_input)?,
+                bias_update: Self::cast_value(ser_bias.bias.bias_update)?,
+                bias_reset: Self::cast_value(ser_bias.bias.bias_reset)?,
+            };
+            if (input.layer as usize) < last_layer {
+                genes_point.insert(input, BiasAndGenes::new(bias));
             } else {
-                output_bias[input.index as usize] = ser_bias.bias.cast();
+                output_bias[input.index as usize] = bias;
             }
         }
 
         for gene in &serialization.genes {
             let input = Point::new(gene.input.0, gene.input.1);
             let output = Point::new(gene.output.0, gene.output.1);
+            let evolution_number = match gene.ev_number {
+                Some(ev_number) => Some(
+                    num::cast::<f64, usize>(ev_number)
+                        .ok_or_else(|| format!("Invalid evolution number {}", ev_number))?,
+                ),
+                None => None,
+            };
+            if !(0..3).contains(&gene.connection_type) {
+                return Err(format!("Invalid connection type {}", gene.connection_type));
+            }
+            if !gene.disabled {
+                let output_exists = (output.layer as usize) <= last_layer
+                    && output.index < layers_sizes[output.layer as usize];
+                if !output_exists || output.layer <= input.layer {
+                    return Err(format!(
+                        "Gene ({}, {}) -> ({}, {}) doesn't connect to a neuron on a further layer",
+                        input.layer, input.index, output.layer, output.index
+                    ));
+                }
+            }
             let new_gene = Rc::new(RefCell::new(Gene {
                 input,
                 output,
-                input_weight: num::cast(gene.input_weight).unwrap(),
-                memory_weight: num::cast(gene.memory_weight).unwrap(),
-                reset_input_weight: num::cast(gene.reset_input_weight).unwrap(),
-                update_input_weight: num::cast(gene.update_input_weight).unwrap(),
-                reset_memory_weight: num::cast(gene.reset_memory_weight).unwrap(),
-                update_memory_weight: num::cast(gene.update_memory_weight).unwrap(),
-                evolution_number: gene.ev_number.and_then(num::cast).unwrap_or_default(),
+                input_weight: Self::cast_value(gene.input_weight)?,
+                memory_weight: Self::cast_value(gene.memory_weight)?,
+                reset_input_weight: Self::cast_value(gene.reset_input_weight)?,
+                update_input_weight: Self::cast_value(gene.update_input_weight)?,
+                reset_memory_weight: Self::cast_value(gene.reset_memory_weight)?,
+                update_memory_weight: Self::cast_value(gene.update_memory_weight)?,
+                evolution_number: evolution_number.unwrap_or_default(),
                 connection_type: ConnectionType::from_int(gene.connection_type),
                 disabled: gene.disabled,
             }));
 
-            if let Some(ev_number) = gene.ev_number {
-                genes_ev_number.insert(num::cast(ev_number).unwrap(), Rc::clone(&new_gene));
+            if let Some(ev_number) = evolution_number {
+                genes_ev_number.insert(ev_number, Rc::clone(&new_gene));
             }
 
             if gene.disabled {
@@ -706,11 +738,16 @@ where
 
             match genes_point.get_mut(&input) {
                 Some(b_and_g) => b_and_g.genes.push(new_gene),
-                None => panic!("Gene doesn't have a neuron"),
+                None => {
+                    return Err(format!(
+                        "Gene's input ({}, {}) is not a neuron",
+                        input.layer, input.index
+                    ))
+                }
             }
         }
 
-        Topology {
+        Ok(Topology {
             max_layers: layers_sizes.len(),
             max_per_layers: *layers_sizes.iter().max().unwrap() as usize,
             last_result: T::zero(),
@@ -719,7 +756,11 @@ where
             output_bias,
             genes_point,
             genes_ev_number,
-        }
+        })
+    }
+
+    fn cast_value(value: f64) -> Result<T, String> {
+        num::cast(value).ok_or_else(|| format!("Value {} can't be represented", value))
     }
 
     #[inline]
@@ -729,7 +770,7 @@ where
             let cell = &**worst_gene;
             let worst_gene = &mut *cell.borrow_mut();
             // If gene exists in both topologies, adjust weight to the average between the 2
-            if new_topology.genes_ev_number.get(ev_number).is_none() {
+            if !new_topology.genes_ev_number.contains_key(ev_number) {
                 // If gene only exists in the worst topology, try to add it only if the neuron
                 // exists in the best topology
                 // Only crossover this gene if both inputs and outputs neuron already exist
@@ -776,8 +817,8 @@ where
         biases.append(&mut output_biases);
         let genes = self
             .genes_point
-            .iter()
-            .flat_map(|(_point, gene)| {
+            .values()
+            .flat_map(|gene| {
                 gene.genes
                     .iter()
                     .map(|gene| {

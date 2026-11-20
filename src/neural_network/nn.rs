@@ -14,6 +14,7 @@ pub struct NeuralNetwork<T>
 where
     T: Float + std::ops::AddAssign + Display + Send,
 {
+    input_size: usize,
     output_size: usize,
     neurons: Vec<Neuron<T>>,
     biases: Vec<Bias<T>>,
@@ -105,6 +106,7 @@ where
         }
 
         let mut net = NeuralNetwork {
+            input_size: sizes[0] as usize,
             output_size,
             neurons,
             biases,
@@ -121,17 +123,23 @@ where
         }
     }
 
+    /// Assigns the inputs to the first layer. Inputs in excess of the first layer are ignored
+    #[inline]
+    fn set_inputs(&mut self, inputs: &[T]) {
+        for (neuron, input) in self
+            .neurons
+            .iter_mut()
+            .take(self.input_size)
+            .zip(inputs.iter())
+        {
+            neuron.set_input_value(*input);
+        }
+    }
+
     /// Computes the Neural Network based on the inputs and returns the output into a Vec
     #[inline]
     pub fn compute(&mut self, inputs: &[T]) -> Vec<T> {
-        let len = inputs.len();
-        unsafe {
-            for i in 0..len {
-                self.neurons
-                    .get_unchecked_mut(i)
-                    .set_input_value(*inputs.get_unchecked(i));
-            }
-        }
+        self.set_inputs(inputs);
         let take_amount = self.neurons.len() - self.output_size;
         for neuron in self.neurons.iter_mut().take(take_amount) {
             neuron.feed_forward();
@@ -153,12 +161,7 @@ where
     /// The output buffer must be of the same size as the output layer
     #[inline]
     pub unsafe fn compute_buffer(&mut self, inputs: &[T], output_buffer: &mut [T]) {
-        let len = inputs.len();
-        for i in 0..len {
-            self.neurons
-                .get_unchecked_mut(i)
-                .set_input_value(*inputs.get_unchecked(i));
-        }
+        self.set_inputs(inputs);
         let take_amount = self.neurons.len() - self.output_size;
         for neuron in self.neurons.iter_mut().take(take_amount) {
             neuron.feed_forward();
@@ -176,6 +179,11 @@ where
         }
     }
 
+    /// Loads a network from the JSON representation of a `Topology`
+    ///
+    /// # Panics
+    ///
+    /// Panics if the JSON is malformed or describes an ill-formed topology
     pub fn from_string(serialized: &str) -> NeuralNetwork<T> {
         let top = Topology::from_string(serialized);
         unsafe { NeuralNetwork::new(&top) }
@@ -203,6 +211,7 @@ where
 {
     fn clone(&self) -> NeuralNetwork<T> {
         let mut ret = NeuralNetwork {
+            input_size: self.input_size,
             output_size: self.output_size,
             neurons: self
                 .neurons

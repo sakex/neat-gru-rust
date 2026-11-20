@@ -61,7 +61,7 @@ where
     fn add(self, rhs: Self) -> Self {
         Self {
             input: self.input,
-            output: self.input,
+            output: self.output,
             input_weight: self.input_weight + rhs.input_weight,
             memory_weight: self.memory_weight + rhs.memory_weight,
             reset_input_weight: self.reset_input_weight + rhs.reset_input_weight,
