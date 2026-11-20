@@ -23,7 +23,7 @@ fn run_training() {
         .inputs(4)
         .outputs(OUTPUTS)
         .iterations(600)
-        .max_layers(15)
+        .max_hidden_neurons(40)
         .delta_threshold(0.5)
         .max_individuals(SNAKE_COUNT)
         .access_train_object(Box::new(|train| {

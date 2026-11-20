@@ -57,7 +57,7 @@ where
         Ok(topology) => topology,
         Err(_) => return NeatGruResult::from(NeatGruStatus::InvalidFile),
     };
-    let network = unsafe { Box::new(NeuralNetwork::new(&topology)) };
+    let network = Box::new(NeuralNetwork::new(&topology));
     let network_ptr = Box::leak(network) as *mut NeuralNetwork<T>;
     NeatGruResult {
         status: NeatGruStatus::Sucess,

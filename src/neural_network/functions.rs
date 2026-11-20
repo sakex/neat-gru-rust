@@ -3,9 +3,11 @@ use numeric_literals::replace_numeric_literals;
 
 #[replace_numeric_literals(T::from(literal).unwrap())]
 #[inline]
-/// Fast approximation of the logistic function, with values in `[0, 1]`
+/// Gate activation, with values in `]-1, 1[`.
+///
+/// Unlike the logistic function of a textbook GRU, the gates can be negative
 pub fn fast_sigmoid<T: Float>(value: T) -> T {
-    0.5 + 0.5 * value / (1 + value.abs())
+    value / (1 + value.abs())
 }
 
 #[replace_numeric_literals(T::from(literal).unwrap())]

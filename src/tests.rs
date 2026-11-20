@@ -25,7 +25,7 @@ pub fn test_import_network() {
         .expect("Something went wrong reading the topology_test.json");
 
     let top = Topology::from_string(&serialized);
-    let cloned: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top) };
+    let cloned: NeuralNetwork<f64> = NeuralNetwork::new(&top);
     let mut net = NeuralNetwork::from_string(&serialized);
     assert_eq!(net, cloned);
 
@@ -114,11 +114,10 @@ impl Game<f64> for TestGame {
             assert_eq!(top, top_cp);
 
             let as_str = top.to_string();
-            let network = unsafe { NeuralNetwork::new(&top) };
+            let network = NeuralNetwork::new(&top);
             let top2 = Topology::from_string(&as_str);
-            let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
+            let network_from_string: NeuralNetwork<f64> = NeuralNetwork::new(&top2);
             if network != network_from_string {
-                println!("{:?}, {:?}", top.layers_sizes, top2.layers_sizes);
                 println!("{}", as_str);
                 section!();
                 println!("{}", top2);
@@ -203,9 +202,9 @@ impl Game<f64> for MemoryCount {
             let top_cp = top.clone();
             assert_eq!(*top, top_cp);
             let as_str = top.to_string();
-            let network = unsafe { NeuralNetwork::new(top) };
+            let network = NeuralNetwork::new(top);
             let top2 = Topology::from_string(&as_str);
-            let network_from_string: NeuralNetwork<f64> = unsafe { NeuralNetwork::new(&top2) };
+            let network_from_string: NeuralNetwork<f64> = NeuralNetwork::new(&top2);
             if network != network_from_string {
                 println!("{}", as_str);
                 section!();
@@ -253,8 +252,8 @@ pub fn test_input_is_not_scaled() {
     // One input linearly connected to one output with a weight of 1
     let mut net = NeuralNetwork::<f64>::from_string(&single_connection_json((1, 0), 0));
     let x = 0.1f64;
-    // The output neuron's update gate is at 0.5 with a zero bias
-    let expected = (0.5 * x.tanh()).tanh();
+    // The gates of the output neuron are at 0 with a zero bias
+    let expected = x.tanh().tanh();
     let output = net.compute(&[x]);
     assert!(
         (output[0] - expected).abs() < 1e-3,
@@ -302,8 +301,7 @@ struct LimitsGame {
     nets: Vec<NeuralNetwork<f64>>,
     generations: usize,
     max_population: usize,
-    max_layers: usize,
-    max_per_layers: usize,
+    max_hidden: usize,
     outputs: usize,
     negative_scores: bool,
 }
@@ -314,8 +312,7 @@ impl LimitsGame {
             nets: Vec::new(),
             generations: 0,
             max_population: 0,
-            max_layers: 0,
-            max_per_layers: 0,
+            max_hidden: 0,
             outputs: 0,
             negative_scores,
         }
@@ -356,11 +353,7 @@ impl Game<f64> for LimitsGame {
     fn post_training(&mut self, history: Vec<HistoricTopologyLazy<f64>>) {
         for top in history {
             let top = top.into_historic().unwrap();
-            self.max_layers = self.max_layers.max(top.layers_sizes.len());
-            // The input and output layers are set by the user
-            let hidden = &top.layers_sizes[1..top.layers_sizes.len() - 1];
-            let biggest = hidden.iter().max().copied().unwrap_or(0) as usize;
-            self.max_per_layers = self.max_per_layers.max(biggest);
+            self.max_hidden = self.max_hidden.max(top.hidden_count());
         }
     }
 }
@@ -379,8 +372,7 @@ pub fn test_limits_are_respected() {
         {
             let mut runner = Train::new(&mut game);
             runner
-                .max_layers(4)
-                .max_per_layers(3)
+                .max_hidden_neurons(3)
                 .iterations(150)
                 .max_individuals(60)
                 .delta_threshold(delta_threshold)
@@ -394,12 +386,7 @@ pub fn test_limits_are_respected() {
             "{} networks",
             game.max_population
         );
-        assert!(game.max_layers <= 4, "{} layers", game.max_layers);
-        assert!(
-            game.max_per_layers <= 3,
-            "{} per layer",
-            game.max_per_layers
-        );
+        assert!(game.max_hidden <= 3, "{} hidden neurons", game.max_hidden);
     }
 }
 
@@ -455,7 +442,7 @@ pub fn test_species_selection_doesnt_deadlock() {
         let ev_number = Arc::new(EvNumber::new());
         let mut rng = thread_rng();
         let new_topology = |result: f64| {
-            let mut topology = Topology::<f64>::new_uniform(2, 1, 4, 4, &ev_number);
+            let mut topology = Topology::<f64>::new_uniform(2, 1, 4, &ev_number);
             topology.set_last_result(result);
             Arc::new(Mutex::new(topology))
         };
@@ -475,4 +462,117 @@ pub fn test_species_selection_doesnt_deadlock() {
         .recv_timeout(Duration::from_secs(30))
         .expect("Natural selection deadlocked");
     assert_eq!(size, 100);
+}
+
+/// Two inputs, one output and two hidden neurons (3 and 4) with a connection between them
+fn graph_json(extra_gene: &str) -> String {
+    let gene = |input: usize, output: usize, ev_number: usize| {
+        format!(
+            r#"{{"connection_type":1,"disabled":false,"input":{},"input_weight":0.5,
+            "memory_weight":0.3,"output":{},"reset_input_weight":0.2,"reset_memory_weight":0.1,
+            "update_input_weight":-0.4,"update_memory_weight":0.6,"ev_number":{}}}"#,
+            input, output, ev_number
+        )
+    };
+    let bias = |neuron: usize| {
+        format!(
+            r#"{{"neuron":{},"bias":{{"bias_input":0.1,"bias_update":0.0,"bias_reset":0.0}}}}"#,
+            neuron
+        )
+    };
+    format!(
+        r#"{{"inputs":2,"outputs":1,"biases":[{},{},{}],"genes":[{},{},{},{},{}{}]}}"#,
+        bias(2),
+        bias(3),
+        bias(4),
+        // The hidden neuron with the biggest id comes first in the graph
+        gene(0, 4, 1),
+        gene(4, 3, 2),
+        gene(3, 2, 3),
+        gene(1, 3, 4),
+        // Connection skipping the hidden neurons
+        gene(0, 2, 5),
+        extra_gene
+    )
+}
+
+#[test]
+pub fn test_graph_topology() {
+    let serialized = graph_json("");
+    let top = Topology::<f64>::from_string(&serialized);
+    assert_eq!((top.inputs(), top.outputs(), top.hidden_count()), (2, 1, 2));
+    // Saving and loading gives the same topology and the same network
+    let reloaded = Topology::<f64>::from_string(&top.to_string());
+    assert_eq!(top, reloaded);
+    let mut net = NeuralNetwork::new(&top);
+    assert_eq!(net, NeuralNetwork::new(&reloaded));
+
+    // The inputs have an effect on the output
+    let base = net.compute(&[0., 0.]);
+    net.reset_state();
+    let changed = net.compute(&[1., 0.]);
+    assert_ne!(base, changed);
+
+    // A connection closing a loop between the hidden neurons is rejected
+    let cycle = r#",{"connection_type":1,"disabled":false,"input":3,"input_weight":0.5,
+        "memory_weight":0.3,"output":4,"reset_input_weight":0.2,"reset_memory_weight":0.1,
+        "update_input_weight":-0.4,"update_memory_weight":0.6,"ev_number":6}"#;
+    assert!(!Topology::<f64>::is_valid_topology_json(&graph_json(cycle)));
+    // As well as a connection to a neuron that doesn't exist
+    let missing = cycle.replace(r#""output":4"#, r#""output":9"#);
+    assert!(!Topology::<f64>::is_valid_topology_json(&graph_json(
+        &missing
+    )));
+    // Unless it is disabled
+    let disabled = missing.replace(r#""disabled":false"#, r#""disabled":true"#);
+    assert!(Topology::<f64>::is_valid_topology_json(&graph_json(
+        &disabled
+    )));
+}
+
+#[test]
+pub fn test_mutations_keep_topologies_valid() {
+    let ev_number = EvNumber::new();
+    // Only topology mutations, half of them new neurons
+    let proba = MutationProbabilities::new(0., 0.5).unwrap();
+    let mut topologies: Vec<Topology<f64>> = (0..10)
+        .map(|_| Topology::new_uniform(3, 2, 6, &ev_number))
+        .collect();
+    for generation in 0..200 {
+        for top in topologies.iter_mut() {
+            top.mutate(&ev_number, &proba);
+            assert!(top.hidden_count() <= 6);
+            // Loading checks that connections join existing neurons without any cycle
+            let reloaded = Topology::<f64>::try_from_string(&top.to_string())
+                .unwrap_or_else(|error| panic!("{}:\n{}", error, top));
+            assert_eq!(*top, reloaded);
+            // Every hidden neuron is used
+            for neuron in top.hidden_bias().keys() {
+                let enabled = || top.genes().filter(|gene| !gene.disabled);
+                assert!(enabled().any(|gene| gene.input == *neuron));
+                assert!(enabled().any(|gene| gene.output == *neuron));
+            }
+        }
+        // Crossovers keep the structure of the first parent
+        let child = Topology::crossover(
+            &topologies[generation % 10],
+            &topologies[(generation + 1) % 10],
+        );
+        let child = child.lock().unwrap().clone();
+        assert_eq!(
+            child.hidden_count(),
+            topologies[generation % 10].hidden_count()
+        );
+        assert!(Topology::<f64>::is_valid_topology_json(&child.to_string()));
+    }
+    // The same connection has the same evolution number in every topology
+    let mut numbers = std::collections::HashMap::new();
+    for top in &topologies {
+        for gene in top.genes() {
+            let number = numbers
+                .entry((gene.input, gene.output))
+                .or_insert(gene.evolution_number);
+            assert_eq!(*number, gene.evolution_number);
+        }
+    }
 }

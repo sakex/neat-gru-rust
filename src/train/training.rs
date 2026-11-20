@@ -174,6 +174,7 @@ where
     max_individuals_: usize,
     max_layers_: usize,
     max_per_layers_: usize,
+    max_hidden_neurons_: Option<usize>,
     delta_threshold_: F,
     c1_: F,
     c2_: F,
@@ -205,8 +206,7 @@ where
     /// Default values are:
     /// - iterations -> the number of generations to be run: 1000
     /// - max_individuals -> number of networks per generation: 100
-    /// - max_layers -> maximum number of layers
-    /// - max_per_layers -> maximum number of neurons per layer
+    /// - max_hidden_neurons -> maximum number of hidden neurons: 40
     ///
     /// Mandatory fields (use setters):
     /// - inputs -> the number of neurons on the first layer
@@ -266,6 +266,7 @@ where
             max_individuals_,
             max_layers_: 4,
             max_per_layers_: 20,
+            max_hidden_neurons_: None,
             delta_threshold_: F::from(3).unwrap(),
             c1_: F::one(),
             c2_: F::one(),
@@ -382,22 +383,37 @@ where
         self
     }
 
-    /// Sets the maximum number of layers for the networks
+    /// Sets the maximum number of hidden neurons for the networks
     ///
-    /// This function is optional as the max number of layers defaults to 4
+    /// This function is optional as the max number of hidden neurons defaults to 40
     ///
     /// # Arguments
     ///
-    /// `layers` - The maximum number of layers
+    /// `neurons` - The maximum number of hidden neurons
+    #[inline]
+    pub fn max_hidden_neurons(&mut self, neurons: usize) -> &mut Self {
+        self.max_hidden_neurons_ = Some(neurons);
+        self
+    }
+
+    /// Networks aren't organised in layers anymore, use `max_hidden_neurons` instead.
+    ///
+    /// Unless `max_hidden_neurons` is called, the maximum number of hidden neurons is
+    /// `(max_layers - 2) * max_per_layers`, with `max_layers` defaulting to 4
+    ///
+    /// # Arguments
+    ///
+    /// `layers` - The maximum number of layers, including the input and output ones
     #[inline]
     pub fn max_layers(&mut self, layers: usize) -> &mut Self {
         self.max_layers_ = layers;
         self
     }
 
-    /// Sets the maximum number of neurons per layers for the networks
+    /// Networks aren't organised in layers anymore, use `max_hidden_neurons` instead.
     ///
-    /// This function is optional as the max neurons per layer defaults to 20
+    /// Unless `max_hidden_neurons` is called, the maximum number of hidden neurons is
+    /// `(max_layers - 2) * max_per_layers`, with `max_per_layers` defaulting to 20
     ///
     /// # Arguments
     ///
@@ -406,6 +422,11 @@ where
     pub fn max_per_layers(&mut self, n: usize) -> &mut Self {
         self.max_per_layers_ = n;
         self
+    }
+
+    fn max_hidden(&self) -> usize {
+        self.max_hidden_neurons_
+            .unwrap_or_else(|| self.max_layers_.saturating_sub(2) * self.max_per_layers_)
     }
 
     /// Specifies if we should run crossovers or not
@@ -524,8 +545,7 @@ where
         self.species_.push(Mutex::new(Species::new_uniform(
             inputs,
             outputs,
-            self.max_layers_,
-            self.max_per_layers_,
+            self.max_hidden(),
             &self.ev_number_,
         )));
 
@@ -564,7 +584,7 @@ where
             .map(|top_rc| {
                 let lock = top_rc.lock().unwrap();
                 let top = &*lock;
-                unsafe { NeuralNetwork::new(top) }
+                NeuralNetwork::new(top)
             })
             .collect();
         log::info!(
@@ -642,7 +662,6 @@ where
             1 => {
                 let first_spec = &mut *self.species_[0].lock().unwrap();
                 first_spec.max_topologies = self.max_individuals_;
-                self.ev_number_.reset();
                 let ev_number = self.ev_number_.clone();
                 first_spec.natural_selection(ev_number, self.proba_.clone(), self.crossovers_);
                 return;
@@ -690,7 +709,6 @@ where
             assigned_count += to_assign;
             spec.max_topologies = to_assign;
         }
-        self.ev_number_.reset();
         let ev_number = self.ev_number_.clone();
         let proba = self.proba_.clone();
         let run_crossovers = self.crossovers_;
@@ -872,8 +890,7 @@ where
         self.species_.push(Mutex::new(Species::new_uniform(
             inputs,
             outputs,
-            self.max_layers_,
-            self.max_per_layers_,
+            self.max_hidden(),
             &self.ev_number_,
         )));
 

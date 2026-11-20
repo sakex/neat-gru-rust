@@ -92,7 +92,7 @@ impl Game<f64> for Simulation {
 const INPUT_COUNT: usize = 2;
 const OUTPUT_COUNT: usize = 1;
 const NB_GENERATIONS: usize = 60;
-const HIDDEN_LAYERS: usize = 2;
+const MAX_HIDDEN_NEURONS: usize = 40;
 const MAX_INDIVIDUALS: usize = 200;
 fn run_sim() {
     let mut sim = Simulation::new();
@@ -102,8 +102,7 @@ fn run_sim() {
         .inputs(INPUT_COUNT)
         .outputs(OUTPUT_COUNT)
         .iterations(NB_GENERATIONS)
-        .max_layers(HIDDEN_LAYERS + 2)
-        .max_per_layers(HIDDEN_LAYERS)
+        .max_hidden_neurons(MAX_HIDDEN_NEURONS)
         .max_individuals(MAX_INDIVIDUALS)
         .delta_threshold(2.) // Delta parameter from NEAT paper
         .formula(0.8, 0.8, 0.3) // c1, c2 and c3 from NEAT paper

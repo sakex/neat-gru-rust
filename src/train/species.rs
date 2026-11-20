@@ -40,8 +40,7 @@ where
         max_individuals: usize,
         input_count: usize,
         output_count: usize,
-        max_layers: usize,
-        max_per_layers: usize,
+        max_hidden: usize,
         ev_number: &EvNumber,
     ) -> Species<T> {
         let mut rng: ThreadRng = rand::thread_rng();
@@ -51,8 +50,7 @@ where
                     &mut rng,
                     input_count,
                     output_count,
-                    max_layers,
-                    max_per_layers,
+                    max_hidden,
                     ev_number,
                 )))
             })
@@ -71,8 +69,7 @@ where
     pub fn new_uniform(
         input_count: usize,
         output_count: usize,
-        max_layers: usize,
-        max_per_layers: usize,
+        max_hidden: usize,
         ev_number: &EvNumber,
     ) -> Species<T> {
         let topologies: Vec<TopologySmrtPtr<T>> = (0..1)
@@ -80,8 +77,7 @@ where
                 Arc::new(Mutex::new(Topology::<T>::new_uniform(
                     input_count,
                     output_count,
-                    max_layers,
-                    max_per_layers,
+                    max_hidden,
                     ev_number,
                 )))
             })

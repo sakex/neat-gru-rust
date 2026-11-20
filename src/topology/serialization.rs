@@ -1,16 +1,25 @@
 use crate::topology::bias::Bias;
-use crate::topology::gene::Point;
 use num::Float;
 use serde::{Deserialize, Serialize};
 
+/// A neuron is identified by its id.
+///
+/// Files written before neurons had ids identify them by `[layer, index]` instead
+#[derive(Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[serde(untagged)]
+pub enum SerializationNeuron {
+    Id(usize),
+    Layered(u8, u8),
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct SerializationBias {
-    pub neuron: (u8, u8),
+    pub neuron: SerializationNeuron,
     pub bias: Bias<f64>,
 }
 
 impl SerializationBias {
-    pub fn new<T>(neuron: Point, bias: Bias<T>) -> SerializationBias
+    pub fn new<T>(neuron: usize, bias: &Bias<T>) -> SerializationBias
     where
         T: Float + Send,
     {
@@ -20,7 +29,7 @@ impl SerializationBias {
             num::cast(bias.bias_reset).unwrap(),
         );
         SerializationBias {
-            neuron: (neuron.layer, neuron.index),
+            neuron: SerializationNeuron::Id(neuron),
             bias: bias_f64,
         }
     }
@@ -30,10 +39,10 @@ impl SerializationBias {
 pub struct SerializationGene {
     pub connection_type: i32,
     pub disabled: bool,
-    pub input: (u8, u8),
+    pub input: SerializationNeuron,
     pub input_weight: f64,
     pub memory_weight: f64,
-    pub output: (u8, u8),
+    pub output: SerializationNeuron,
     pub reset_input_weight: f64,
     pub reset_memory_weight: f64,
     pub update_input_weight: f64,
@@ -43,18 +52,18 @@ pub struct SerializationGene {
 
 #[derive(Deserialize, Serialize)]
 pub struct SerializationTopology {
+    /// Number of input neurons, their ids are `0..inputs`. Absent from layered files
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<usize>,
+    /// Number of output neurons, their ids are `inputs..inputs + outputs`. Absent from layered
+    /// files
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outputs: Option<usize>,
     pub biases: Vec<SerializationBias>,
     pub genes: Vec<SerializationGene>,
 }
 
 impl SerializationTopology {
-    pub fn new(
-        biases: Vec<SerializationBias>,
-        genes: Vec<SerializationGene>,
-    ) -> SerializationTopology {
-        SerializationTopology { biases, genes }
-    }
-
     pub fn from_string(serialized: &str) -> Result<SerializationTopology, serde_json::Error> {
         serde_json::from_str(serialized)
     }

@@ -46,6 +46,3 @@ impl MutationProbabilities {
         }
     }
 }
-
-unsafe impl Send for MutationProbabilities {}
-unsafe impl Sync for MutationProbabilities {}

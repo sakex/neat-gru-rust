@@ -9,6 +9,17 @@
 
 [Crates.io doc](https://docs.rs/neat-gru/)
 
+## Network structure
+
+Networks are graphs, as in NEAT: neurons have an id and a connection can join any input or hidden
+neuron to any hidden or output neuron, as long as it doesn't form a cycle. There are no layers.
+Memory comes from the GRU connections.
+
+- Inputs have the ids `0..inputs`, outputs `inputs..inputs + outputs` and hidden neurons anything above.
+- Use `max_hidden_neurons` to bound the size of the networks. `max_layers` and `max_per_layers` are
+  only kept for compatibility: they bound the hidden neurons to `(max_layers - 2) * max_per_layers`.
+- Files saved by previous versions, where neurons were identified by `[layer, index]`, can still be loaded.
+
 ## Install & Build for C / C++
 
 Build the dynamic library and install it in `/usr/local/bin`, copy headers in `/usr/local/include/neat_gru_lib`.
@@ -172,8 +183,7 @@ fn run_sim() {
         .inputs(input_count)
         .outputs(output_count)
         .iterations(nb_generations)
-        .max_layers(hidden_layers + 2)
-        .max_per_layers(max_per_layers)
+        .max_hidden_neurons(max_hidden_neurons)
         .max_individuals(max_individuals)
         .delta_threshold(2.) // Delta parameter from NEAT paper
         .formula(0.8, 0.8, 0.3) // c1, c2 and c3 from NEAT paper
