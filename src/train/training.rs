@@ -277,7 +277,7 @@ where
             species_: Vec::new(),
             history_: Vec::new(),
             ev_number_: Arc::new(EvNumber::new()),
-            best_historical_score_: F::zero(),
+            best_historical_score_: F::neg_infinity(),
             no_progress_counter_: 0,
             access_train_object_fn_: None,
             proba_: MutationProbabilities {
@@ -397,7 +397,7 @@ where
 
     /// Sets the maximum number of neurons per layers for the networks
     ///
-    /// This function is optional as the max neurons per layer defaults to 50
+    /// This function is optional as the max neurons per layer defaults to 20
     ///
     /// # Arguments
     ///
@@ -497,7 +497,7 @@ where
             let file_path = file_path?;
             let is_file = file_path.file_type()?.is_file();
             if is_file {
-                let file = std::fs::File::open(&file_path.path())?;
+                let file = std::fs::File::open(file_path.path())?;
                 let historic_topology: HistoricTopologyLazy<F> = HistoricTopologyLazy::Lazy(file);
 
                 saved_topologies.push(historic_topology);
@@ -612,9 +612,31 @@ where
             .join(" | ")
     }
 
+    /// Removes the species that haven't improved for 20 generations.
+    ///
+    /// If all of them are stagnant, the best one is kept so the training can carry on
+    fn remove_stagnant_species(&mut self) {
+        let is_stagnant = |spec: &Mutex<Species<F>>| spec.lock().unwrap().stagnation_counter >= 20;
+        if !self.species_.is_empty() && self.species_.iter().all(is_stagnant) {
+            let mut best_index = 0;
+            let mut best_score = F::neg_infinity();
+            for (index, spec) in self.species_.iter().enumerate() {
+                let score = spec.lock().unwrap().score();
+                if score > best_score {
+                    best_index = index;
+                    best_score = score;
+                }
+            }
+            let best = self.species_.swap_remove(best_index);
+            best.lock().unwrap().stagnation_counter = 0;
+            self.species_ = vec![best];
+        } else {
+            self.species_.retain(|spec| !is_stagnant(spec));
+        }
+    }
+
     fn natural_selection(&mut self) {
-        self.species_
-            .retain(|spec| spec.lock().unwrap().stagnation_counter < 20);
+        self.remove_stagnant_species();
         match self.species_.len() {
             0 => return,
             1 => {
@@ -734,7 +756,7 @@ where
                 log::info!(
                     "=========================RESET TO TWO SPECIES========================="
                 );
-                self.best_historical_score_ = F::zero();
+                self.best_historical_score_ = F::neg_infinity();
                 self.no_progress_counter_ = 0;
                 if self.species_.len() > 2 {
                     self.species_ = self.species_.split_off(self.species_.len() - 2);
@@ -799,36 +821,27 @@ where
         let topologies = self.topologies_.clone();
         let delta_t = self.delta_threshold_;
         let (c1, c2, c3) = (self.c1_, self.c2_, self.c3_);
-        let mut new_species = cond_iter!(topologies)
-            .filter_map(|topology_rc| {
-                let top_cp = topology_rc.clone();
-                // We could have the same topology in a species twice if it was one of the best
-                let mut assigned = false;
-                {
-                    let top1 = top_cp.lock().unwrap();
-                    for spec in &species {
-                        let top2 = {
-                            let spec = &*spec.lock().unwrap();
-                            spec.best_topology.clone()
-                        };
-                        let delta = Topology::delta_compatibility(&*top1, &top2, c1, c2, c3);
-                        if delta <= delta_t {
-                            let spec = &mut *spec.lock().unwrap();
-                            spec.push(topology_rc.clone());
-                            assigned = true;
-                            break;
-                        }
+        // Done sequentially so that topologies can join the species created by previous ones
+        for topology_rc in &topologies {
+            // We could have the same topology in a species twice if it was one of the best
+            let assigned = {
+                let top1 = topology_rc.lock().unwrap();
+                species.iter().any(|spec| {
+                    let spec = &mut *spec.lock().unwrap();
+                    let delta =
+                        Topology::delta_compatibility(&*top1, &spec.best_topology, c1, c2, c3);
+                    if delta <= delta_t {
+                        spec.push(topology_rc.clone());
+                        true
+                    } else {
+                        false
                     }
-                }
-                if !assigned {
-                    let new_species = Species::new(topology_rc.clone());
-                    Some(Mutex::new(new_species))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<Mutex<Species<F>>>>();
-        species.append(&mut new_species);
+                })
+            };
+            if !assigned {
+                species.push(Mutex::new(Species::new(topology_rc.clone())));
+            }
+        }
         self.species_ = species;
         self.species_
             .retain(|spec| !spec.lock().unwrap().topologies.is_empty());
@@ -858,7 +871,7 @@ where
         };
         let inputs = self.inputs_.ok_or(TrainingError::NoInput)?;
 
-        let outputs = self.inputs_.ok_or(TrainingError::NoInput)?;
+        let outputs = self.outputs_.ok_or(TrainingError::NoInput)?;
 
         self.species_.push(Mutex::new(Species::new_uniform(
             inputs,

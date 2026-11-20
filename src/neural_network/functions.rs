@@ -3,8 +3,9 @@ use numeric_literals::replace_numeric_literals;
 
 #[replace_numeric_literals(T::from(literal).unwrap())]
 #[inline]
+/// Fast approximation of the logistic function, with values in `[0, 1]`
 pub fn fast_sigmoid<T: Float>(value: T) -> T {
-    value / (1 + value.abs())
+    0.5 + 0.5 * value / (1 + value.abs())
 }
 
 #[replace_numeric_literals(T::from(literal).unwrap())]

@@ -53,10 +53,10 @@ where
         return NeatGruResult::from(NeatGruStatus::FailedToReadFile);
     }
 
-    if !Topology::<T>::is_valid_topology_json(&file_string) {
-        return NeatGruResult::from(NeatGruStatus::InvalidFile);
-    }
-    let topology = Topology::<T>::from_string(&file_string);
+    let topology = match Topology::<T>::try_from_string(&file_string) {
+        Ok(topology) => topology,
+        Err(_) => return NeatGruResult::from(NeatGruStatus::InvalidFile),
+    };
     let network = unsafe { Box::new(NeuralNetwork::new(&topology)) };
     let network_ptr = Box::leak(network) as *mut NeuralNetwork<T>;
     NeatGruResult {

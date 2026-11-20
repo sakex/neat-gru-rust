@@ -86,8 +86,9 @@ where
     #[inline]
     pub fn set_input_value(&mut self, input: T) {
         self.input = input;
-        self.update = -1000;
-        self.reset = -1000;
+        // Large enough for the gates to be exactly 0, so that the neuron outputs its input
+        self.update = -1e30;
+        self.reset = -1e30;
         self.memory = 0;
         self.prev_reset = 0;
     }
